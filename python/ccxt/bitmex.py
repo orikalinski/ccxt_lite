@@ -162,6 +162,7 @@ class bitmex (Exchange):
             base_quote = base + quote
             if base_quote == _id:
                 month, year = None, None
+                date_identity = None
             else:
                 date_identity = _id[len(base):]
                 month, year = char_to_month_number[date_identity[0]], int(date_identity[1:])
@@ -170,8 +171,14 @@ class bitmex (Exchange):
             if symbol not in symbol_to_unified_symbol_dict:
                 symbol_to_unified_symbol_dict[symbol] = (_id, month, year)
             else:
-                _, p_month, p_year = symbol_to_unified_symbol_dict[symbol]
+                p_date_identity, p_month, p_year = symbol_to_unified_symbol_dict[symbol]
                 if p_year and (year is None or year < p_year or (year == p_year and month < p_month)):
+                    if date_identity:
+                        p_symbol = base + "/" + p_date_identity
+                        symbol_to_unified_symbol_dict[p_symbol] = (_id, p_month, p_year)
+                    symbol_to_unified_symbol_dict[symbol] = (_id, month, year)
+                else:
+                    symbol = base + "/" + date_identity
                     symbol_to_unified_symbol_dict[symbol] = (_id, month, year)
         return {_id: symbol for symbol, (_id, _, _) in symbol_to_unified_symbol_dict.items()}
 
