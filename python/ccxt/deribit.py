@@ -16,7 +16,7 @@ from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import ExchangeNotAvailable
 
 
-class deribit (Exchange):
+class deribit(Exchange):
 
     def describe(self):
         return self.deep_extend(super(deribit, self).describe(), {
@@ -142,10 +142,27 @@ class deribit (Exchange):
             },
         })
 
+    @staticmethod
+    def get_symbol_to_unified_symbol_dict(markets):
+        symbol_to_unified_symbol_dict = dict()
+        for market in markets["result"]:
+            _id, base, quote = market["instrumentName"], market['baseCurrency'], market['currency']
+            tokens = _id.split("-")
+            if len(tokens) > 2:
+                continue
+            identifier = tokens[-1]
+            if identifier == "PERPETUAL":
+                symbol = base + "/" + quote
+            else:
+                symbol = base + "/" + identifier
+            symbol_to_unified_symbol_dict[symbol] = _id
+        return {_id: symbol for symbol, _id in symbol_to_unified_symbol_dict.items()}
+
     def fetch_markets(self, params={}):
         response = self.publicGetGetinstruments(params)
         markets = self.safe_value(response, 'result')
         result = []
+        symbol_to_unified_symbol_dict = self.get_symbol_to_unified_symbol_dict(response)
         for i in range(0, len(markets)):
             market = markets[i]
             id = self.safe_string(market, 'instrumentName')
@@ -153,9 +170,10 @@ class deribit (Exchange):
             quoteId = self.safe_string(market, 'currency')
             base = self.common_currency_code(baseId)
             quote = self.common_currency_code(quoteId)
+            symbol = symbol_to_unified_symbol_dict.get(id, id)
             result.append({
                 'id': id,
-                'symbol': id,
+                'symbol': symbol,
                 'base': base,
                 'quote': quote,
                 'active': market['isActive'],
