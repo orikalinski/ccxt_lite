@@ -486,7 +486,7 @@ class deribit(Exchange):
         self.load_markets()
         request = {
             'instrument': self.market_id(symbol),
-            'quantity': amount,
+            'amount': amount,
             'type': type,
             # 'post_only': 'false' or 'true', https://github.com/ccxt/ccxt/issues/5159
         }
