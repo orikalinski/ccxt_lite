@@ -179,7 +179,7 @@ class deribit(Exchange):
                 'quote': quote,
                 'active': market['isActive'],
                 'precision': {
-                    'amount': market['minTradeAmount'],
+                    'amount': market.get('contractSize', market['minTradeAmount']),
                     'price': market['tickSize'],
                 },
                 'limits': {
