@@ -184,7 +184,7 @@ class deribit(Exchange):
                 },
                 'limits': {
                     'amount': {
-                        'min': market['minTradeSize'],
+                        'min': market['minTradeAmount'],
                     },
                     'price': {
                         'min': market['tickSize'],
