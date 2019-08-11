@@ -422,7 +422,7 @@ class deribit(Exchange):
         price = self.safe_float(order, 'price')
         average = self.safe_float(order, 'avgPrice')
         amount = self.safe_float(order, 'quantity')
-        filled = self.safe_float(order, 'filledQuantity')
+        filled = self.safe_float(order, 'filledAmount') or self.safe_float(order, 'filledQuantity')
         if lastTradeTimestamp is None:
             if filled is not None:
                 if filled > 0:
