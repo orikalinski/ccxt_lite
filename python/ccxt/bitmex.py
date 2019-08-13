@@ -262,6 +262,16 @@ class bitmex (Exchange):
             })
         return result
 
+    def get_positions(self):
+        positions = self.privateGetPosition()
+        positions_to_return = list()
+        for position in positions:
+            result = {'info': position, "symbol": position["symbol"], "quantity": position["currentQty"],
+                      "leverage": position["leverage"], "maintenance_margin": position["maintMargin"],
+                      "liquidation_price": position["liquidationPrice"]}
+            positions_to_return.append(result)
+        return positions_to_return
+
     def fetch_balance(self, params={}):
         self.load_markets()
         request = {

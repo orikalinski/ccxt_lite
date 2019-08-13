@@ -198,6 +198,16 @@ class deribit(Exchange):
             })
         return result
 
+    def get_positions(self):
+        positions = self.privateGetPositions()
+        positions_to_return = list()
+        for position in positions["result"]:
+            result = {'info': position, "symbol": position["instrument"], "quantity": position["amount"],
+                      "leverage": 0, "maintenance_margin": position["maintenanceMargin"],
+                      "liquidation_price": position["estLiqPrice"]}
+            positions_to_return.append(result)
+        return positions_to_return
+
     def fetch_balance(self, params={}):
         response = self.privateGetAccount(params)
         result = {
