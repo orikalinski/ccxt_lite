@@ -202,9 +202,10 @@ class deribit(Exchange):
         positions = self.privateGetPositions()
         positions_to_return = list()
         for position in positions["result"]:
-            result = {'info': position, "symbol": position["instrument"], "quantity": position["amount"],
+            liq_price = position["estLiqPrice"]
+            result = {'info': position, "symbol": position["instrument"], "quantity": abs(position["amount"]),
                       "leverage": 0, "maintenance_margin": position["maintenanceMargin"],
-                      "liquidation_price": position["estLiqPrice"]}
+                      "liquidation_price": max(liq_price, 0)}
             positions_to_return.append(result)
         return positions_to_return
 
