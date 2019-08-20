@@ -506,7 +506,7 @@ class deribit(Exchange):
         request = {
             'order_id': id,
         }
-        response = self.privateGetOrderState(self.extend(request, params))
+        response = self.privateGetGetOrderState(self.extend(request, params))
         result = self.safe_value(response, 'result')
         if result is None:
             raise OrderNotFound(self.id + ' fetchOrder() ' + self.json(response))
