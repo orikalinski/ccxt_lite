@@ -1217,8 +1217,3 @@ class bitmex (Exchange):
             headers['api-signature'] = self.hmac(self.encode(auth), self.encode(self.secret))
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-
-if __name__ == '__main__':
-    b = bitmex()
-    a = b.load_markets()
-    print(a.keys())
