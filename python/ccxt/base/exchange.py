@@ -155,6 +155,8 @@ class Exchange(object):
     secret = ''
     password = ''
     uid = ''
+    partner_private_key = ''
+    partner_name = ''
     privateKey = ''  # a "0x"-prefixed hexstring private key for a wallet
     walletAddress = ''  # the wallet address "0x"-prefixed hexstring
     token = ''  # reserved for HTTP auth in some cases

@@ -1271,6 +1271,12 @@ class kucoin (Exchange):
                 'KC-API-TIMESTAMP': timestamp,
                 'KC-API-PASSPHRASE': self.password,
             }, headers)
+            if self.partner_private_key and self.partner_name:
+                partner_payload = timestamp + self.partner_name + self.apiKey
+                partner_signature = \
+                    self.hmac(self.encode(partner_payload), self.encode(self.partner_private_key),
+                              hashlib.sha256, 'base64')
+                headers['KC-API-PARTNER-SIGN'] = partner_signature
             payload = timestamp + method + endpoint + endpart
             signature = self.hmac(self.encode(payload), self.encode(self.secret), hashlib.sha256, 'base64')
             headers['KC-API-SIGN'] = self.decode(signature)
