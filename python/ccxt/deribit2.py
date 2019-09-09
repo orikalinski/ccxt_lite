@@ -149,8 +149,6 @@ class deribit2(Exchange):
     @staticmethod
     def get_symbol_to_unified_symbol_dict(markets):
         symbol_to_unified_symbol_dict = dict()
-        for market in markets["result"]:
-            _id, base, quote = market["instrumentName"], market['baseCurrency'], market['currency']
         for market in markets:
             _id, base, quote = market["instrument_name"], market['base_currency'], market['quote_currency']
             tokens = _id.split("-")
