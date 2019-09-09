@@ -132,6 +132,7 @@ from ccxt.coss import coss                                  # noqa: F401
 from ccxt.crex24 import crex24                              # noqa: F401
 from ccxt.crypton import crypton                            # noqa: F401
 from ccxt.deribit import deribit                            # noqa: F401
+from ccxt.deribit2 import deribit2                          # noqa: F401
 from ccxt.dsx import dsx                                    # noqa: F401
 from ccxt.dx import dx                                      # noqa: F401
 from ccxt.ethfinex import ethfinex                          # noqa: F401
