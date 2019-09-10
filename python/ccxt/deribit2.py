@@ -164,11 +164,11 @@ class deribit2(Exchange):
         return {_id: symbol for symbol, _id in symbol_to_unified_symbol_dict.items()}
 
     def fetch_markets(self, params={}):
-        response = self.publicGetGetCurrencies()
+        response = self.public_get_get_currencies()
         currencies = self.safe_value(response, 'result')
         all_instruments = list()
         for currency_data in currencies:
-            instrument_response = self.publicGetGetInstruments({'currency': currency_data['currency']})
+            instrument_response = self.public_get_get_instruments({'currency': currency_data['currency']})
             instruments = self.safe_value(instrument_response, 'result')
             all_instruments.extend(instruments)
         result = []
@@ -208,11 +208,11 @@ class deribit2(Exchange):
         return result
 
     def get_positions(self):
-        response = self.publicGetGetCurrencies()
+        response = self.public_get_get_currencies()
         currencies = self.safe_value(response, 'result')
         positions_to_return = list()
         for currency_data in currencies:
-            positions = self.privateGetGetPositions({"currency": currency_data["currency"]})
+            positions = self.private_get_get_positions({"currency": currency_data["currency"]})
             for position in positions["result"]:
                 liq_price = position["estimated_liquidation_price"]
                 size = position["size"]
@@ -225,7 +225,7 @@ class deribit2(Exchange):
         return positions_to_return
 
     def fetch_balance(self, params={}):
-        response = self.publicGetGetCurrencies()
+        response = self.public_get_get_currencies()
         currencies = self.safe_value(response, 'result')
         all_instruments_balance = dict()
         for currency_data in currencies:
@@ -239,7 +239,7 @@ class deribit2(Exchange):
         return self.parse_balance(all_instruments_balance)
 
     def fetch_deposit_address(self, currency, params={}):
-        response = self.privateGetGetAccountSummary({'currency': currency})
+        response = self.private_get_get_account_summary({'currency': currency})
         address = self.safe_string(response, 'deposit_address')
         return {
             'currency': self.common_currency_code(currency),
@@ -282,7 +282,7 @@ class deribit2(Exchange):
         request = {
             'instrument_name': market['id'],
         }
-        response = self.publicGetTicker(self.extend(request, params))
+        response = self.public_get_ticker(self.extend(request, params))
         return self.parse_ticker(response['result'], market)
 
     def parse_trade(self, trade, market=None):
@@ -365,16 +365,13 @@ class deribit2(Exchange):
         self.load_markets()
         market = self.market(symbol)
         request = {
-            'instrument': market['id'],
             'instrument_name': market['id'],
         }
         if limit is not None:
-            request['limit'] = limit
             request['count'] = limit
         else:
-            request['limit'] = 10000
-            request['count'] = 10000
-        response = self.publicGetGetlasttrades(self.extend(request, params))
+            request['count'] = 1000
+        response = self.public_get_get_last_trades_by_instrument(self.extend(request, params))
         #
         #     {
         #         "usOut":1559643108984527,
@@ -410,7 +407,7 @@ class deribit2(Exchange):
             'instrument': market['id'],
             'instrument_name': market['id'],
         }
-        response = self.publicGetGetOrderBook(self.extend(request, params))
+        response = self.public_get_get_order_book(self.extend(request, params))
         timestamp = self.nonce()
         orderbook = self.parse_order_book(response['result'], timestamp, 'bids', 'asks')
         return self.extend(orderbook, {
@@ -511,7 +508,7 @@ class deribit2(Exchange):
         request = {
             'order_id': id,
         }
-        response = self.privateGetOrderState(self.extend(request, params))
+        response = self.private_get_get_order_state(self.extend(request, params))
         result = self.safe_value(response, 'result')
         if result is None:
             raise OrderNotFound(self.id + ' fetchOrder() ' + self.json(response))
@@ -543,16 +540,19 @@ class deribit2(Exchange):
             request['amount'] = amount
         if price is not None:
             request['price'] = price
-        response = self.privatePostEdit(self.extend(request, params))
-        return self.parse_order(response['result']['order'])
+        response = self.private_post_edit(self.extend(request, params))
+        result = self.safe_value(response, 'result', [])
+        order = self.safe_value(result, 'order', {})
+        return self.parse_order(order)
 
     def cancel_order(self, id, symbol=None, params={}):
         self.load_markets()
         request = {
             'order_id': id,
         }
-        response = self.privatePostCancel(self.extend(request, params))
-        return self.parse_order(response['result']['order'])
+        response = self.private_post_cancel(self.extend(request, params))
+        result = self.safe_value(response, 'result', {})
+        return self.parse_order(result)
 
     def fetch_open_orders(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:
@@ -562,8 +562,9 @@ class deribit2(Exchange):
         request = {
             'instrument_name': market['id'],
         }
-        response = self.privateGetGetOpenOrdersByInstrument(self.extend(request, params))
-        return self.parse_orders(response['result'], market, since, limit)
+        response = self.private_get_get_open_orders_by_instrument(self.extend(request, params))
+        result = self.safe_value(response, 'result', [])
+        return self.parse_orders(result, market, since, limit)
 
     def fetch_closed_orders(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:
@@ -573,8 +574,9 @@ class deribit2(Exchange):
         request = {
             'instrument_name': market['id'],
         }
-        response = self.privateGetGetOrderHistoryByInstrument(self.extend(request, params))
-        return self.parse_orders(response['result'], market, since, limit)
+        response = self.private_get_get_order_history_by_instrument(self.extend(request, params))
+        result = self.safe_value(response, 'result', [])
+        return self.parse_orders(result, market, since, limit)
 
     def fetch_my_trades(self, symbol=None, since=None, limit=None, params={}):
         self.load_markets()
@@ -584,39 +586,9 @@ class deribit2(Exchange):
         }
         if limit is not None:
             request['count'] = limit  # default = 20
-        response = self.privateGetGetUserTradesByInstrument(self.extend(request, params))
-        #
-        #     {
-        #         "usOut":1559611553394836,
-        #         "usIn":1559611553394000,
-        #         "usDiff":836,
-        #         "testnet":false,
-        #         "success":true,
-        #         "result": [
-        #             {
-        #                 "quantity":54,
-        #                 "amount":540.0,
-        #                 "tradeId":23087297,
-        #                 "instrument":"BTC-PERPETUAL",
-        #                 "timeStamp":1559604178803,
-        #                 "tradeSeq":8265011,
-        #                 "price":8213.0,
-        #                 "side":"sell",
-        #                 "orderId":12373631800,
-        #                 "matchingId":0,
-        #                 "liquidity":"T",
-        #                 "fee":0.000049312,
-        #                 "feeCurrency":"BTC",
-        #                 "tickDirection":3,
-        #                 "indexPrice":8251.94,
-        #                 "selfTrade":false
-        #             }
-        #         ],
-        #         "message":"",
-        #         "has_more":true
-        #     }
-        #
-        trades = self.safe_value(response, 'result', [])
+        response = self.private_get_get_user_trades_by_instrument(self.extend(request, params))
+        result = self.safe_value(response, 'result', [])
+        trades = self.safe_value(result, 'trades', [])
         return self.parse_trades(trades, market, since, limit)
 
     def nonce(self):
