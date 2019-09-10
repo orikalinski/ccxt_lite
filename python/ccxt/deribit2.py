@@ -640,11 +640,12 @@ class deribit2(Exchange):
                 uri += '?' + self.urlencode(params)
                 params = self.keysort(params)
             if method == "POST" and params:
+                uri = query
                 data = {"params": dict(params), "method": api + '/' + path}
                 body = json.dumps(data)
             timestamp = str(self.nonce())
             random_nonce = self.random_nonce(16).decode()
-            request_data = method + '\n' + query + '\n' + body + '\n'
+            request_data = method + '\n' + uri + '\n' + body + '\n'
             string_to_sign = timestamp + '\n' + random_nonce + '\n' + request_data
             signature = self.hmac(self.encode(string_to_sign), self.encode(self.secret), 'sha256')
             header_val = 'deri-hmac-sha256 ' + 'id=' + self.apiKey + ',ts=' + timestamp + ',nonce=' + random_nonce + \
