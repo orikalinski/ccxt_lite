@@ -1277,6 +1277,7 @@ class kucoin (Exchange):
                     self.hmac(self.encode(partner_payload), self.encode(self.partner_private_key),
                               hashlib.sha256, 'base64')
                 headers['KC-API-PARTNER-SIGN'] = partner_signature
+                headers['KC-API-PARTNER'] = self.partner_name
             payload = timestamp + method + endpoint + endpart
             signature = self.hmac(self.encode(payload), self.encode(self.secret), hashlib.sha256, 'base64')
             headers['KC-API-SIGN'] = self.decode(signature)
