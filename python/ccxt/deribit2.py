@@ -633,25 +633,21 @@ class deribit2(Exchange):
                 url += '?' + self.urlencode(params)
         else:
             self.check_required_credentials()
-            nonce = str(self.nonce())
-            auth = '_=' + nonce + '&_ackey=' + self.apiKey + '&_acsec=' + self.secret + '&_action=' + query
             uri = query
             if params:
                 uri += '?' + self.urlencode(params)
                 params = self.keysort(params)
-                auth += '&' + self.urlencode(params)
             request_body = ''
             if body:
                 request_body = body
-            nonce = str(self.nonce())
+            timestamp = str(self.nonce())
             random_nonce = self.random_nonce(16).decode()
             request_data = method + '\n' + uri + '\n' + request_body + '\n'
-            string_to_sign = nonce + '\n' + random_nonce + '\n' + request_data
+            string_to_sign = timestamp + '\n' + random_nonce + '\n' + request_data
             signature = self.hmac(self.encode(string_to_sign), self.encode(self.secret), 'sha256')
-            header_val = 'deri-hmac-sha256 ' + 'id=' + self.apiKey + ',ts=' + nonce + ',nonce=' + random_nonce + \
+            header_val = 'deri-hmac-sha256 ' + 'id=' + self.apiKey + ',ts=' + timestamp + ',nonce=' + random_nonce + \
                          ',sig=' + self.encode(signature).decode()
             headers = {
-                'x-deribit-sig': signature,
                 'Authorization': header_val
             }
             if method != 'GET':
