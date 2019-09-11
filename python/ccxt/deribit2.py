@@ -593,7 +593,7 @@ class deribit2(Exchange):
         trades = self.safe_value(result, 'trades', [])
         return self.parse_trades(trades, market, since, limit)
 
-    def get_stop_order_history(self, symbol=None):
+    def get_stop_order_history(self, symbol):
         self.load_markets()
         currency = "BTC" if symbol.startswith("BTC") else "ETH"
         response = \
