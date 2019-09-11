@@ -593,6 +593,49 @@ class deribit2(Exchange):
         trades = self.safe_value(result, 'trades', [])
         return self.parse_trades(trades, market, since, limit)
 
+    def get_stop_order_history(self, symbol=None):
+        self.load_markets()
+        currency = "BTC" if symbol.startswith("BTC") else "ETH"
+        response = \
+            self.private_get_get_stop_order_history({"currency": currency, "instrument_name": self.market_id(symbol)})
+        result = self.safe_value(response, 'result', {})
+        stops = self.safe_value(result, 'entries', [])
+        to_return = list()
+        for stop in stops:
+            to_return.append(self.parse_stop_order(stop))
+        return to_return
+
+    def parse_stop_order(self, order):
+        timestamp = self.safe_integer(order, 'timestamp')
+        last_trade_timestamp = self.safe_integer(order, 'last_update_timestamp')
+        id = self.safe_string(order, 'order_id')
+        stop_id = self.safe_string(order, 'stop_id')
+        price = self.safe_float(order, 'price')
+        stop_price = self.safe_float(order, 'stop_price')
+        amount = self.safe_float(order, 'amount')
+        status = self.parse_order_status(self.safe_string(order, 'order_state'))
+        side = self.safe_string(order, 'direction')
+        market_id = self.safe_string(order, 'instrument_name')
+        symbol = None
+        if market_id in self.markets_by_id:
+            market = self.markets_by_id[market_id]
+            symbol = market['symbol']
+        return {
+            'info': order,
+            'id': id,
+            'timestamp': timestamp,
+            'datetime': self.iso8601(timestamp),
+            'last_trade_timestamp': last_trade_timestamp,
+            'symbol': symbol,
+            'type': "limit",
+            'side': side,
+            'price': price,
+            'amount': amount,
+            'status': status,
+            'stop_id': stop_id,
+            'stop_price': stop_price
+        }
+
     def nonce(self):
         return self.milliseconds()
 
