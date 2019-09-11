@@ -30,6 +30,7 @@ __all__ = [
     'InsufficientFunds',
     'InvalidOrder',
     'OrderNotFound',
+    'OrderCancelled',
     'OrderNotCached',
     'DuplicateOrderId',
     'NetworkError',
@@ -121,6 +122,11 @@ class AddressPending(InvalidAddress):
 
 
 class OrderNotFound(InvalidOrder):
+    """Raised when you are trying to fetch or cancel a non-existent order"""
+    pass
+
+
+class OrderCancelled(InvalidOrder):
     """Raised when you are trying to fetch or cancel a non-existent order"""
     pass
 
