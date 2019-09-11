@@ -335,7 +335,7 @@ class deribit2(Exchange):
         cost = None
         if amount is not None:
             if price is not None:
-                cost = amount * price
+                cost = round(amount / price, 8)
         fee = None
         fee_cost = self.safe_float(trade, 'fee')
         if fee_cost is not None:
@@ -465,7 +465,7 @@ class deribit2(Exchange):
             if amount is not None:
                 remaining = amount - filled
             if price is not None:
-                cost = price * filled
+                cost = round(filled / (average or price), 8)
         status = self.parse_order_status(self.safe_string(order, 'order_state'))
         side = self.safe_string(order, 'direction')
         if side is not None:
