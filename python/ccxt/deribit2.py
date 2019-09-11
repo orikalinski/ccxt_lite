@@ -659,8 +659,12 @@ class deribit2(Exchange):
         #
         error = self.safe_string(response, 'error')
         if (error is not None) and(error != '0'):
-            error_code = self.safe_string(literal_eval(error), 'code')
+            error_dict = literal_eval(error)
+            error_code = self.safe_string(error_dict, 'code')
+            message = self.safe_string(error_dict, 'message')
             feedback = self.id + ' ' + body
+            if 'order_not_found' == message:
+                raise OrderNotFound(feedback)
             exceptions = self.exceptions
             if error_code in exceptions:
                 raise exceptions[error_code](feedback)
