@@ -20,7 +20,6 @@ from ccxt.base.exchange import Exchange
 
 
 class deribit2(Exchange):
-
     def describe(self):
         return self.deep_extend(super(deribit2, self).describe(), {
             'id': 'deribit2',
@@ -90,33 +89,54 @@ class deribit2(Exchange):
             },
             'exceptions': {
                 # 0 or absent Success, No error
-                '9999': PermissionDenied,   # "api_not_enabled" User didn't enable API for the Account
-                '10000': AuthenticationError,  # "authorization_required" Authorization issue, invalid or absent signature etc
-                '10001': ExchangeError,     # "error" Some general failure, no public information available
-                '10002': InvalidOrder,      # "qty_too_low" Order quantity is too low
-                '10003': InvalidOrder,      # "order_overlap" Rejection, order overlap is found and self-trading is not enabled
-                '10004': OrderNotFound,     # "order_not_found" Attempt to operate with order that can't be found by specified id
-                '10005': InvalidOrder,      # "price_too_low <Limit>" Price is too low, <Limit> defines current limit for the operation
-                '10006': InvalidOrder,      # "price_too_low4idx <Limit>" Price is too low for current index, <Limit> defines current bottom limit for the operation
-                '10007': InvalidOrder,  # "price_too_high <Limit>" Price is too high, <Limit> defines current up limit for the operation
-                '10008': InvalidOrder,  # "price_too_high4idx <Limit>" Price is too high for current index, <Limit> defines current up limit for the operation
+                '9999': PermissionDenied,  # "api_not_enabled" User didn't enable API for the Account
+                '10000': AuthenticationError,
+                # "authorization_required" Authorization issue, invalid or absent signature etc
+                '10001': ExchangeError,  # "error" Some general failure, no public information available
+                '10002': InvalidOrder,  # "qty_too_low" Order quantity is too low
+                '10003': InvalidOrder,
+                # "order_overlap" Rejection, order overlap is found and self-trading is not enabled
+                '10004': OrderNotFound,
+                # "order_not_found" Attempt to operate with order that can't be found by specified id
+                '10005': InvalidOrder,
+                # "price_too_low <Limit>" Price is too low, <Limit> defines current limit for the operation
+                '10006': InvalidOrder,
+                # "price_too_low4idx <Limit>" Price is too low for current index, <Limit> defines current
+                # bottom limit for the operation
+                '10007': InvalidOrder,
+                # "price_too_high <Limit>" Price is too high, <Limit> defines current up limit for the operation
+                '10008': InvalidOrder,
+                # "price_too_high4idx <Limit>" Price is too high for current index, <Limit> defines current up
+                # limit for the operation
                 '10009': InsufficientFunds,  # "not_enough_funds" Account has not enough funds for the operation
                 '10010': OrderNotFound,  # "already_closed" Attempt of doing something with closed order
                 '10011': InvalidOrder,  # "price_not_allowed" This price is not allowed for some reason
                 '10012': InvalidOrder,  # "book_closed" Operation for instrument which order book had been closed
-                '10013': PermissionDenied,  # "pme_max_total_open_orders <Limit>" Total limit of open orders has been exceeded, it is applicable for PME users
-                '10014': PermissionDenied,  # "pme_max_future_open_orders <Limit>" Limit of count of futures' open orders has been exceeded, it is applicable for PME users
-                '10015': PermissionDenied,  # "pme_max_option_open_orders <Limit>" Limit of count of options' open orders has been exceeded, it is applicable for PME users
-                '10016': PermissionDenied,  # "pme_max_future_open_orders_size <Limit>" Limit of size for futures has been exceeded, it is applicable for PME users
-                '10017': PermissionDenied,  # "pme_max_option_open_orders_size <Limit>" Limit of size for options has been exceeded, it is applicable for PME users
+                '10013': PermissionDenied,
+                # "pme_max_total_open_orders <Limit>" Total limit of open orders has been exceeded, it is
+                # applicable for PME users
+                '10014': PermissionDenied,
+                # "pme_max_future_open_orders <Limit>" Limit of count of futures' open orders has been exceeded,
+                # it is applicable for PME users
+                '10015': PermissionDenied,
+                # "pme_max_option_open_orders <Limit>" Limit of count of options' open orders has been exceeded,
+                # it is applicable for PME users
+                '10016': PermissionDenied,
+                # "pme_max_future_open_orders_size <Limit>" Limit of size for futures has been exceeded,
+                # it is applicable for PME users
+                '10017': PermissionDenied,
+                # "pme_max_option_open_orders_size <Limit>" Limit of size for options has been exceeded,
+                # it is applicable for PME users
                 '10019': PermissionDenied,  # "locked_by_admin" Trading is temporary locked by admin
                 '10020': ExchangeError,  # "invalid_or_unsupported_instrument" Instrument name is not valid
                 '10022': InvalidOrder,  # "invalid_quantity" quantity was not recognized as a valid number
                 '10023': InvalidOrder,  # "invalid_price" price was not recognized as a valid number
                 '10024': InvalidOrder,  # "invalid_max_show" max_show parameter was not recognized as a valid number
-                '10025': InvalidOrder,  # "invalid_order_id" Order id is missing or its format was not recognized as valid
+                '10025': InvalidOrder,
+                # "invalid_order_id" Order id is missing or its format was not recognized as valid
                 '10026': InvalidOrder,  # "price_precision_exceeded" Extra precision of the price is not supported
-                '10027': InvalidOrder,  # "non_integer_contract_amount" Futures contract amount was not recognized as integer
+                '10027': InvalidOrder,
+                # "non_integer_contract_amount" Futures contract amount was not recognized as integer
                 '10028': DDoSProtection,  # "too_many_requests" Allowed request rate has been exceeded
                 '10029': OrderNotFound,  # "not_owner_of_order" Attempt to operate with not own order
                 '10030': ExchangeError,  # "must_be_websocket_request" REST request where Websocket is expected
@@ -126,22 +146,32 @@ class deribit2(Exchange):
                 '10034': InvalidOrder,  # "stop_price_too_high" Stop price is too high
                 '10035': InvalidOrder,  # "stop_price_too_low" Stop price is too low
                 '11035': InvalidOrder,  # "no_more_stops <Limit>" Allowed amount of stop orders has been exceeded
-                '11036': InvalidOrder,  # "invalid_stoppx_for_index_or_last" Invalid StopPx (too high or too low) as to current index or market
-                '11037': InvalidOrder,  # "outdated_instrument_for_IV_order" Instrument already not available for trading
+                '11036': InvalidOrder,
+                # "invalid_stoppx_for_index_or_last" Invalid StopPx (too high or too low) as to current index or market
+                '11037': InvalidOrder,
+                # "outdated_instrument_for_IV_order" Instrument already not available for trading
                 '11038': InvalidOrder,  # "no_adv_for_futures" Advanced orders are not available for futures
                 '11039': InvalidOrder,  # "no_adv_postonly" Advanced post-only orders are not supported yet
                 '11040': InvalidOrder,  # "impv_not_in_range 0..499%" Implied volatility is out of allowed range
-                '11041': InvalidOrder,  # "not_adv_order" Advanced order properties can't be set if the order is not advanced
+                '11041': InvalidOrder,
+                # "not_adv_order" Advanced order properties can't be set if the order is not advanced
                 '11042': PermissionDenied,  # "permission_denied" Permission for the operation has been denied
                 '11044': OrderNotFound,  # "not_open_order" Attempt to do open order operations with the not open order
                 '11045': ExchangeError,  # "invalid_event" Event name has not been recognized
-                '11046': ExchangeError,  # "outdated_instrument" At several minutes to instrument expiration, corresponding advanced implied volatility orders are not allowed
-                '11047': ExchangeError,  # "unsupported_arg_combination" The specified combination of arguments is not supported
+                '11046': ExchangeError,
+                # "outdated_instrument" At several minutes to instrument expiration, corresponding advanced implied
+                # volatility orders are not allowed
+                '11047': ExchangeError,
+                # "unsupported_arg_combination" The specified combination of arguments is not supported
                 '11048': ExchangeError,  # "not_on_this_server" The requested operation is not available on this server.
                 '11050': ExchangeError,  # "invalid_request" Request has not been parsed properly
                 '11051': ExchangeNotAvailable,  # "system_maintenance" System is under maintenance
-                '11030': ExchangeError,  # "other_reject <Reason>" Some rejects which are not considered as very often, more info may be specified in <Reason>
-                '11031': ExchangeError,  # "other_error <Error>" Some errors which are not considered as very often, more info may be specified in <Error>
+                '11030': ExchangeError,
+                # "other_reject <Reason>" Some rejects which are not considered as very often,
+                # more info may be specified in <Reason>
+                '11031': ExchangeError,
+                # "other_error <Error>" Some errors which are not considered as very often,
+                # more info may be specified in <Error>
             },
             'precisionMode': TICK_SIZE,
             'options': {
@@ -165,7 +195,7 @@ class deribit2(Exchange):
             symbol_to_unified_symbol_dict[symbol] = _id
         return {_id: symbol for symbol, _id in symbol_to_unified_symbol_dict.items()}
 
-    def fetch_markets(self, params={}):
+    def fetch_markets(self, *args, **kwargs):
         response = self.public_get_get_currencies()
         currencies = self.safe_value(response, 'result')
         all_instruments = list()
@@ -177,14 +207,14 @@ class deribit2(Exchange):
         symbol_to_unified_symbol_dict = self.get_symbol_to_unified_symbol_dict(all_instruments)
         for instrument in all_instruments:
             market = instrument
-            id = self.safe_string(market, 'instrument_name')
-            baseId = self.safe_string(market, 'base_currency')
-            quoteId = self.safe_string(market, 'quote_currency')
-            base = self.common_currency_code(baseId)
-            quote = self.common_currency_code(quoteId)
-            symbol = symbol_to_unified_symbol_dict.get(id, id)
+            _id = self.safe_string(market, 'instrument_name')
+            base_id = self.safe_string(market, 'base_currency')
+            quote_id = self.safe_string(market, 'quote_currency')
+            base = self.common_currency_code(base_id)
+            quote = self.common_currency_code(quote_id)
+            symbol = symbol_to_unified_symbol_dict.get(_id, _id)
             result.append({
-                'id': id,
+                'id': _id,
                 'symbol': symbol,
                 'base': base,
                 'quote': quote,
@@ -226,7 +256,9 @@ class deribit2(Exchange):
                     positions_to_return.append(result)
         return positions_to_return
 
-    def fetch_balance(self, params={}):
+    def fetch_balance(self, params=None):
+        if params is None:
+            params = {}
         response = self.public_get_get_currencies()
         currencies = self.safe_value(response, 'result')
         all_instruments_balance = dict()
@@ -240,7 +272,9 @@ class deribit2(Exchange):
             }
         return self.parse_balance(all_instruments_balance)
 
-    def fetch_deposit_address(self, currency, params={}):
+    def fetch_deposit_address(self, currency, params=None):
+        if params is None:
+            params = {}
         response = self.private_get_get_account_summary({'currency': currency})
         address = self.safe_string(response, 'deposit_address')
         return {
@@ -278,7 +312,9 @@ class deribit2(Exchange):
             'info': ticker,
         }
 
-    def fetch_ticker(self, symbol, params={}):
+    def fetch_ticker(self, symbol, params=None):
+        if params is None:
+            params = {}
         self.load_markets()
         market = self.market(symbol)
         request = {
@@ -288,44 +324,7 @@ class deribit2(Exchange):
         return self.parse_ticker(response['result'], market)
 
     def parse_trade(self, trade, market=None):
-        #
-        # fetchTrades(public)
-        #
-        #     {
-        #         "tradeId":23197559,
-        #         "instrument":"BTC-28JUN19",
-        #         "timeStamp":1559643011379,
-        #         "tradeSeq":1997200,
-        #         "quantity":2,
-        #         "amount":20.0,
-        #         "price":8010.0,
-        #         "direction":"sell",
-        #         "tickDirection":2,
-        #         "indexPrice":7969.01
-        #     }
-        #
-        # fetchMyTrades(private)
-        #
-        #     {
-        #         "quantity":54,
-        #         "amount":540.0,
-        #         "tradeId":23087297,
-        #         "instrument":"BTC-PERPETUAL",
-        #         "timeStamp":1559604178803,
-        #         "tradeSeq":8265011,
-        #         "price":8213.0,
-        #         "side":"sell",
-        #         "order_id":12373631800,
-        #         "matchingId":0,
-        #         "liquidity":"T",
-        #         "fee":0.000049312,
-        #         "feeCurrency":"BTC",
-        #         "tickDirection":3,
-        #         "indexPrice":8251.94,
-        #         "selfTrade":false
-        #     }
-        #
-        id = self.safe_string(trade, 'trade_id')
+        _id = self.safe_string(trade, 'trade_id')
         order_id = self.safe_string(trade, 'order_id')
         symbol = None
         if market is not None:
@@ -348,7 +347,7 @@ class deribit2(Exchange):
                 'currency': fee_currency_code,
             }
         return {
-            'id': id,
+            'id': _id,
             'info': trade,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
@@ -363,7 +362,9 @@ class deribit2(Exchange):
             'fee': fee,
         }
 
-    def fetch_trades(self, symbol, since=None, limit=None, params={}):
+    def fetch_trades(self, symbol, since=None, limit=None, params=None):
+        if params is None:
+            params = {}
         self.load_markets()
         market = self.market(symbol)
         request = {
@@ -374,45 +375,22 @@ class deribit2(Exchange):
         else:
             request['count'] = 1000
         response = self.public_get_get_last_trades_by_instrument(self.extend(request, params))
-        #
-        #     {
-        #         "usOut":1559643108984527,
-        #         "usIn":1559643108984470,
-        #         "usDiff":57,
-        #         "testnet":false,
-        #         "success":true,
-        #         "result": [
-        #             {
-        #                 "tradeId":23197559,
-        #                 "instrument":"BTC-28JUN19",
-        #                 "timeStamp":1559643011379,
-        #                 "tradeSeq":1997200,
-        #                 "quantity":2,
-        #                 "amount":20.0,
-        #                 "price":8010.0,
-        #                 "direction":"sell",
-        #                 "tickDirection":2,
-        #                 "indexPrice":7969.01
-        #             }
-        #         ],
-        #         "message":""
-        #     }
-        #
         result = self.safe_value(response, 'result', [])
         trades = self.safe_value(result, 'trades', [])
         return self.parse_trades(trades, market, since, limit)
 
-    def fetch_order_book(self, symbol, limit=None, params={}):
+    def fetch_order_book(self, symbol, limit=None, params=None):
+        if params is None:
+            params = {}
         self.load_markets()
         market = self.market(symbol)
         request = {
-            'instrument': market['id'],
             'instrument_name': market['id'],
         }
         response = self.public_get_get_order_book(self.extend(request, params))
         timestamp = self.nonce()
-        orderbook = self.parse_order_book(response['result'], timestamp, 'bids', 'asks')
-        return self.extend(orderbook, {
+        order_book = self.parse_order_book(response['result'], timestamp, 'bids', 'asks')
+        return self.extend(order_book, {
             'nonce': self.safe_integer(response['result'], 'timestamp'),
         })
 
@@ -428,7 +406,7 @@ class deribit2(Exchange):
         timestamp = self.safe_integer(order, 'creation_timestamp')
         last_update = self.safe_integer(order, 'last_update_timestamp')
         last_trade_timestamp = self.safe_integer(order, 'last_update_timestamp')
-        id = self.safe_string(order, 'order_id')
+        _id = self.safe_string(order, 'order_id')
         price = self.safe_float(order, 'price')
         average = self.safe_float(order, 'average_price')
         amount = self.safe_float(order, 'amount')
@@ -455,7 +433,7 @@ class deribit2(Exchange):
             'cost': fee_cost,
             'currency': 'BTC',
         }
-        type = self.safe_string(order, 'order_type')
+        _type = self.safe_string(order, 'order_type')
         market_id = self.safe_string(order, 'instrument_name')
         symbol = None
         if market_id in self.markets_by_id:
@@ -463,12 +441,12 @@ class deribit2(Exchange):
             symbol = market['symbol']
         return {
             'info': order,
-            'id': id,
+            'id': _id,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'last_trade_timestamp': last_trade_timestamp,
             'symbol': symbol,
-            'type': type,
+            'type': _type,
             'side': side,
             'price': price,
             'amount': amount,
@@ -481,10 +459,12 @@ class deribit2(Exchange):
             'trades': None,  # todo: parse trades
         }
 
-    def fetch_order(self, id, symbol=None, params={}):
+    def fetch_order(self, _id, symbol=None, params=None):
+        if params is None:
+            params = {}
         self.load_markets()
         request = {
-            'order_id': id,
+            'order_id': _id,
         }
         response = self.private_get_get_order_state(self.extend(request, params))
         result = self.safe_value(response, 'result')
@@ -492,12 +472,14 @@ class deribit2(Exchange):
             raise OrderNotFound(self.id + ' fetchOrder() ' + self.json(response))
         return self.parse_order(result)
 
-    def create_order(self, symbol, type, side, amount, price=None, params={}):
+    def create_order(self, symbol, _type, side, amount, price=None, params=None):
+        if params is None:
+            params = {}
         self.load_markets()
         request = {
             'instrument_name': self.market_id(symbol),
             'amount': amount,
-            'type': type,
+            'type': _type,
             # 'post_only': 'false' or 'true', https://github.com/ccxt/ccxt/issues/5159
         }
         if price is not None:
@@ -509,10 +491,10 @@ class deribit2(Exchange):
             return response
         return self.parse_order(order)
 
-    def edit_order(self, id, symbol, type, side, amount=None, price=None, params={}):
+    def edit_order(self, _id, symbol, _type, side, amount=None, price=None, params={}):
         self.load_markets()
         request = {
-            'order_id': id,
+            'order_id': _id,
         }
         if amount is not None:
             request['amount'] = amount
@@ -523,16 +505,20 @@ class deribit2(Exchange):
         order = self.safe_value(result, 'order', {})
         return self.parse_order(order)
 
-    def cancel_order(self, id, symbol=None, params={}):
+    def cancel_order(self, _id, symbol=None, params=None):
+        if params is None:
+            params = {}
         self.load_markets()
         request = {
-            'order_id': id,
+            'order_id': _id,
         }
         response = self.private_post_cancel(self.extend(request, params))
         result = self.safe_value(response, 'result', {})
         return self.parse_order(result)
 
-    def fetch_open_orders(self, symbol=None, since=None, limit=None, params={}):
+    def fetch_open_orders(self, symbol=None, since=None, limit=None, params=None):
+        if params is None:
+            params = {}
         if symbol is None:
             raise ArgumentsRequired(self.id + ' fetchClosedOrders() requires a `symbol` argument')
         self.load_markets()
@@ -544,7 +530,9 @@ class deribit2(Exchange):
         result = self.safe_value(response, 'result', [])
         return self.parse_orders(result, market, since, limit)
 
-    def fetch_closed_orders(self, symbol=None, since=None, limit=None, params={}):
+    def fetch_closed_orders(self, symbol=None, since=None, limit=None, params=None):
+        if params is None:
+            params = {}
         if symbol is None:
             raise ArgumentsRequired(self.id + ' fetchClosedOrders() requires a `symbol` argument')
         self.load_markets()
@@ -556,7 +544,9 @@ class deribit2(Exchange):
         result = self.safe_value(response, 'result', [])
         return self.parse_orders(result, market, since, limit)
 
-    def fetch_my_trades(self, symbol=None, since=None, limit=None, params={}):
+    def fetch_my_trades(self, symbol=None, since=None, limit=None, params=None):
+        if params is None:
+            params = {}
         self.load_markets()
         market = self.market(symbol)
         request = {
@@ -584,7 +574,7 @@ class deribit2(Exchange):
     def parse_stop_order(self, order):
         timestamp = self.safe_integer(order, 'timestamp')
         last_trade_timestamp = self.safe_integer(order, 'last_update_timestamp')
-        id = self.safe_string(order, 'order_id')
+        _id = self.safe_string(order, 'order_id')
         stop_id = self.safe_string(order, 'stop_id')
         price = self.safe_float(order, 'price')
         stop_price = self.safe_float(order, 'stop_price')
@@ -598,7 +588,7 @@ class deribit2(Exchange):
             symbol = market['symbol']
         return {
             'info': order,
-            'id': id,
+            'id': _id,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'last_trade_timestamp': last_trade_timestamp,
@@ -619,7 +609,9 @@ class deribit2(Exchange):
         result = self.hash((self.apiKey + str(self.nonce())).encode(), 'sha512', 'base64')
         return result[:length]
 
-    def sign(self, path, api='public', method='GET', params={}, headers=None, body=''):
+    def sign(self, path, api='public', method='GET', params=None, headers=None, body=''):
+        if params is None:
+            params = {}
         body = body or ''
         query = '/' + 'api/' + self.version + '/' + api + '/' + path
         url = self.urls['api'] + query
@@ -651,14 +643,15 @@ class deribit2(Exchange):
                 url += self.urlencode(params)
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, httpCode, reason, url, method, headers, body, response):
+    def handle_errors(self, http_code, reason, url, method, headers, body, response):
         if not response:
             return  # fallback to default error handler
         #
-        #     {"usOut":1535877098645376,"usIn":1535877098643364,"usDiff":2012,"testnet":false,"success":false,"message":"order_not_found","error":10004}
+        #     {"usOut":1535877098645376,"usIn":1535877098643364,"usDiff":2012,"testnet":false,
+        #     "success":false,"message":"order_not_found","error":10004}
         #
         error = self.safe_string(response, 'error')
-        if (error is not None) and(error != '0'):
+        if error is not None and error != '0':
             error_dict = literal_eval(error)
             error_code = self.safe_string(error_dict, 'code')
             message = self.safe_string(error_dict, 'message')
