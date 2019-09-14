@@ -334,9 +334,8 @@ class deribit2(Exchange):
         price = self.safe_float(trade, 'price')
         amount = self.safe_float(trade, 'amount')
         cost = None
-        if amount is not None:
-            if price is not None:
-                cost = round(amount / price, 8)
+        if amount and price:
+            cost = round(amount / price, 8)
         fee = None
         fee_cost = self.safe_float(trade, 'fee')
         if fee_cost is not None:
@@ -407,7 +406,7 @@ class deribit2(Exchange):
         last_update = self.safe_integer(order, 'last_update_timestamp')
         last_trade_timestamp = self.safe_integer(order, 'last_update_timestamp')
         _id = self.safe_string(order, 'order_id')
-        price = self.safe_float(order, 'price')
+        price = self.safe_float(order, 'stop_price') or self.safe_float(order, 'price')
         average = self.safe_float(order, 'average_price')
         amount = self.safe_float(order, 'amount')
         filled = self.safe_float(order, 'filled_amount') or 0.
@@ -421,24 +420,25 @@ class deribit2(Exchange):
             if amount is not None:
                 remaining = amount - filled
             if price is not None:
-                cost = round(filled / (average or price), 8)
+                cost = round(amount / (average or price), 8)
         status = self.parse_order_status(self.safe_string(order, 'order_state'))
         side = self.safe_string(order, 'direction')
         if side is not None:
             side = side.lower()
-        fee_cost = self.safe_float(order, 'commission')
-        if fee_cost is not None:
-            fee_cost = abs(fee_cost)
-        fee = {
-            'cost': fee_cost,
-            'currency': 'BTC',
-        }
-        _type = self.safe_string(order, 'order_type')
         market_id = self.safe_string(order, 'instrument_name')
         symbol = None
         if market_id in self.markets_by_id:
             market = self.markets_by_id[market_id]
             symbol = market['symbol']
+        fee_cost = self.safe_float(order, 'commission')
+        if fee_cost is not None:
+            fee_cost = abs(fee_cost)
+        fee = {
+            'cost': fee_cost,
+            'currency': symbol.split("/")[0],
+        }
+        _type = self.safe_string(order, 'order_type')
+
         return {
             'info': order,
             'id': _id,
