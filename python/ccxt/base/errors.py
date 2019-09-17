@@ -41,6 +41,7 @@ __all__ = [
     'InvalidAddress',
     'AddressPending',
     'ArgumentsRequired',
+    'InvalidArguments',
     'BadRequest',
     'BadResponse',
     'NullResponse',
@@ -71,8 +72,14 @@ class ArgumentsRequired(ExchangeError):
     pass
 
 
+class InvalidArguments(ExchangeError):
+    """A generic exception raised by unified methods when required arguments are missing."""
+    pass
+
+
 class BadRequest(ExchangeError):
-    """A generic exception raised by the exchange if all or some of required parameters are invalid or missing in URL query or in request body"""
+    """A generic exception raised by the exchange if all or some of required parameters are
+    invalid or missing in URL query or in request body"""
     pass
 
 

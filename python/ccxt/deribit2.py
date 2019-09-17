@@ -240,6 +240,7 @@ class deribit2(Exchange):
         return result
 
     def get_positions(self):
+        self.load_markets()
         response = self.public_get_get_currencies()
         currencies = self.safe_value(response, 'result')
         positions_to_return = list()
@@ -249,7 +250,7 @@ class deribit2(Exchange):
                 liq_price = position["estimated_liquidation_price"]
                 size = position["size"]
                 if size:
-                    result = {'info': position, "symbol": position["instrument_name"],
+                    result = {'info': position, "symbol": self.find_market(position["instrument_name"])["symbol"],
                               "quantity": abs(position["size"]), "leverage": 0,
                               "maintenance_margin": position["maintenance_margin"],
                               "liquidation_price": max(liq_price, 0)}
