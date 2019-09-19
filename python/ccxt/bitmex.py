@@ -263,6 +263,7 @@ class bitmex (Exchange):
         return result
 
     def get_positions(self):
+        self.load_markets()
         positions = self.privateGetPosition()
         positions_to_return = list()
         for position in positions:

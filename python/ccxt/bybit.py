@@ -330,6 +330,7 @@ class bybit(Exchange):
         }
 
     def get_positions(self):
+        self.load_markets()
         positions_to_return = list()
         positions = self.private_get_position_list()
         for position in positions["result"]:
