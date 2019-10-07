@@ -251,11 +251,12 @@ class bybit(Exchange):
             'order_type': _type.capitalize()
         }
         if price:
-            order['price'] = self.price_to_precision(symbol, price),
+            order['price'] = self.price_to_precision(symbol, price)
         if params.get('stop_px'):
             response = self.private_post_open_api_stop_order_create(self.extend(order, params))
         else:
             response = self.private_post_open_api_order_create(self.extend(order, params))
+
         return self.extend(self.parse_order(response['result'], market), {'status': 'open'})
 
     def cancel_order(self, _id, symbol=None, params=None):

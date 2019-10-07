@@ -1195,9 +1195,9 @@ class bitmex (Exchange):
             if params:
                 query += '?' + self.urlencode(params)
         else:
-            format = self.safe_string(params, '_format')
-            if format is not None:
-                query += '?' + self.urlencode({'_format': format})
+            _format = self.safe_string(params, '_format')
+            if _format is not None:
+                query += '?' + self.urlencode({'_format': _format})
                 params = self.omit(params, '_format')
         url = self.urls['api'] + query
         if api == 'private':
