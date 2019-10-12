@@ -1114,16 +1114,18 @@ class bitmex (Exchange):
         self.orders[id] = order
         return self.extend({'info': response}, order)
 
-    def edit_order(self, id, symbol, type, side, amount=None, price=None, params={}):
+    def edit_order(self, _id, symbol, amount=None, price=None, params=None):
+        if params is None:
+            params = {}
         self.load_markets()
         request = {
-            'orderID': id,
+            'orderID': _id,
         }
         if amount is not None:
             request['orderQty'] = amount
         if price is not None:
             request['price'] = price
-        response = self.privatePutOrder(self.extend(request, params))
+        response = self.private_put_order(self.extend(request, params))
         order = self.parse_order(response)
         self.orders[order['id']] = order
         return self.extend({'info': response}, order)
