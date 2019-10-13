@@ -105,6 +105,7 @@ from ccxt.btcmarkets import btcmarkets                      # noqa: F401
 from ccxt.btctradeim import btctradeim                      # noqa: F401
 from ccxt.btctradeua import btctradeua                      # noqa: F401
 from ccxt.btcturk import btcturk                            # noqa: F401
+from ccxt.bybit import bybit                                # noqa: F401
 from ccxt.buda import buda                                  # noqa: F401
 from ccxt.bxinth import bxinth                              # noqa: F401
 from ccxt.cex import cex                                    # noqa: F401
@@ -132,6 +133,7 @@ from ccxt.coss import coss                                  # noqa: F401
 from ccxt.crex24 import crex24                              # noqa: F401
 from ccxt.crypton import crypton                            # noqa: F401
 from ccxt.deribit import deribit                            # noqa: F401
+from ccxt.deribit2 import deribit2                          # noqa: F401
 from ccxt.dsx import dsx                                    # noqa: F401
 from ccxt.dx import dx                                      # noqa: F401
 from ccxt.ethfinex import ethfinex                          # noqa: F401

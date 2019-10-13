@@ -262,6 +262,19 @@ class bitmex (Exchange):
             })
         return result
 
+    def get_positions(self):
+        self.load_markets()
+        positions = self.privateGetPosition()
+        positions_to_return = list()
+        for position in positions:
+            result = {'info': position, "symbol": self.find_market(position["symbol"])["symbol"],
+                      "quantity": abs(position["currentQty"]),
+                      "leverage": 0 if position["crossMargin"] else position["leverage"],
+                      "maintenance_margin": position["maintMargin"] / 100000000,
+                      "liquidation_price": position["liquidationPrice"]}
+            positions_to_return.append(result)
+        return positions_to_return
+
     def fetch_balance(self, params={}):
         self.load_markets()
         request = {
@@ -1182,9 +1195,9 @@ class bitmex (Exchange):
             if params:
                 query += '?' + self.urlencode(params)
         else:
-            format = self.safe_string(params, '_format')
-            if format is not None:
-                query += '?' + self.urlencode({'_format': format})
+            _format = self.safe_string(params, '_format')
+            if _format is not None:
+                query += '?' + self.urlencode({'_format': _format})
                 params = self.omit(params, '_format')
         url = self.urls['api'] + query
         if api == 'private':
@@ -1206,8 +1219,3 @@ class bitmex (Exchange):
             headers['api-signature'] = self.hmac(self.encode(auth), self.encode(self.secret))
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-
-if __name__ == '__main__':
-    b = bitmex()
-    a = b.load_markets()
-    print(a.keys())
