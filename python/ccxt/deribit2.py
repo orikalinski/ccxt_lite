@@ -640,8 +640,8 @@ class deribit2(Exchange):
             if method == 'GET' and params:
                 url += self.urlencode(params)
             if self.partner_private_key and self.partner_api_key:
-                app_signature = self.hmac(self.encode(signature), self.encode(self.partner_private_key), 'sha256')
-                auth_value = f'user-deri-hmac-sha256 id={self.apiKey},ts={timestamp},nonce={random_nonce},' \
+                app_signature = self.hmac(self.encode(string_to_sign), self.encode(self.partner_private_key), 'sha256')
+                auth_value = f'deri-hmac-sha256 id={self.apiKey},ts={timestamp},nonce={random_nonce},' \
                     f'sig={self.encode(signature).decode()},appid={self.partner_api_key},' \
                     f'appsig={self.encode(app_signature).decode()}'
             headers = {
