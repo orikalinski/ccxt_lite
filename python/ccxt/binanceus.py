@@ -6,10 +6,10 @@
 from ccxt.binance import binance
 
 
-class binanceje (binance):
+class binanceus(binance):
 
     def describe(self):
-        return self.deep_extend(super(binanceje, self).describe(), {
+        return self.deep_extend(super(binanceus, self).describe(), {
             'id': 'binanceus',
             'name': 'Binance US',
             'countries': ['US'],
