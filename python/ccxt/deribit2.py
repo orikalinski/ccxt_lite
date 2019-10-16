@@ -636,12 +636,21 @@ class deribit2(Exchange):
             signature = self.hmac(self.encode(string_to_sign), self.encode(self.secret), 'sha256')
             header_val = 'deri-hmac-sha256 ' + 'id=' + self.apiKey + ',ts=' + timestamp + ',nonce=' + random_nonce + \
                          ',sig=' + self.encode(signature).decode()
-            headers = {
-                'Authorization': header_val
-            }
             url += '?'
             if method == 'GET' and params:
                 url += self.urlencode(params)
+            if self.partner_private_key and self.partner_api_key:
+                app_request_data = method + '\n' + uri + '\n' + signature + '\n'
+                app_string_to_sign = timestamp + '\n' + random_nonce + '\n' + app_request_data
+                app_signature = self.hmac(self.encode(app_string_to_sign), self.encode(self.partner_private_key),
+                                          'sha256')
+                header_val = 'user-deri-hmac-sha256 ' + 'id=' + \
+                             self.partner_api_key + ',ts=' + timestamp + ',nonce=' + random_nonce + \
+                             ',sig=' + self.encode(app_signature).decode()
+            headers = {
+                'Authorization': header_val
+            }
+
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
     def handle_errors(self, http_code, reason, url, method, headers, body, response):

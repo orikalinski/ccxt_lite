@@ -160,6 +160,7 @@ class Exchange(object):
     password = ''
     uid = ''
     partner_private_key = ''
+    partner_api_key = ''
     partner_name = ''
     privateKey = ''  # a "0x"-prefixed hexstring private key for a wallet
     walletAddress = ''  # the wallet address "0x"-prefixed hexstring
