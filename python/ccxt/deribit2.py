@@ -634,21 +634,18 @@ class deribit2(Exchange):
             request_data = method + '\n' + uri + '\n' + body + '\n'
             string_to_sign = timestamp + '\n' + random_nonce + '\n' + request_data
             signature = self.hmac(self.encode(string_to_sign), self.encode(self.secret), 'sha256')
-            header_val = 'deri-hmac-sha256 ' + 'id=' + self.apiKey + ',ts=' + timestamp + ',nonce=' + random_nonce + \
+            auth_value = 'deri-hmac-sha256 ' + 'id=' + self.apiKey + ',ts=' + timestamp + ',nonce=' + random_nonce + \
                          ',sig=' + self.encode(signature).decode()
             url += '?'
             if method == 'GET' and params:
                 url += self.urlencode(params)
             if self.partner_private_key and self.partner_api_key:
-                app_request_data = method + '\n' + uri + '\n' + signature + '\n'
-                app_string_to_sign = timestamp + '\n' + random_nonce + '\n' + app_request_data
-                app_signature = self.hmac(self.encode(app_string_to_sign), self.encode(self.partner_private_key),
-                                          'sha256')
-                header_val = 'user-deri-hmac-sha256 ' + 'id=' + \
-                             self.partner_api_key + ',ts=' + timestamp + ',nonce=' + random_nonce + \
-                             ',sig=' + self.encode(app_signature).decode()
+                app_signature = self.hmac(self.encode(signature), self.encode(self.partner_private_key), 'sha256')
+                auth_value = f'user-deri-hmac-sha256 id={self.apiKey},ts={timestamp},nonce={random_nonce},' \
+                    f'sig={self.encode(signature).decode()},appid={self.partner_api_key},' \
+                    f'appsig={self.encode(app_signature).decode()}'
             headers = {
-                'Authorization': header_val
+                'Authorization': auth_value
             }
 
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
