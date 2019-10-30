@@ -670,9 +670,9 @@ class deribit2(Exchange):
                 url += self.urlencode(params)
             if self.partner_private_key and self.partner_api_key:
                 app_signature = self.hmac(self.encode(string_to_sign), self.encode(self.partner_private_key), 'sha256')
-                auth_value = f'deri-hmac-sha256 id={self.apiKey},ts={timestamp},nonce={random_nonce},' \
-                    f'sig={self.encode(signature).decode()},appid={self.partner_api_key},' \
-                    f'appsig={self.encode(app_signature).decode()}'
+                auth_value = 'deri-hmac-sha256 ' + 'id=' + self.apiKey + ',ts=' + timestamp + ',nonce=' + random_nonce \
+                    + ',sig=' + self.encode(signature).decode() + ',appid=' + self.partner_api_key + \
+                    ',appsig=' + self.encode(app_signature).decode()
             headers = {
                 'Authorization': auth_value
             }
