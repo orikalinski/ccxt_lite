@@ -665,35 +665,37 @@ class bybit(Exchange):
             params = self.keysort(params)
             url_params = "&".join(["%s=%s" % (key, value) for key, value in params.items()])
             signature = self.hmac(self.encode(url_params), self.encode(self.secret))
-            url += '?'
+            url += "?"
             encoded_url_params = self.urlencode(params)
             encoded_url_params += "&sign=%s" % signature
-            if method == 'GET':
+            if method == "GET":
                 url += encoded_url_params
-            elif method == 'POST':
+            elif method == "POST":
                 body = encoded_url_params
 
             headers = {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                "Content-Type": "application/x-www-form-urlencoded",
             }
-        return {'url': url, 'method': method, 'body': body, 'headers': headers}
+            if self.partner_name:
+                headers["Referer"] = self.partner_name
+        return {"url": url, "method": method, "body": body, "headers": headers}
 
     def handle_errors(self, code, reason, url, method, headers, body, response):
         if type(response) is dict:
-            data = self.safe_value(response, 'result')
-            return_code = self.safe_value(response, 'ret_code')
-            return_message = self.safe_value(response, 'ret_msg')
-            feedback = self.id + ' ' + self.json(response)
-            if 'order not exists' in return_message:
+            data = self.safe_value(response, "result")
+            return_code = self.safe_value(response, "ret_code")
+            return_message = self.safe_value(response, "ret_msg")
+            feedback = self.id + " " + self.json(response)
+            if "order not exists" in return_message:
                 raise OrderNotFound(feedback)
             if return_code:
                 if return_code in self.exceptions:
                     raise self.exceptions[return_code](feedback)
-                raise ExchangeError(self.id + ' an error occoured: ' + self.json(response))
+                raise ExchangeError(self.id + " an error occoured: " + self.json(response))
             if data is None:
-                raise ExchangeError(self.id + ': malformed response: ' + self.json(response))
+                raise ExchangeError(self.id + ": malformed response: " + self.json(response))
 
-    def request(self, path, api='', method='GET', params=None, headers=None, body=None):
+    def request(self, path, api="", method="GET", params=None, headers=None, body=None):
         if params is None:
             params = {}
         response = self.fetch2(path, api, method, params, headers, body)

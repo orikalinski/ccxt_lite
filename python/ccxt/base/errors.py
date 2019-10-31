@@ -24,6 +24,7 @@ __all__ = [
     'BaseError',
     'ExchangeError',
     'NotSupported',
+    'SameLeverage',
     'AuthenticationError',
     'PermissionDenied',
     'AccountSuspended',
