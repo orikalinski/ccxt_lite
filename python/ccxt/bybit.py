@@ -5,7 +5,7 @@
 
 from ccxt.base.decimal_to_precision import DECIMAL_PLACES
 from ccxt.base.decimal_to_precision import TRUNCATE, TICK_SIZE
-from ccxt.base.errors import ArgumentsRequired
+from ccxt.base.errors import ArgumentsRequired, SameLeverage
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import ExchangeError
@@ -24,7 +24,7 @@ class bybit(Exchange):
             "id": "bybit",
             "name": "ByBit",
             "countries": [
-                "ZH",
+                "SG",
             ],
             "version": "v1",
             "rateLimit": 250,
@@ -76,7 +76,7 @@ class bybit(Exchange):
                 "api": {
                     "v1": "https://api.{hostname}",
                 },
-                "www": "https://bybit.com",
+                "www": "https://www.bybit.com",
                 "doc": [
                 ],
                 "fees": [
@@ -215,6 +215,7 @@ class bybit(Exchange):
                 30063: InvalidOrder,
                 30067: InsufficientFunds,
                 30068: ExchangeError,
+                34015: SameLeverage
             },
             "options": {
                 # price precision by quote currency code
@@ -330,6 +331,12 @@ class bybit(Exchange):
             "cost": cost,
             "fee": fee,
         }
+
+    def set_leverage(self, symbol, leverage):
+        self.load_markets()
+        symbol = self.find_symbol(symbol)
+        _id = self.market(symbol)["id"]
+        return self.private_post_user_leverage_save({"symbol": _id, "leverage": leverage})
 
     def get_positions(self):
         self.load_markets()

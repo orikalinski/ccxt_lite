@@ -67,6 +67,10 @@ class NotSupported(ExchangeError):
     pass
 
 
+class SameLeverage(ExchangeError):
+    pass
+
+
 class ArgumentsRequired(ExchangeError):
     """A generic exception raised by unified methods when required arguments are missing."""
     pass

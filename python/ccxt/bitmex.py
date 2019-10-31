@@ -262,6 +262,12 @@ class bitmex (Exchange):
             })
         return result
 
+    def set_leverage(self, symbol, leverage):
+        self.load_markets()
+        symbol = self.find_symbol(symbol)
+        _id = self.market(symbol)["id"]
+        return self.private_post_position_leverage({"symbol": _id, "leverage": leverage})
+
     def get_positions(self):
         self.load_markets()
         positions = self.privateGetPosition()

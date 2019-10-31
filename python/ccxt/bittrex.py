@@ -71,7 +71,7 @@ class bittrex (Exchange):
                     'v3': 'https://api.bittrex.com/v3',
                     'v3public': 'https://api.bittrex.com/v3',
                 },
-                'www': 'https://bittrex.com',
+                'www': 'https://www.bittrex.com',
                 'doc': [
                     'https://bittrex.github.io/api/',
                     'https://bittrex.github.io/api/v3',
