@@ -417,7 +417,7 @@ class bybit(Exchange):
         orders = self.parse_orders(data, market, since, limit)
         return self.filter_by_symbol(orders, symbol)
 
-    def fetch_open_orders(self, symbol=None, since=0, limit=0, params=None):
+    def fetch_open_orders(self, symbol=None, since=None, limit=None, params=None):
         if params is None:
             params = {}
         self.load_markets()
@@ -433,14 +433,16 @@ class bybit(Exchange):
         request["order_status"] = "Created,New"
         regular_response = self.private_get_open_api_order_list(self.extend(request, params))
         regular_result = regular_response["result"]
-        regular_data = regular_result["data"]
+        regular_data = self.safe_value(regular_result, "data", [])
         stop_response = self.private_get_open_api_stop_order_list(self.extend(request, params))
         stop_result = stop_response["result"]
-        stop_data = [order for order in stop_result["data"]
+        stop_data = [order for order in self.safe_value(stop_result, "data", [])
                      if self.parse_order_status(order["stop_order_status"]) == "open"]
         data = regular_data + stop_data
-        data = sorted(data, key=lambda order: -self.parse8601(order["created_at"]))[:limit or -1]
-        orders = self.parse_orders(data, market, since, limit)
+        sorted_data = sorted(data, key=lambda order: -self.parse8601(order["created_at"]))
+        if limit:
+            sorted_data = sorted_data[:limit]
+        orders = self.parse_orders(sorted_data, market, since, limit)
         orders = self.filter_by_symbol(orders, symbol)
         return orders
 
@@ -546,8 +548,10 @@ class bybit(Exchange):
             "Created": "open",
             "PartiallyFilled": "open",
             "Filled": "closed",
+            "Triggered": "closed",
             "Cancelled": "canceled",
             "Rejected": "rejected",
+            "Active": "open",
             "Untriggered": "open"
         }
         return self.safe_string(statuses, status, status)
@@ -588,7 +592,9 @@ class bybit(Exchange):
         if execution_amount and execution_cost:
             average = execution_amount / execution_cost
             average = self.price_to_precision(symbol, average)
+        _type = order.get("order_type").lower()
         _id = self.safe_string(order, "stop_order_id", self.safe_string(order, "order_id"))
+        _type = ("stop" if ("stop_order_id" in order) else "") + _type
         result = {
             "info": order,
             "id": _id,
@@ -596,7 +602,7 @@ class bybit(Exchange):
             "datetime": creation_datetime,
             "lastTradeTimestamp": self.parse8601(last_trade_datetime),
             "symbol": symbol,
-            "type": order.get("order_type").lower(),
+            "type": _type,
             "side": side.lower(),
             "price": price,
             "cost": cost,
