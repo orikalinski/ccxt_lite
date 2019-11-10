@@ -579,9 +579,11 @@ class bybit(Exchange):
         cost = self.safe_float(order, "cost")
         if price:
             cost = round(amount / price, 8)
-        filled = None
+        filled = 0.
         if amount is not None and remaining is not None:
             filled = amount - remaining
+        elif amount is not None:
+            remaining = amount - filled
         fee = {
             "cost": order.get("cum_exec_fee"),
             "currency": symbol.split("/")[0]
