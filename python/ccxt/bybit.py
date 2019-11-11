@@ -478,9 +478,12 @@ class bybit(Exchange):
             params = {}
         self.load_markets()
         try:
-            return self.fetch_stop_order(_id, symbol, params)
+            order = self.fetch_regular_order(_id, symbol, params)
+            if order["status"] == "inactive":
+                return self.fetch_stop_order(_id, symbol, params)
+            return order
         except OrderNotFound:
-            return self.fetch_regular_order(_id, symbol, params)
+            return self.fetch_stop_order(_id, symbol, params)
 
     def fetch_stop_order(self, _id, symbol=None, params=None):
         if params is None:
@@ -543,18 +546,24 @@ class bybit(Exchange):
         return results
 
     def parse_order_status(self, status):
-        statuses = {
-            "New": "open",
-            "Created": "open",
-            "PartiallyFilled": "open",
-            "Filled": "closed",
-            "Triggered": "closed",
-            "Cancelled": "canceled",
-            "Rejected": "rejected",
-            "Active": "open",
-            "Untriggered": "open"
-        }
+        statuses = self.order_statuses()
         return self.safe_string(statuses, status, status)
+
+    @staticmethod
+    def order_statuses(_filter=None):
+        statuses = {
+            'Created': 'created',
+            'New': 'open',
+            'PartiallyFilled': 'open',
+            'Filled': 'closed',
+            'Cancelled': 'canceled',
+            'Rejected': 'rejected',
+            'Untriggered': 'open',
+            'Triggered': 'open',
+            'Active': 'open',
+            'NotActive': 'inactive'
+        }
+        return {key: value for key, value in statuses.items() if not _filter or value == _filter}
 
     def parse_order(self, order, market=None):
         side = self.safe_string(order, "side")
