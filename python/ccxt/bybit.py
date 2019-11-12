@@ -602,7 +602,7 @@ class bybit(Exchange):
         average = None
         if execution_amount and execution_cost:
             average = execution_amount / execution_cost
-            average = self.price_to_precision(symbol, average)
+            average = float(self.price_to_precision(symbol, average))
         _type = order.get("order_type").lower()
         _id = self.safe_string(order, "stop_order_id", self.safe_string(order, "order_id"))
         _type = ("stop" if ("stop_order_id" in order) else "") + _type
