@@ -288,10 +288,15 @@ class bybit(Exchange):
         if params is None:
             params = {}
         self.load_markets()
-        response = self.private_get_v2_private_execution_list(self.extend({}, params))
+        request = {}
+        market = None
+        if symbol is not None:
+            market = self.market(symbol)
+            request["symbol"] = market["id"]
+        response = self.private_get_v2_private_execution_list(self.extend(request, params))
         result = self.safe_value(response, "result", [])
         trades = self.safe_value(result, "trades", [])
-        return self.parse_trades(trades, None, since, limit)
+        return self.parse_trades(trades, market, since, limit)
 
     def parse_trade(self, trade, market=None):
         _id = self.safe_string(trade, "exec_id")
@@ -403,17 +408,13 @@ class bybit(Exchange):
             params = {}
         self.load_markets()
         request = {}
-        if since:
-            request["page"] = since
-        if limit:
-            request["limit"] = limit
         market = None
         if symbol is not None:
             market = self.market(symbol)
             request["symbol"] = market["id"]
         response = self.private_get_open_api_order_list(self.extend(request, params))
         result = response["result"]
-        data = result["data"]
+        data = result["data"] if result else list()
         orders = self.parse_orders(data, market, since, limit)
         return self.filter_by_symbol(orders, symbol)
 
@@ -422,10 +423,6 @@ class bybit(Exchange):
             params = {}
         self.load_markets()
         request = {}
-        if since:
-            request["page"] = since
-        if limit:
-            request["limit"] = limit
         market = None
         if symbol is not None:
             market = self.market(symbol)
@@ -451,10 +448,6 @@ class bybit(Exchange):
             params = {}
         self.load_markets()
         request = {}
-        if since:
-            request["page"] = since
-        if limit:
-            request["limit"] = limit
         market = None
         if symbol is not None:
             market = self.market(symbol)
@@ -462,10 +455,10 @@ class bybit(Exchange):
         request["order_status"] = "Filled,Cancelled,Rejected"
         regular_response = self.private_get_open_api_order_list(self.extend(request, params))
         regular_result = regular_response["result"]
-        regular_data = regular_result["data"]
+        regular_data = regular_result["data"] if regular_result else list()
         stop_response = self.private_get_open_api_stop_order_list(self.extend(request, params))
         stop_result = stop_response["result"]
-        stop_data = [order for order in stop_result["data"]
+        stop_data = [order for order in (stop_result["data"] if stop_result else list())
                      if self.parse_order_status(order["stop_order_status"]) != "open"]
         data = regular_data + stop_data
         data = sorted(data, key=lambda order: -self.parse8601(order["created_at"]))[:limit or -1]
@@ -493,7 +486,7 @@ class bybit(Exchange):
         result = response["result"]
         if not result:
             raise OrderNotFound("Order ID wasn't found in ByBit")
-        data = result["data"]
+        data = result["data"] if result else list()
         return self.parse_order(data[0])
 
     def fetch_regular_order(self, _id, symbol=None, params=None):
@@ -504,7 +497,7 @@ class bybit(Exchange):
         result = response["result"]
         if not result:
             raise OrderNotFound("Order ID wasn't found in ByBit")
-        data = result["data"]
+        data = result["data"] if result else list()
         return self.parse_order(data[0])
 
     def parse_market(self, market):
