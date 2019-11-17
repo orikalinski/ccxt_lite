@@ -275,7 +275,7 @@ class bitmex (Exchange):
         positions_to_return = list()
         for position in positions:
             result = {'info': position, "symbol": self.find_market(position["symbol"])["symbol"],
-                      "quantity": abs(position["currentQty"]),
+                      "quantity": position["currentQty"],
                       "leverage": 0 if position["crossMargin"] else position["leverage"],
                       "maintenance_margin": position["maintMargin"] / 100000000,
                       "liquidation_price": position["liquidationPrice"]}

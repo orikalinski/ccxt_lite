@@ -280,7 +280,7 @@ class deribit2(Exchange):
                 size = position["size"]
                 if size:
                     result = {'info': position, "symbol": self.find_market(position["instrument_name"])["symbol"],
-                              "quantity": abs(position["size"]), "leverage": 0,
+                              "quantity": position["size"], "leverage": 0,
                               "maintenance_margin": position["maintenance_margin"],
                               "liquidation_price": max(liq_price, 0)}
                     positions_to_return.append(result)

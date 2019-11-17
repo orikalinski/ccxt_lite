@@ -348,8 +348,11 @@ class bybit(Exchange):
             liq_price = position["liq_price"]
             size = position["size"]
             if size:
+                side = position.get("side", "buy").lower()
+                if side == "sell":
+                    size = -size
                 result = {"info": position, "symbol": self.find_market(position["symbol"])["symbol"],
-                          "quantity": abs(size), "leverage": position["leverage"],
+                          "quantity": size, "leverage": position["leverage"],
                           "maintenance_margin": position["position_margin"],
                           "liquidation_price": max(liq_price, 0)}
                 positions_to_return.append(result)
