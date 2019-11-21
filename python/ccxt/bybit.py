@@ -563,7 +563,6 @@ class bybit(Exchange):
 
     def parse_order(self, order, market=None):
         side = self.safe_string(order, "side")
-        remaining = self.safe_float(order, "leaves_qty")
         # We parse different fields in a very specific order.
         # Order might well be closed and then canceled.
         status = self.parse_order_status(self.safe_string(order, "order_status") or
@@ -584,20 +583,16 @@ class bybit(Exchange):
         cost = self.safe_float(order, "cost")
         if price:
             cost = round(amount / price, 8)
-        filled = 0.
-        if amount is not None and remaining is not None:
-            filled = amount - remaining
-        elif amount is not None:
-            remaining = amount - filled
         fee = {
             "cost": order.get("cum_exec_fee"),
             "currency": symbol.split("/")[0]
         }
-        execution_amount = order.get("cum_exec_qty")
+        remaining = self.safe_float(order, "leaves_qty") or 0.
+        filled = order.get("cum_exec_qty") or 0.
         execution_cost = order.get("cum_exec_value")
         average = None
-        if execution_amount and execution_cost:
-            average = execution_amount / execution_cost
+        if filled and execution_cost:
+            average = filled / execution_cost
             average = float(self.price_to_precision(symbol, average))
         _type = order.get("order_type").lower()
         _id = self.safe_string(order, "stop_order_id", self.safe_string(order, "order_id"))
