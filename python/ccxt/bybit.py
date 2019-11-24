@@ -314,6 +314,8 @@ class bybit(Exchange):
             request['limit'] = limit  # default 100, max 500
         # if since is not set, they will return candles starting from 2017-01-01
         if since is not None:
+            if len(str(int(since))) == 13:
+                since //= 1000
             request['from'] = since  # starting date filter for results
         response = self.public_get_v2_public_kline_list(self.extend(request, params))
         result = self.safe_value(response, "result")
