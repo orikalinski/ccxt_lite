@@ -28,11 +28,20 @@ class bybit(Exchange):
             "version": "v1",
             "rateLimit": 250,
             "certified": False,
+            'timeframes': {
+                '1m': '1',
+                '5m': '5',
+                '1h': '60',
+                '3h': '180',
+                '6h': '360',
+                '12h': '720',
+                '1d': 'D',
+            },
             # new metainfo interface
             "has": {
                 "fetchClosedOrders": True,
                 "fetchOrderBooks": False,
-                "fetchOHLCV": False,
+                "fetchOHLCV": True,
                 "fetchCurrencies": False,
                 "fetchTransactions": False,
                 "fetchOrder": True,
@@ -68,8 +77,6 @@ class bybit(Exchange):
                 "fetchDepositAddresses": False,
             },
             "hostname": "bybit.com",
-            "timeframes": {
-            },
             "urls": {
                 "logo": "https://boaexchange.com/4cdef72eb47d4a759d2c72e619f48827.png",
                 "api": {
@@ -86,7 +93,8 @@ class bybit(Exchange):
                     "get": [
                         "v2/public/tickers",
                         "v2/public/orderBook/L2",
-                        "v2/public/symbols"
+                        "v2/public/symbols",
+                        "v2/public/kline/list"
                     ]
                 },
                 "private": {
@@ -283,6 +291,33 @@ class bybit(Exchange):
         response = self.private_post_open_api_stop_order_cancel(self.extend(request, params))
         result = response["result"]
         return self.parse_order(result)
+
+    def parse_ohlcv(self, ohlcv, market=None, timeframe='1m', since=None, limit=None):
+        timestamp = int(self.safe_string(ohlcv, 'open_time')) * 1000
+        return [
+            timestamp,
+            self.safe_float(ohlcv, 'open'),
+            self.safe_float(ohlcv, 'high'),
+            self.safe_float(ohlcv, 'low'),
+            self.safe_float(ohlcv, 'close'),
+            self.safe_float(ohlcv, 'volume'),
+        ]
+
+    def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):
+        self.load_markets()
+        market = self.market(symbol)
+        request = {
+            'symbol': market['id'],
+            'interval': self.timeframes[timeframe],
+        }
+        if limit is not None:
+            request['limit'] = limit  # default 100, max 500
+        # if since is not set, they will return candles starting from 2017-01-01
+        if since is not None:
+            request['from'] = since  # starting date filter for results
+        response = self.public_get_v2_public_kline_list(self.extend(request, params))
+        result = self.safe_value(response, "result")
+        return self.parse_ohlcvs(result, market, timeframe, since, limit)
 
     def fetch_my_trades(self, symbol=None, since=None, limit=None, params=None):
         if params is None:
