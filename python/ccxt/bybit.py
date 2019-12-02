@@ -4,7 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.base.decimal_to_precision import TRUNCATE, TICK_SIZE
-from ccxt.base.errors import ArgumentsRequired, SameLeverage
+from ccxt.base.errors import ArgumentsRequired, SameLeverage, OrderCancelled
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import ExchangeError
@@ -206,10 +206,10 @@ class bybit(Exchange):
                 30034: OrderNotFound,
                 30035: ExchangeError,
                 30036: ExchangeError,
-                30037: ExchangeError,
+                30037: OrderCancelled,
                 30040: ExchangeError,
                 30041: ExchangeError,
-                30042: InvalidOrder,
+                30042: InsufficientFunds,
                 30043: ExchangeError,
                 30044: ExchangeError,
                 30045: ExchangeError,
