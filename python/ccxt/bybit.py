@@ -727,8 +727,9 @@ class bybit(Exchange):
             data = self.safe_value(response, "result")
             return_code = self.safe_value(response, "ret_code")
             return_message = self.safe_value(response, "ret_msg")
+            return_message = return_message.lower() if return_message else return_message
             feedback = self.id + " " + self.json(response)
-            if "order not exists" in return_message:
+            if "order not exists" in return_message or "unknown order_status" in return_message:
                 raise OrderNotFound(feedback)
             if return_code:
                 if return_code in self.exceptions:
