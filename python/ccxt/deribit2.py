@@ -7,7 +7,7 @@ import time
 from ast import literal_eval
 
 from ccxt.base.decimal_to_precision import TICK_SIZE
-from ccxt.base.errors import ArgumentsRequired
+from ccxt.base.errors import ArgumentsRequired, AccountSuspended
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import ExchangeError
@@ -212,6 +212,9 @@ class deribit2(Exchange):
                 '11031': ExchangeError,
                 # "other_error <Error>" Some errors which are not considered as very often,
                 # more info may be specified in <Error>
+                '13002': AccountSuspended,
+                '13004': PermissionDenied,
+                '13009': PermissionDenied,
             },
             'precisionMode': TICK_SIZE,
             'options': {
