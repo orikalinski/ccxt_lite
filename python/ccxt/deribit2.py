@@ -213,7 +213,7 @@ class deribit2(Exchange):
                 # "other_error <Error>" Some errors which are not considered as very often,
                 # more info may be specified in <Error>
                 '13002': AccountSuspended,
-                '13004': InvalidOrder,
+                '13004': ExchangeError,
                 '13009': PermissionDenied,
             },
             'precisionMode': TICK_SIZE,
