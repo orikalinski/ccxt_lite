@@ -152,22 +152,22 @@ class deribit2(Exchange):
                 '10010': OrderNotFound,  # "already_closed" Attempt of doing something with closed order
                 '10011': InvalidOrder,  # "price_not_allowed" This price is not allowed for some reason
                 '10012': InvalidOrder,  # "book_closed" Operation for instrument which order book had been closed
-                '10013': PermissionDenied,
+                '10013': InvalidOrder,
                 # "pme_max_total_open_orders <Limit>" Total limit of open orders has been exceeded, it is
                 # applicable for PME users
-                '10014': PermissionDenied,
+                '10014': InvalidOrder,
                 # "pme_max_future_open_orders <Limit>" Limit of count of futures' open orders has been exceeded,
                 # it is applicable for PME users
-                '10015': PermissionDenied,
+                '10015': InvalidOrder,
                 # "pme_max_option_open_orders <Limit>" Limit of count of options' open orders has been exceeded,
                 # it is applicable for PME users
-                '10016': PermissionDenied,
+                '10016': InvalidOrder,
                 # "pme_max_future_open_orders_size <Limit>" Limit of size for futures has been exceeded,
                 # it is applicable for PME users
-                '10017': PermissionDenied,
+                '10017': InvalidOrder,
                 # "pme_max_option_open_orders_size <Limit>" Limit of size for options has been exceeded,
                 # it is applicable for PME users
-                '10019': PermissionDenied,  # "locked_by_admin" Trading is temporary locked by admin
+                '10019': InvalidOrder,  # "locked_by_admin" Trading is temporary locked by admin
                 '10020': ExchangeError,  # "invalid_or_unsupported_instrument" Instrument name is not valid
                 '10022': InvalidOrder,  # "invalid_quantity" quantity was not recognized as a valid number
                 '10023': InvalidOrder,  # "invalid_price" price was not recognized as a valid number
@@ -213,7 +213,7 @@ class deribit2(Exchange):
                 # "other_error <Error>" Some errors which are not considered as very often,
                 # more info may be specified in <Error>
                 '13002': AccountSuspended,
-                '13004': PermissionDenied,
+                '13004': InvalidOrder,
                 '13009': PermissionDenied,
             },
             'precisionMode': TICK_SIZE,
