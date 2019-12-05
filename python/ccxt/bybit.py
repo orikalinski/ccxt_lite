@@ -201,7 +201,7 @@ class bybit(Exchange):
                 30029: InvalidOrder,
                 30030: InvalidOrder,
                 30031: InsufficientFunds,
-                30032: InvalidOrder,
+                30032: OrderNotFound,
                 30033: InvalidOrder,
                 30034: OrderNotFound,
                 30035: ExchangeError,
