@@ -494,8 +494,6 @@ class deribit2(Exchange):
             market = self.markets_by_id[market_id]
             symbol = market['symbol']
         fee_cost = self.safe_float(order, 'commission')
-        if fee_cost is not None:
-            fee_cost = abs(fee_cost)
         fee = {
             'cost': fee_cost,
             'currency': symbol.split("/")[0],
