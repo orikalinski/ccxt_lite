@@ -222,6 +222,7 @@ class bybit(Exchange):
                 30063: InvalidOrder,
                 30067: InsufficientFunds,
                 30068: ExchangeError,
+                33004: AuthenticationError,
                 34015: SameLeverage
             },
             "options": {
