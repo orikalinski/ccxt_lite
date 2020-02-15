@@ -6,7 +6,7 @@
 from ccxt.base.exchange import Exchange
 import math
 import json
-from ccxt.base.errors import ExchangeError
+from ccxt.base.errors import ExchangeError, MaxStopAllowed
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import ArgumentsRequired
 from ccxt.base.errors import InsufficientFunds
@@ -185,6 +185,7 @@ class binance (Exchange):
                 'Order would trigger immediately.': InvalidOrder,
                 'Account has insufficient balance for requested action.': InsufficientFunds,
                 'Rest API trading is not enabled.': ExchangeNotAvailable,
+                'Filter failure: MAX_NUM_ALGO_ORDERS': MaxStopAllowed,
                 '-1000': ExchangeNotAvailable,  # {"code":-1000,"msg":"An unknown error occured while processing the request."}
                 '-1013': InvalidOrder,  # createOrder -> 'invalid quantity'/'invalid price'/MIN_NOTIONAL
                 '-1021': InvalidNonce,  # 'your time is ahead of server'

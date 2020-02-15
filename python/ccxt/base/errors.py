@@ -48,6 +48,7 @@ __all__ = [
     'NullResponse',
     'OrderNotFillable',
     'OrderImmediatelyFillable',
+    'MaxStopAllowed',
 ]
 
 # -----------------------------------------------------------------------------
@@ -59,6 +60,11 @@ class BaseError(Exception):
 
 
 class ExchangeError(BaseError):
+    """"Raised when an exchange server replies with an error in JSON"""
+    pass
+
+
+class MaxStopAllowed(BaseError):
     """"Raised when an exchange server replies with an error in JSON"""
     pass
 
