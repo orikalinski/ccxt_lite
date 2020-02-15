@@ -722,9 +722,12 @@ class deribit2(Exchange):
             error_dict = literal_eval(error)
             error_code = self.safe_string(error_dict, 'code')
             message = self.safe_string(error_dict, 'message')
+            message = message.lower() if message else message
             feedback = self.id + ' ' + body
             if 'order_not_found' == message:
                 raise OrderNotFound(feedback)
+            elif 'invalid_credentials' in message:
+                raise AuthenticationError(feedback)
             exceptions = self.exceptions
             if error_code in exceptions:
                 raise exceptions[error_code](feedback)

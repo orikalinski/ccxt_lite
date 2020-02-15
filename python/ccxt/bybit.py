@@ -734,9 +734,11 @@ class bybit(Exchange):
                 raise OrderNotFound(feedback)
             if "unknown order_status" in return_message:
                 if "untriggered" in return_message:
-                    raise OrderNotFound
+                    raise OrderNotFound(feedback)
                 else:
-                    raise OrderCancelled
+                    raise OrderCancelled(feedback)
+            if "api key has expired" in return_message:
+                raise AuthenticationError(feedback)
             if return_code:
                 if return_code in self.exceptions:
                     raise self.exceptions[return_code](feedback)
