@@ -726,8 +726,8 @@ class deribit2(Exchange):
             feedback = self.id + ' ' + body
             if 'order_not_found' == message:
                 raise OrderNotFound(feedback)
-            elif 'invalid_credentials' in message:
-                raise AuthenticationError(feedback)
+            # elif 'invalid_credentials' in message:
+            #     raise AuthenticationError(feedback)
             exceptions = self.exceptions
             if error_code in exceptions:
                 raise exceptions[error_code](feedback)
