@@ -710,7 +710,7 @@ class deribit2(Exchange):
 
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, http_code, reason, url, method, headers, body, response):
+    def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if not response:
             return  # fallback to default error handler
         #
@@ -732,4 +732,3 @@ class deribit2(Exchange):
             if error_code in exceptions:
                 raise exceptions[error_code](feedback)
             raise ExchangeError(feedback)  # unknown message
-

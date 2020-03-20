@@ -723,7 +723,7 @@ class bybit(Exchange):
                 headers["Referer"] = self.partner_name
         return {"url": url, "method": method, "body": body, "headers": headers}
 
-    def handle_errors(self, code, reason, url, method, headers, body, response):
+    def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if type(response) is dict:
             data = self.safe_value(response, "result")
             return_code = self.safe_value(response, "ret_code")

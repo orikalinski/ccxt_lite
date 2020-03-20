@@ -36,6 +36,7 @@ __all__ = [
     'DuplicateOrderId',
     'NetworkError',
     'DDoSProtection',
+    'RateLimitExceeded',
     'RequestTimeout',
     'ExchangeNotAvailable',
     'InvalidNonce',
@@ -49,6 +50,7 @@ __all__ = [
     'OrderNotFillable',
     'OrderImmediatelyFillable',
     'MaxStopAllowed',
+    'BadSymbol'
 ]
 
 # -----------------------------------------------------------------------------
@@ -91,6 +93,10 @@ class InvalidArguments(ExchangeError):
 class BadRequest(ExchangeError):
     """A generic exception raised by the exchange if all or some of required parameters are
     invalid or missing in URL query or in request body"""
+    pass
+
+
+class BadSymbol(BadRequest):
     pass
 
 
@@ -181,6 +187,10 @@ class NetworkError(BaseError):
 
 class DDoSProtection(NetworkError):
     """Raised whenever DDoS protection restrictions are enforced per user or region/location"""
+    pass
+
+
+class RateLimitExceeded(DDoSProtection):
     pass
 
 
