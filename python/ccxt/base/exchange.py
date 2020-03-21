@@ -160,6 +160,9 @@ class Exchange(object):
     secret = ''
     password = ''
     uid = ''
+    partner_private_key = ''
+    partner_api_key = ''
+    partner_name = ''
     privateKey = ''  # a "0x"-prefixed hexstring private key for a wallet
     walletAddress = ''  # the wallet address "0x"-prefixed hexstring
     token = ''  # reserved for HTTP auth in some cases
@@ -1711,6 +1714,23 @@ class Exchange(object):
     def market_id(self, symbol):
         market = self.market(symbol)
         return market['id'] if type(market) is dict else symbol
+
+    def find_market(self, string):
+        if not self.markets:
+            raise ExchangeError('Markets not loaded')
+        if isinstance(string, basestring):
+            if string in self.markets_by_id:
+                return self.markets_by_id[string]
+            if string in self.markets:
+                return self.markets[string]
+        return string
+
+    def find_symbol(self, string, market=None):
+        if market is None:
+            market = self.find_market(string)
+        if isinstance(market, dict):
+            return market['symbol']
+        return string
 
     def calculate_fee(self, symbol, type, side, amount, price, takerOrMaker='taker', params={}):
         market = self.markets[symbol]

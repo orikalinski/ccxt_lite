@@ -352,6 +352,35 @@ class binance(Exchange):
         self.options['timeDifference'] = after - serverTime
         return self.options['timeDifference']
 
+    def get_positions(self):
+        self.load_markets()
+        positions_to_return = list()
+        account_positions = self.fapiPrivateGetAccount().get("positions", list())
+        risk_positions = {position["symbol"]: position for position in self.fapiPrivateGetPositionRisk()}
+        for account_position in account_positions:
+            margin = self.safe_float(account_position, "initialMargin", 0.) + \
+                     self.safe_float(account_position, "unrealizedProfit", 0.)
+            symbol = account_position["symbol"]
+            position = risk_positions.get(symbol)
+            if position:
+                liq_price = self.safe_float(position, "liquidationPrice", 0)
+                result = {"info": position, "symbol": self.find_market(position["symbol"])["symbol"],
+                          "quantity": self.safe_float(position, "positionAmt", 0.),
+                          "leverage": self.safe_float(position, "leverage", None), "maintenance_margin": margin,
+                          "margin_type": position["marginType"], "liquidation_price": max(liq_price, 0)}
+                positions_to_return.append(result)
+        return positions_to_return
+
+    def change_margin_type(self, symbol, cross):
+        self.load_markets()
+        _id = self.market(symbol)["id"]
+        return self.fapiPrivate_post_marginType({"symbol": _id, "marginType": int(cross)})
+
+    def set_leverage(self, symbol, leverage):
+        self.load_markets()
+        _id = self.market(symbol)["id"]
+        return self.fapiPrivate_post_leverage({"symbol": _id, "leverage": leverage})
+
     def fetch_markets(self, params={}):
         defaultType = self.safe_string_2(self.options, 'fetchMarkets', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
