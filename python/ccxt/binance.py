@@ -373,12 +373,12 @@ class binance(Exchange):
 
     def change_margin_type(self, symbol, cross):
         self.load_markets()
-        _id = self.market(symbol)["id"]
+        _id = self.find_market(symbol)["id"]
         return self.fapiPrivate_post_marginType({"symbol": _id, "marginType": int(cross)})
 
     def set_leverage(self, symbol, leverage):
         self.load_markets()
-        _id = self.market(symbol)["id"]
+        _id = self.find_market(symbol)["id"]
         return self.fapiPrivate_post_leverage({"symbol": _id, "leverage": leverage})
 
     def fetch_markets(self, params={}):
