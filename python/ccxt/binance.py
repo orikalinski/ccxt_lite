@@ -386,7 +386,7 @@ class binance(Exchange):
     def set_leverage(self, symbol, leverage):
         self.load_markets()
         _id = self.find_market(symbol)["id"]
-        return self.fapiPrivate_post_leverage({"symbol": _id, "leverage": leverage})
+        return self.fapiPrivate_post_leverage({"symbol": _id, "leverage": int(float(leverage))})
 
     def fetch_markets(self, params={}):
         defaultType = self.safe_string_2(self.options, 'fetchMarkets', 'defaultType', 'spot')
