@@ -374,7 +374,14 @@ class binance(Exchange):
     def change_margin_type(self, symbol, cross):
         self.load_markets()
         _id = self.find_market(symbol)["id"]
-        return self.fapiPrivatePostMarginType({"symbol": _id, "marginType": int(cross)})
+        margin_type = "CROSSED" if cross else "ISOLATED"
+        try:
+            return self.fapiPrivatePostMarginType({"symbol": _id, "marginType": margin_type})
+        except ExchangeError as e:
+            args = e.args
+            if args and len(args) > 0 and args[0] == '-4046':
+                return
+            raise e
 
     def set_leverage(self, symbol, leverage):
         self.load_markets()
@@ -1782,6 +1789,8 @@ class binance(Exchange):
                     # a workaround for {"code":-2015,"msg":"Invalid API-key, IP, or permissions for action."}
                     # despite that their message is very confusing, it is raised by Binance
                     # on a temporary ban(the API key is valid, but disabled for a while)
+                    if error == '-4046':
+                        raise ExchangeError(error, body)
                     if (error == '-2015') and self.options['hasAlreadyAuthenticatedSuccessfully']:
                         raise DDoSProtection(self.id + ' temporary banned: ' + body)
                     feedback = self.id + ' ' + body
