@@ -1227,4 +1227,3 @@ class bitmex (Exchange):
                     auth += body
             headers['api-signature'] = self.hmac(self.encode(auth), self.encode(self.secret))
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
-

@@ -1236,12 +1236,3 @@ class binance (Exchange):
         if (api == 'private') or (api == 'wapi'):
             self.options['hasAlreadyAuthenticatedSuccessfully'] = True
         return response
-
-
-if __name__ == '__main__':
-    b = binance()
-    a = b.load_markets()
-    b.apiKey = "333"
-    b.secret = "333"
-    b.create_limit_buy_order("BTC/USDT", 10, 10000)
-    b.price_to_precision("BTC/USDT", 11500)

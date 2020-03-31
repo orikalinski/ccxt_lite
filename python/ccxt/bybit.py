@@ -595,7 +595,8 @@ class bybit(Exchange):
             'Untriggered': 'open',
             'Triggered': 'open',
             'Active': 'open',
-            'NotActive': 'inactive'
+            'NotActive': 'inactive',
+            'Deactivated': 'canceled'
         }
         return {key: value for key, value in statuses.items() if not _filter or value == _filter}
 
