@@ -539,6 +539,8 @@ class bybit(Exchange):
         if not result:
             raise OrderNotFound("Order ID wasn't found in ByBit")
         data = result["data"] if result else list()
+        if not data:
+            raise OrderNotFound("Order data wasn't received from ByBit")
         return self.parse_order(data[0])
 
     def parse_market(self, market):
