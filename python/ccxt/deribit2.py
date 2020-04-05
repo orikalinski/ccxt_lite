@@ -215,6 +215,7 @@ class deribit2(Exchange):
                 '13002': AccountSuspended,
                 '13004': ExchangeError,
                 '13009': PermissionDenied,
+                '13021': PermissionDenied
             },
             'precisionMode': TICK_SIZE,
             'options': {
