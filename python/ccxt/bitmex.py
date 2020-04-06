@@ -280,7 +280,7 @@ class bitmex (Exchange):
                       "quantity": position["currentQty"],
                       "leverage": leverage, "margin_type": margin_type,
                       "maintenance_margin": position["maintMargin"] / 100000000,
-                      "liquidation_price": position["liquidationPrice"]}
+                      "liquidation_price": self.safe_float(position, "liquidationPrice", 0)}
             positions_to_return.append(result)
         return positions_to_return
 
