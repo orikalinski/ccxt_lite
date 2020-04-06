@@ -290,7 +290,7 @@ class deribit2(Exchange):
         for currency_data in currencies:
             positions = self.private_get_get_positions({"currency": currency_data["currency"]})
             for position in positions["result"]:
-                liq_price = position["estimated_liquidation_price"]
+                liq_price = self.safe_float(position, "estimated_liquidation_price", 0)
                 size = position["size"]
                 if size:
                     result = {'info': position, "symbol": self.find_market(position["instrument_name"])["symbol"],

@@ -383,7 +383,7 @@ class bybit(Exchange):
         positions_to_return = list()
         positions = self.private_get_position_list()
         for position in positions["result"]:
-            liq_price = position["liq_price"]
+            liq_price = self.safe_float(position, "liq_price", 0)
             size = position["size"]
             if size:
                 side = position.get("side", "buy").lower()
