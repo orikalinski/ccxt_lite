@@ -529,7 +529,9 @@ class bybit(Exchange):
         result = response["result"]
         if not result:
             raise OrderNotFound("Order ID wasn't found in ByBit")
-        data = result["data"] if result else list()
+        data = result.get("data")
+        if not data:
+            raise OrderNotFound("Order data wasn't received from ByBit")
         return self.parse_order(data[0])
 
     def fetch_regular_order(self, _id, symbol=None, params=None):
@@ -540,7 +542,7 @@ class bybit(Exchange):
         result = response["result"]
         if not result:
             raise OrderNotFound("Order ID wasn't found in ByBit")
-        data = result["data"] if result else list()
+        data = result.get("data")
         if not data:
             raise OrderNotFound("Order data wasn't received from ByBit")
         return self.parse_order(data[0])
