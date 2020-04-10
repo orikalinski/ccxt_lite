@@ -7,7 +7,7 @@ import time
 from ast import literal_eval
 
 from ccxt.base.decimal_to_precision import TICK_SIZE
-from ccxt.base.errors import ArgumentsRequired, AccountSuspended
+from ccxt.base.errors import ArgumentsRequired, AccountSuspended, InvalidNonce
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import ExchangeError
@@ -727,6 +727,8 @@ class deribit2(Exchange):
             feedback = self.id + ' ' + body
             if 'order_not_found' == message:
                 raise OrderNotFound(feedback)
+            elif ('invalid' in message and 'nonce' in message) or ('invalid' in feedback and 'nonce' in feedback):
+                raise InvalidNonce(feedback)
             # elif 'invalid_credentials' in message:
             #     raise AuthenticationError(feedback)
             exceptions = self.exceptions
