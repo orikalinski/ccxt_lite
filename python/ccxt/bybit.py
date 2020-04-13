@@ -279,7 +279,7 @@ class bybit(Exchange):
         if params is None:
             params = {}
         self.load_markets()
-        request = {"order_id": _id}
+        request = {"order_id": _id, "symbol": symbol}
         response = self.private_post_open_api_order_cancel(self.extend(request, params))
         result = response["result"]
         return self.parse_order(result)
