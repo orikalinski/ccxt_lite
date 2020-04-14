@@ -551,17 +551,21 @@ class bybit(Exchange):
     def parse_market(self, market):
         _id = market["name"]
         base_id = market["base_currency"]
-        quote_id = market["quote_currency"]
-        base = self.common_currency_code(base_id)
-        quote = self.common_currency_code(quote_id)
-        symbol = base + "/" + quote
+        _base_or_quote = _id.lstrip(base_id)
+        if _base_or_quote == _id:
+            _quote = base_id
+            _base = _id.rstrip(base_id)
+        else:
+            _base = base_id
+            _quote = _base_or_quote
+        symbol = _base + "/" + _quote
         price_filter = market["price_filter"]
         amount_filter = market["lot_size_filter"]
         return {
             "id": _id,
             "symbol": symbol,
-            "base": base,
-            "quote": quote,
+            "base": _base,
+            "quote": _quote,
             "active": True,
             "precision": {
                 "amount": self.safe_float(amount_filter, "qty_step"),
