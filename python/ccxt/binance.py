@@ -354,6 +354,15 @@ class binance(Exchange):
         self.options['timeDifference'] = after - serverTime
         return self.options['timeDifference']
 
+    def get_pnl_history(self):
+        pnl_history = self.fapiPrivateGetIncome({"incomeType": "REALIZED_PNL"})
+        results = list()
+        for pnl_result in pnl_history:
+            result = {"asset": pnl_result["asset"], "pnl": pnl_result["income"], "time": pnl_result["time"],
+                      "info": pnl_result}
+            results.append(result)
+        return results
+
     def get_positions(self):
         self.load_markets()
         positions_to_return = list()
