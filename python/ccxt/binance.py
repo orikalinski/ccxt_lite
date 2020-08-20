@@ -374,12 +374,14 @@ class binance(Exchange):
             symbol = account_position["symbol"]
             position = risk_positions.get(symbol)
             if position:
-                liq_price = self.safe_float(position, "liquidationPrice", 0)
-                result = {"info": position, "symbol": self.find_market(position["symbol"])["symbol"],
-                          "quantity": self.safe_float(position, "positionAmt", 0.),
-                          "leverage": self.safe_float(position, "leverage", None), "maintenance_margin": margin,
-                          "margin_type": position["marginType"], "liquidation_price": max(liq_price, 0)}
-                positions_to_return.append(result)
+                market = self.find_market(position["symbol"])
+                if type(market) is dict:
+                    liq_price = self.safe_float(position, "liquidationPrice", 0)
+                    result = {"info": position, "symbol": market["symbol"],
+                              "quantity": self.safe_float(position, "positionAmt", 0.),
+                              "leverage": self.safe_float(position, "leverage", None), "maintenance_margin": margin,
+                              "margin_type": position["marginType"], "liquidation_price": max(liq_price, 0)}
+                    positions_to_return.append(result)
         return positions_to_return
 
     def change_margin_type(self, symbol, cross):
