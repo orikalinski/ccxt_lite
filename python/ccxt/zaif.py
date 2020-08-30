@@ -10,7 +10,7 @@ from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import BadRequest
 
 
-class zaif (Exchange):
+class zaif(Exchange):
 
     def describe(self):
         return self.deep_extend(super(zaif, self).describe(), {
@@ -20,10 +20,17 @@ class zaif (Exchange):
             'rateLimit': 2000,
             'version': '1',
             'has': {
+                'cancelOrder': True,
                 'CORS': False,
                 'createMarketOrder': False,
-                'fetchOpenOrders': True,
+                'createOrder': True,
+                'fetchBalance': True,
                 'fetchClosedOrders': True,
+                'fetchMarkets': True,
+                'fetchOrderBook': True,
+                'fetchOpenOrders': True,
+                'fetchTicker': True,
+                'fetchTrades': True,
                 'withdraw': True,
             },
             'urls': {
@@ -129,8 +136,8 @@ class zaif (Exchange):
             id = self.safe_string(market, 'currency_pair')
             name = self.safe_string(market, 'name')
             baseId, quoteId = name.split('/')
-            base = self.common_currency_code(baseId)
-            quote = self.common_currency_code(quoteId)
+            base = self.safe_currency_code(baseId)
+            quote = self.safe_currency_code(quoteId)
             symbol = base + '/' + quote
             precision = {
                 'amount': -math.log10(market['item_unit_step']),
@@ -177,12 +184,8 @@ class zaif (Exchange):
         currencyIds = list(funds.keys())
         for i in range(0, len(currencyIds)):
             currencyId = currencyIds[i]
+            code = self.safe_currency_code(currencyId)
             balance = self.safe_value(funds, currencyId)
-            code = currencyId
-            if currencyId in self.currencies_by_id:
-                code = self.currencies_by_id[currencyId]['code']
-            else:
-                code = self.common_currency_code(currencyId.upper())
             account = {
                 'free': balance,
                 'used': 0.0,
@@ -242,9 +245,7 @@ class zaif (Exchange):
     def parse_trade(self, trade, market=None):
         side = self.safe_string(trade, 'trade_type')
         side = 'buy' if (side == 'bid') else 'sell'
-        timestamp = self.safe_integer(trade, 'date')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(trade, 'date')
         id = self.safe_string_2(trade, 'id', 'tid')
         price = self.safe_float(trade, 'price')
         amount = self.safe_float(trade, 'amount')
@@ -312,11 +313,19 @@ class zaif (Exchange):
         return self.privatePostCancelOrder(self.extend(request, params))
 
     def parse_order(self, order, market=None):
+        #
+        #     {
+        #         "currency_pair": "btc_jpy",
+        #         "action": "ask",
+        #         "amount": 0.03,
+        #         "price": 56000,
+        #         "timestamp": 1402021125,
+        #         "comment" : "demo"
+        #     }
+        #
         side = self.safe_string(order, 'action')
         side = 'buy' if (side == 'bid') else 'sell'
-        timestamp = self.safe_integer(order, 'timestamp')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(order, 'timestamp')
         if not market:
             marketId = self.safe_string(order, 'currency_pair')
             if marketId in self.markets_by_id:
@@ -333,6 +342,7 @@ class zaif (Exchange):
             symbol = market['symbol']
         return {
             'id': id,
+            'clientOrderId': None,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'lastTradeTimestamp': None,
@@ -347,6 +357,8 @@ class zaif (Exchange):
             'remaining': None,
             'trades': None,
             'fee': None,
+            'info': order,
+            'average': None,
         }
 
     def parse_orders(self, orders, market=None, since=None, limit=None, params={}):
@@ -403,7 +415,7 @@ class zaif (Exchange):
             'currency': currency['id'],
             'amount': amount,
             'address': address,
-            # 'message': 'Hinot ',  # XEM and others
+            # 'message': 'Hi!',  # XEM and others
             # 'opt_fee': 0.003,  # BTC and MONA only
         }
         if tag is not None:
@@ -445,7 +457,7 @@ class zaif (Exchange):
             }
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, httpCode, reason, url, method, headers, body, response):
+    def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
             return
         #
@@ -454,13 +466,8 @@ class zaif (Exchange):
         feedback = self.id + ' ' + body
         error = self.safe_string(response, 'error')
         if error is not None:
-            exact = self.exceptions['exact']
-            if error in exact:
-                raise exact[error](feedback)
-            broad = self.exceptions['broad']
-            broadKey = self.findBroadlyMatchedKey(broad, error)
-            if broadKey is not None:
-                raise broad[broadKey](feedback)
+            self.throw_exactly_matched_exception(self.exceptions['exact'], error, feedback)
+            self.throw_broadly_matched_exception(self.exceptions['broad'], error, feedback)
             raise ExchangeError(feedback)  # unknown message
         success = self.safe_value(response, 'success', True)
         if not success:

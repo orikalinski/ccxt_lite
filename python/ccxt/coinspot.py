@@ -10,7 +10,7 @@ from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import NotSupported
 
 
-class coinspot (Exchange):
+class coinspot(Exchange):
 
     def describe(self):
         return self.deep_extend(super(coinspot, self).describe(), {
@@ -19,8 +19,14 @@ class coinspot (Exchange):
             'countries': ['AU'],  # Australia
             'rateLimit': 1000,
             'has': {
+                'cancelOrder': False,
                 'CORS': False,
                 'createMarketOrder': False,
+                'createOrder': True,
+                'fetchBalance': True,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
+                'fetchTrades': True,
             },
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/1294454/28208429-3cacdf9a-6896-11e7-854e-4c79a772a30f.jpg',
@@ -73,14 +79,9 @@ class coinspot (Exchange):
         currencyIds = list(balances.keys())
         for i in range(0, len(currencyIds)):
             currencyId = currencyIds[i]
-            uppercase = currencyId.upper()
-            code = self.common_currency_code(uppercase)
-            total = self.safe_float(balances, currencyId)
-            account = {
-                'free': total,
-                'used': 0.0,
-                'total': total,
-            }
+            code = self.safe_currency_code(currencyId)
+            account = self.account()
+            account['total'] = self.safe_float(balances, currencyId)
             result[code] = account
         return self.parse_balance(result)
 

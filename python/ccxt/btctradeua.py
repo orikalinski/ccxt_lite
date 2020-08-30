@@ -8,7 +8,7 @@ from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import ArgumentsRequired
 
 
-class btctradeua (Exchange):
+class btctradeua(Exchange):
 
     def describe(self):
         return self.deep_extend(super(btctradeua, self).describe(), {
@@ -17,11 +17,19 @@ class btctradeua (Exchange):
             'countries': ['UA'],  # Ukraine,
             'rateLimit': 3000,
             'has': {
-                'CORS': True,
+                'cancelOrder': True,
+                'CORS': False,
                 'createMarketOrder': False,
+                'createOrder': True,
+                'fetchBalance': True,
                 'fetchOpenOrders': True,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
+                'fetchTrades': True,
+                'signIn': True,
             },
             'urls': {
+                'referral': 'https://btc-trade.com.ua/registration/22689',
                 'logo': 'https://user-images.githubusercontent.com/1294454/27941483-79fc7350-62d9-11e7-9f61-ac47f28fcd96.jpg',
                 'api': 'https://btc-trade.com.ua/api',
                 'www': 'https://btc-trade.com.ua',
@@ -92,17 +100,14 @@ class btctradeua (Exchange):
         self.load_markets()
         response = self.privatePostBalance(params)
         result = {'info': response}
-        accounts = self.safe_value(response, 'accounts')
-        for i in range(0, len(accounts)):
-            account = accounts[i]
-            currencyId = account['currency']
-            code = self.common_currency_code(currencyId)
-            balance = self.safe_float(account, 'balance')
-            result[code] = {
-                'free': balance,
-                'used': 0.0,
-                'total': balance,
-            }
+        balances = self.safe_value(response, 'accounts')
+        for i in range(0, len(balances)):
+            balance = balances[i]
+            currencyId = self.safe_string(balance, 'currency')
+            code = self.safe_currency_code(currencyId)
+            account = self.account()
+            account['total'] = self.safe_float(balance, 'balance')
+            result[code] = account
         return self.parse_balance(result)
 
     def fetch_order_book(self, symbol, limit=None, params={}):
@@ -291,6 +296,7 @@ class btctradeua (Exchange):
             symbol = market['symbol']
         return {
             'id': self.safe_string(order, 'id'),
+            'clientOrderId': None,
             'timestamp': timestamp,  # until they fix their timestamp
             'datetime': self.iso8601(timestamp),
             'lastTradeTimestamp': None,
@@ -304,6 +310,9 @@ class btctradeua (Exchange):
             'remaining': self.safe_float(order, 'amnt_trade'),
             'trades': None,
             'info': order,
+            'cost': None,
+            'average': None,
+            'fee': None,
         }
 
     def fetch_open_orders(self, symbol=None, since=None, limit=None, params={}):

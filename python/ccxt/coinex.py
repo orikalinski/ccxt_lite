@@ -4,6 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.base.exchange import Exchange
+import math
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import ArgumentsRequired
@@ -12,7 +13,7 @@ from ccxt.base.errors import InvalidOrder
 from ccxt.base.errors import OrderNotFound
 
 
-class coinex (Exchange):
+class coinex(Exchange):
 
     def describe(self):
         return self.deep_extend(super(coinex, self).describe(), {
@@ -22,15 +23,22 @@ class coinex (Exchange):
             'countries': ['CN'],
             'rateLimit': 1000,
             'has': {
-                'fetchTickers': True,
-                'fetchOHLCV': True,
-                'fetchOrder': True,
-                'fetchOpenOrders': True,
+                'cancelOrder': True,
+                'createOrder': True,
+                'fetchBalance': True,
                 'fetchClosedOrders': True,
-                'fetchMyTrades': True,
-                'withdraw': True,
                 'fetchDeposits': True,
+                'fetchMarkets': True,
+                'fetchMyTrades': True,
+                'fetchOHLCV': True,
+                'fetchOpenOrders': True,
+                'fetchOrder': True,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
+                'fetchTickers': True,
+                'fetchTrades': True,
                 'fetchWithdrawals': True,
+                'withdraw': True,
             },
             'timeframes': {
                 '1m': '1min',
@@ -48,25 +56,19 @@ class coinex (Exchange):
                 '1w': '1week',
             },
             'urls': {
-                'logo': 'https://user-images.githubusercontent.com/1294454/38046312-0b450aac-32c8-11e8-99ab-bc6b136b6cc7.jpg',
-                'api': {
-                    'public': 'https://api.coinex.com',
-                    'private': 'https://api.coinex.com',
-                    'web': 'https://www.coinex.com',
-                },
+                'logo': 'https://user-images.githubusercontent.com/51840849/87182089-1e05fa00-c2ec-11ea-8da9-cc73b45abbbc.jpg',
+                'api': 'https://api.coinex.com',
                 'www': 'https://www.coinex.com',
                 'doc': 'https://github.com/coinexcom/coinex_exchange_api/wiki',
                 'fees': 'https://www.coinex.com/fees',
                 'referral': 'https://www.coinex.com/register?refer_code=yw5fz',
             },
             'api': {
-                'web': {
-                    'get': [
-                        'res/market',
-                    ],
-                },
                 'public': {
                     'get': [
+                        'common/currency/rate',
+                        'common/asset/config',
+                        'market/info',
                         'market/list',
                         'market/ticker',
                         'market/ticker/all',
@@ -77,22 +79,44 @@ class coinex (Exchange):
                 },
                 'private': {
                     'get': [
-                        'balance/coin/withdraw',
                         'balance/coin/deposit',
+                        'balance/coin/withdraw',
                         'balance/info',
+                        'future/account',
+                        'future/config',
+                        'future/limitprice',
+                        'future/loan/history',
+                        'future/market',
+                        'margin/account',
+                        'margin/config',
+                        'margin/loan/history',
+                        'margin/market',
                         'order',
-                        'order/pending',
+                        'order/deals',
                         'order/finished',
                         'order/finished/{id}',
+                        'order/pending',
+                        'order/status',
+                        'order/status/batch',
                         'order/user/deals',
                     ],
                     'post': [
                         'balance/coin/withdraw',
+                        'future/flat',
+                        'future/loan',
+                        'future/transfer',
+                        'margin/flat',
+                        'margin/loan',
+                        'margin/transfer',
+                        'order/batchlimit',
+                        'order/ioc',
                         'order/limit',
                         'order/market',
+                        'sub_account/transfer',
                     ],
                     'delete': [
                         'balance/coin/withdraw',
+                        'order/pending/batch',
                         'order/pending',
                     ],
                 },
@@ -129,25 +153,44 @@ class coinex (Exchange):
         })
 
     def fetch_markets(self, params={}):
-        response = self.webGetResMarket(params)
-        markets = self.safe_value(response['data'], 'market_info')
+        response = self.publicGetMarketInfo(params)
+        #
+        #     {
+        #         "code": 0,
+        #         "data": {
+        #             "WAVESBTC": {
+        #                 "name": "WAVESBTC",
+        #                 "min_amount": "1",
+        #                 "maker_fee_rate": "0.001",
+        #                 "taker_fee_rate": "0.001",
+        #                 "pricing_name": "BTC",
+        #                 "pricing_decimal": 8,
+        #                 "trading_name": "WAVES",
+        #                 "trading_decimal": 8
+        #             }
+        #         }
+        #     }
+        #
+        markets = self.safe_value(response, 'data', {})
         result = []
         keys = list(markets.keys())
         for i in range(0, len(keys)):
             key = keys[i]
             market = markets[key]
-            id = self.safe_string(market, 'market')
-            quoteId = self.safe_string(market, 'buy_asset_type')
-            baseId = self.safe_string(market, 'sell_asset_type')
-            base = self.common_currency_code(baseId)
-            quote = self.common_currency_code(quoteId)
+            id = self.safe_string(market, 'name')
+            tradingName = self.safe_string(market, 'trading_name')
+            baseId = tradingName
+            quoteId = self.safe_string(market, 'pricing_name')
+            base = self.safe_currency_code(baseId)
+            quote = self.safe_currency_code(quoteId)
             symbol = base + '/' + quote
+            if tradingName == id:
+                symbol = id
             precision = {
-                'amount': self.safe_integer(market, 'sell_asset_type_places'),
-                'price': self.safe_integer(market, 'buy_asset_type_places'),
+                'amount': self.safe_integer(market, 'trading_decimal'),
+                'price': self.safe_integer(market, 'pricing_decimal'),
             }
-            numMergeLevels = len(market['merge'])
-            active = (market['status'] == 'pass')
+            active = None
             result.append({
                 'id': id,
                 'symbol': symbol,
@@ -162,11 +205,11 @@ class coinex (Exchange):
                 'precision': precision,
                 'limits': {
                     'amount': {
-                        'min': self.safe_float(market, 'least_amount'),
+                        'min': self.safe_float(market, 'min_amount'),
                         'max': None,
                     },
                     'price': {
-                        'min': float(market['merge'][numMergeLevels - 1]),
+                        'min': math.pow(10, -precision['price']),
                         'max': None,
                     },
                 },
@@ -227,11 +270,12 @@ class coinex (Exchange):
             if marketId in self.markets_by_id:
                 market = self.markets_by_id[marketId]
                 symbol = market['symbol']
-            ticker = {
+            ticker = self.parse_ticker({
                 'date': timestamp,
                 'ticker': tickers[marketId],
-            }
-            result[symbol] = self.parse_ticker(ticker, market)
+            }, market)
+            ticker['symbol'] = symbol
+            result[symbol] = ticker
         return result
 
     def fetch_order_book(self, symbol, limit=20, params={}):
@@ -248,11 +292,9 @@ class coinex (Exchange):
 
     def parse_trade(self, trade, market=None):
         # self method parses both public and private trades
-        timestamp = self.safe_integer(trade, 'create_time')
+        timestamp = self.safe_timestamp(trade, 'create_time')
         if timestamp is None:
             timestamp = self.safe_integer(trade, 'date_ms')
-        else:
-            timestamp = timestamp * 1000
         tradeId = self.safe_string(trade, 'id')
         orderId = self.safe_string(trade, 'order_id')
         price = self.safe_float(trade, 'price')
@@ -269,10 +311,7 @@ class coinex (Exchange):
         feeCost = self.safe_float(trade, 'fee')
         if feeCost is not None:
             feeCurrencyId = self.safe_string(trade, 'fee_asset')
-            feeCurrency = self.safe_value(self.currencies_by_id, feeCurrencyId)
-            feeCurrencyCode = None
-            if feeCurrency is not None:
-                feeCurrencyCode = feeCurrency['code']
+            feeCurrencyCode = self.safe_currency_code(feeCurrencyId)
             fee = {
                 'cost': feeCost,
                 'currency': feeCurrencyCode,
@@ -304,14 +343,26 @@ class coinex (Exchange):
         response = self.publicGetMarketDeals(self.extend(request, params))
         return self.parse_trades(response['data'], market, since, limit)
 
-    def parse_ohlcv(self, ohlcv, market=None, timeframe='5m', since=None, limit=None):
+    def parse_ohlcv(self, ohlcv, market=None):
+        #
+        #     [
+        #         1591484400,
+        #         "0.02505349",
+        #         "0.02506988",
+        #         "0.02507000",
+        #         "0.02505304",
+        #         "343.19716223",
+        #         "8.6021323866383196",
+        #         "ETHBTC"
+        #     ]
+        #
         return [
-            ohlcv[0] * 1000,
-            float(ohlcv[1]),
-            float(ohlcv[3]),
-            float(ohlcv[4]),
-            float(ohlcv[2]),
-            float(ohlcv[5]),
+            self.safe_timestamp(ohlcv, 0),
+            self.safe_float(ohlcv, 1),
+            self.safe_float(ohlcv, 3),
+            self.safe_float(ohlcv, 4),
+            self.safe_float(ohlcv, 2),
+            self.safe_float(ohlcv, 5),
         ]
 
     def fetch_ohlcv(self, symbol, timeframe='5m', since=None, limit=None, params={}):
@@ -322,7 +373,19 @@ class coinex (Exchange):
             'type': self.timeframes[timeframe],
         }
         response = self.publicGetMarketKline(self.extend(request, params))
-        return self.parse_ohlcvs(response['data'], market, timeframe, since, limit)
+        #
+        #     {
+        #         "code": 0,
+        #         "data": [
+        #             [1591484400, "0.02505349", "0.02506988", "0.02507000", "0.02505304", "343.19716223", "8.6021323866383196", "ETHBTC"],
+        #             [1591484700, "0.02506990", "0.02508109", "0.02508109", "0.02506979", "91.59841581", "2.2972047780447000", "ETHBTC"],
+        #             [1591485000, "0.02508106", "0.02507996", "0.02508106", "0.02507500", "65.15307697", "1.6340597822306000", "ETHBTC"],
+        #         ],
+        #         "message": "OK"
+        #     }
+        #
+        data = self.safe_value(response, 'data', [])
+        return self.parse_ohlcvs(data, market, timeframe, since, limit)
 
     def fetch_balance(self, params={}):
         self.load_markets()
@@ -352,11 +415,7 @@ class coinex (Exchange):
         currencyIds = list(balances.keys())
         for i in range(0, len(currencyIds)):
             currencyId = currencyIds[i]
-            code = currencyId
-            if currencyId in self.currencies_by_id:
-                code = self.currencies_by_id[currencyId]['code']
-            else:
-                code = self.common_currency_code(currencyId)
+            code = self.safe_currency_code(currencyId)
             balance = self.safe_value(balances, currencyId, {})
             account = self.account()
             account['free'] = self.safe_float(balance, 'available')
@@ -371,7 +430,7 @@ class coinex (Exchange):
             'done': 'closed',
             'cancel': 'canceled',
         }
-        return self.safe_float(statuses, status, status)
+        return self.safe_string(statuses, status, status)
 
     def parse_order(self, order, market=None):
         #
@@ -398,9 +457,7 @@ class coinex (Exchange):
         #         "type": "sell",
         #     }
         #
-        timestamp = self.safe_integer(order, 'create_time')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(order, 'create_time')
         price = self.safe_float(order, 'price')
         cost = self.safe_float(order, 'deal_money')
         amount = self.safe_float(order, 'amount')
@@ -409,11 +466,8 @@ class coinex (Exchange):
         symbol = None
         marketId = self.safe_string(order, 'market')
         market = self.safe_value(self.markets_by_id, marketId)
-        feeCurrency = None
         feeCurrencyId = self.safe_string(order, 'fee_asset')
-        currency = self.safe_value(self.currencies_by_id, feeCurrencyId)
-        if currency is not None:
-            feeCurrency = currency['code']
+        feeCurrency = self.safe_currency_code(feeCurrencyId)
         if market is not None:
             symbol = market['symbol']
             if feeCurrency is None:
@@ -424,6 +478,7 @@ class coinex (Exchange):
         side = self.safe_string(order, 'type')
         return {
             'id': self.safe_string(order, 'id'),
+            'clientOrderId': None,
             'datetime': self.iso8601(timestamp),
             'timestamp': timestamp,
             'lastTradeTimestamp': None,
@@ -446,32 +501,31 @@ class coinex (Exchange):
         }
 
     def create_order(self, symbol, type, side, amount, price=None, params={}):
-        amount = float(amount)  # self line is deprecated
-        if type == 'market':
-            # for market buy it requires the amount of quote currency to spend
-            if side == 'buy':
-                if self.options['createMarketBuyOrderRequiresPrice']:
-                    if price is None:
-                        raise InvalidOrder(self.id + " createOrder() requires the price argument with market buy orders to calculate total order cost(amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = False to supply the cost in the amount argument(the exchange-specific behaviour)")
-                    else:
-                        price = float(price)  # self line is deprecated
-                        amount = amount * price
         self.load_markets()
         method = 'privatePostOrder' + self.capitalize(type)
         market = self.market(symbol)
         request = {
             'market': market['id'],
-            'amount': self.amount_to_precision(symbol, amount),
             'type': side,
         }
-        if type == 'limit':
-            price = float(price)  # self line is deprecated
+        amount = float(amount)
+        # for market buy it requires the amount of quote currency to spend
+        if (type == 'market') and (side == 'buy'):
+            if self.options['createMarketBuyOrderRequiresPrice']:
+                if price is None:
+                    raise InvalidOrder(self.id + " createOrder() requires the price argument with market buy orders to calculate total order cost(amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = False to supply the cost in the amount argument(the exchange-specific behaviour)")
+                else:
+                    price = float(price)
+                    request['amount'] = self.cost_to_precision(symbol, amount * price)
+            else:
+                request['amount'] = self.cost_to_precision(symbol, amount)
+        else:
+            request['amount'] = self.amount_to_precision(symbol, amount)
+        if (type == 'limit') or (type == 'ioc'):
             request['price'] = self.price_to_precision(symbol, price)
         response = getattr(self, method)(self.extend(request, params))
-        order = self.parse_order(response['data'], market)
-        id = order['id']
-        self.orders[id] = order
-        return order
+        data = self.safe_value(response, 'data')
+        return self.parse_order(data, market)
 
     def cancel_order(self, id, symbol=None, params={}):
         self.load_markets()
@@ -481,7 +535,8 @@ class coinex (Exchange):
             'market': market['id'],
         }
         response = self.privateDeleteOrderPending(self.extend(request, params))
-        return self.parse_order(response['data'], market)
+        data = self.safe_value(response, 'data')
+        return self.parse_order(data, market)
 
     def fetch_order(self, id, symbol=None, params={}):
         if symbol is None:
@@ -519,7 +574,8 @@ class coinex (Exchange):
         #         "message": "Ok"
         #     }
         #
-        return self.parse_order(response['data'], market)
+        data = self.safe_value(response, 'data')
+        return self.parse_order(data, market)
 
     def fetch_orders_by_status(self, status, symbol=None, since=None, limit=None, params={}):
         self.load_markets()
@@ -535,7 +591,9 @@ class coinex (Exchange):
             request['market'] = market['id']
         method = 'privateGetOrder' + self.capitalize(status)
         response = getattr(self, method)(self.extend(request, params))
-        return self.parse_orders(response['data']['data'], market, since, limit)
+        data = self.safe_value(response, 'data')
+        orders = self.safe_value(data, 'data', [])
+        return self.parse_orders(orders, market, since, limit)
 
     def fetch_open_orders(self, symbol=None, since=None, limit=None, params={}):
         return self.fetch_orders_by_status('pending', symbol, since, limit, params)
@@ -556,7 +614,9 @@ class coinex (Exchange):
             market = self.market(symbol)
             request['market'] = market['id']
         response = self.privateGetOrderUserDeals(self.extend(request, params))
-        return self.parse_trades(response['data']['data'], market, since, limit)
+        data = self.safe_value(response, 'data')
+        trades = self.safe_value(data, 'data', [])
+        return self.parse_trades(trades, market, since, limit)
 
     def withdraw(self, code, amount, address, tag=None, params={}):
         self.check_address(address)
@@ -568,7 +628,7 @@ class coinex (Exchange):
             'coin_type': currency['id'],
             'coin_address': address,  # must be authorized, inter-user transfer by a registered mobile phone number or an email address is supported
             'actual_amount': float(amount),  # the actual amount without fees, https://www.coinex.com/fees
-            'transfer_method': '1',  # '1' = normal onchain transfer, '2' = internal local transfer from one user to another
+            'transfer_method': 'onchain',  # onchain, local
         }
         response = self.privatePostBalanceCoinWithdraw(self.extend(request, params))
         #
@@ -655,19 +715,11 @@ class coinex (Exchange):
         if txid is not None:
             if len(txid) < 1:
                 txid = None
-        code = None
         currencyId = self.safe_string(transaction, 'coin_type')
-        if currencyId in self.currencies_by_id:
-            currency = self.currencies_by_id[currencyId]
-        else:
-            code = self.common_currency_code(currencyId)
-        if currency is not None:
-            code = currency['code']
-        timestamp = self.safe_integer(transaction, 'create_time')
-        if timestamp is not None:
-            timestamp = timestamp * 1000
-        type = 'withdraw' if ('coin_withdraw_id' in list(transaction.keys())) else 'deposit'
-        status = self.parse_transaction_status(self.safe_string(transaction, 'status'), type)
+        code = self.safe_currency_code(currencyId, currency)
+        timestamp = self.safe_timestamp(transaction, 'create_time')
+        type = 'withdraw' if ('coin_withdraw_id' in transaction) else 'deposit'
+        status = self.parse_transaction_status(self.safe_string(transaction, 'status'))
         amount = self.safe_float(transaction, 'amount')
         feeCost = self.safe_float(transaction, 'tx_fee')
         if type == 'deposit':
@@ -747,7 +799,8 @@ class coinex (Exchange):
         #         "message": "Ok"
         #     }
         #
-        return self.parseTransactions(response['data'], currency, since, limit)
+        data = self.safe_value(response, 'data', [])
+        return self.parse_transactions(data, currency, since, limit)
 
     def fetch_deposits(self, code=None, since=None, limit=None, params={}):
         if code is None:
@@ -787,20 +840,17 @@ class coinex (Exchange):
         #         "message": "Ok"
         #     }
         #
-        return self.parseTransactions(response['data'], currency, since, limit)
+        data = self.safe_value(response, 'data', [])
+        return self.parse_transactions(data, currency, since, limit)
 
     def nonce(self):
         return self.milliseconds()
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         path = self.implode_params(path, params)
-        url = self.urls['api'][api] + '/' + self.version + '/' + path
+        url = self.urls['api'] + '/' + self.version + '/' + path
         query = self.omit(params, self.extract_params(path))
         if api == 'public':
-            if query:
-                url += '?' + self.urlencode(query)
-        elif api == 'web':
-            url = self.urls['api'][api] + '/' + path
             if query:
                 url += '?' + self.urlencode(query)
         else:
@@ -827,7 +877,8 @@ class coinex (Exchange):
         response = self.fetch2(path, api, method, params, headers, body)
         code = self.safe_string(response, 'code')
         data = self.safe_value(response, 'data')
-        if code != '0' or not data:
+        message = self.safe_string(response, 'message')
+        if (code != '0') or (data is None) or ((message != 'Ok') and not data):
             responseCodes = {
                 '24': AuthenticationError,
                 '25': AuthenticationError,

@@ -12,7 +12,7 @@ from ccxt.base.errors import InvalidOrder
 from ccxt.base.errors import OrderNotFound
 
 
-class bcex (Exchange):
+class bcex(Exchange):
 
     def describe(self):
         return self.deep_extend(super(bcex, self).describe(), {
@@ -21,21 +21,23 @@ class bcex (Exchange):
             'countries': ['CN', 'CA'],
             'version': '1',
             'has': {
-                'fetchBalance': True,
-                'fetchMarkets': True,
-                'createOrder': True,
                 'cancelOrder': True,
+                'createOrder': True,
+                'fetchBalance': True,
+                'fetchClosedOrders': 'emulated',
+                'fetchMarkets': True,
+                'fetchMyTrades': True,
+                'fetchOpenOrders': True,
+                'fetchOrder': True,
+                'fetchOrders': True,
+                'fetchOrderBook': True,
                 'fetchTicker': True,
                 'fetchTickers': False,
                 'fetchTrades': True,
-                'fetchOrder': True,
-                'fetchOrders': True,
-                'fetchClosedOrders': 'emulated',
-                'fetchOpenOrders': True,
                 'fetchTradingLimits': True,
             },
             'urls': {
-                'logo': 'https://user-images.githubusercontent.com/1294454/43362240-21c26622-92ee-11e8-9464-5801ec526d77.jpg',
+                'logo': 'https://user-images.githubusercontent.com/51840849/77231516-851c6900-6bac-11ea-8fd6-ee5c23eddbd4.jpg',
                 'api': 'https://www.bcex.top',
                 'www': 'https://www.bcex.top',
                 'doc': 'https://github.com/BCEX-TECHNOLOGY-LIMITED/API_Docs/wiki/Interface',
@@ -81,8 +83,8 @@ class bcex (Exchange):
                 'trading': {
                     'tierBased': False,
                     'percentage': True,
-                    'buy': 0.0,
-                    'sell': 0.2 / 100,
+                    'maker': 0.1 / 100,
+                    'taker': 0.2 / 100,
                 },
                 'funding': {
                     'tierBased': False,
@@ -101,6 +103,9 @@ class bcex (Exchange):
                 '您的btc不足': InsufficientFunds,  # {code: 1, msg: '您的btc不足'} - your btc is insufficient
                 '参数非法': InvalidOrder,  # {'code': 1, 'msg': '参数非法'} - 'Parameter illegal'
                 '订单信息不存在': OrderNotFound,  # {'code': 1, 'msg': '订单信息不存在'} - 'Order information does not exist'
+            },
+            'commonCurrencies': {
+                'PNT': 'Penta',
             },
             'options': {
                 'limits': {
@@ -260,7 +265,7 @@ class bcex (Exchange):
         #                   min_trade: "0.01500000",
         #                   max_trade: "100.00000000",
         #                number_float: "4",
-        #                 price_float: "8"             }} }
+        #                 price_float: "8"             }}}
         #
         return self.parse_trading_limits(self.safe_value(response, 'data', {}))
 
@@ -304,8 +309,8 @@ class bcex (Exchange):
                 quoteId = self.safe_string(market, 'coin_to')
                 base = baseId.upper()
                 quote = quoteId.upper()
-                base = self.common_currency_code(base)
-                quote = self.common_currency_code(quote)
+                base = self.safe_currency_code(base)
+                quote = self.safe_currency_code(quote)
                 id = baseId + '2' + quoteId
                 symbol = base + '/' + quote
                 active = True
@@ -325,18 +330,9 @@ class bcex (Exchange):
                     },
                     # overrided by defaults from self.options['limits']
                     'limits': {
-                        'amount': {
-                            'min': None,
-                            'max': None,
-                        },
-                        'price': {
-                            'min': None,
-                            'max': None,
-                        },
-                        'cost': {
-                            'min': None,
-                            'max': None,
-                        },
+                        'amount': {'min': None, 'max': None},
+                        'price': {'min': None, 'max': None},
+                        'cost': {'min': None, 'max': None},
                     },
                     'info': market,
                 }, defaults))
@@ -346,9 +342,7 @@ class bcex (Exchange):
         symbol = None
         if market is not None:
             symbol = market['symbol']
-        timestamp = self.safe_integer_2(trade, 'date', 'created')
-        if timestamp is not None:
-            timestamp = timestamp * 1000
+        timestamp = self.safe_timestamp_2(trade, 'date', 'created')
         id = self.safe_string(trade, 'tid')
         orderId = self.safe_string(trade, 'order_id')
         amount = self.safe_float_2(trade, 'number', 'amount')
@@ -373,6 +367,7 @@ class bcex (Exchange):
             'cost': cost,
             'order': orderId,
             'fee': None,
+            'takerOrMaker': None,
         }
 
     def fetch_trades(self, symbol, since=None, limit=None, params={}):
@@ -398,12 +393,8 @@ class bcex (Exchange):
             parts = key.split('_')
             currencyId = parts[0]
             lockOrOver = parts[1]
-            code = currencyId.upper()
-            if currencyId in self.currencies_by_id:
-                code = self.currencies_by_id[currencyId]['code']
-            else:
-                code = self.common_currency_code(code)
-            if not(code in list(result.keys())):
+            code = self.safe_currency_code(currencyId)
+            if not (code in result):
                 result[code] = self.account()
             if lockOrOver == 'lock':
                 result[code]['used'] = float(amount)
@@ -457,9 +448,7 @@ class bcex (Exchange):
         }
         response = self.publicPostApiOrderDepth(self.extend(request, params))
         data = self.safe_value(response, 'data')
-        timestamp = self.safe_integer(data, 'date')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(data, 'date')
         return self.parse_order_book(data, timestamp)
 
     def fetch_my_trades(self, symbol=None, since=None, limit=None, params={}):
@@ -490,9 +479,7 @@ class bcex (Exchange):
         }
         response = self.privatePostApiOrderOrderInfo(self.extend(request, params))
         order = self.safe_value(response, 'data')
-        timestamp = self.safe_integer(order, 'created')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(order, 'created')
         status = self.parse_order_status(self.safe_string(order, 'status'))
         side = self.safe_string(order, 'flag')
         if side == 'sale':
@@ -515,13 +502,13 @@ class bcex (Exchange):
             'remaining': self.safe_float(order, 'numberover'),
             'status': status,
             'fee': None,
+            'clientOrderId': None,
+            'trades': None,
         }
 
     def parse_order(self, order, market=None):
         id = self.safe_string(order, 'id')
-        timestamp = self.safe_integer(order, 'datetime')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(order, 'datetime')
         symbol = None
         if market is not None:
             symbol = market['symbol']
@@ -540,6 +527,7 @@ class bcex (Exchange):
         result = {
             'info': order,
             'id': id,
+            'clientOrderId': None,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'lastTradeTimestamp': None,
@@ -554,6 +542,7 @@ class bcex (Exchange):
             'remaining': remaining,
             'status': status,
             'fee': fee,
+            'trades': None,
         }
         return result
 
@@ -642,21 +631,8 @@ class bcex (Exchange):
                 #
                 message = self.safe_string(response, 'msg')
                 feedback = self.id + ' ' + message
-                exceptions = self.exceptions
-                if message in exceptions:
-                    raise exceptions[message](feedback)
-                elif message.find('请您重新挂单') >= 0:  # minimum limit
+                self.throw_exactly_matched_exception(self.exceptions, message, feedback)
+                if message.find('请您重新挂单') >= 0:  # minimum limit
                     raise InvalidOrder(feedback)
                 else:
                     raise ExchangeError(feedback)
-
-    def calculate_fee(self, symbol, type, side, amount, price, takerOrMaker='taker', params={}):
-        market = self.markets[symbol]
-        rate = market[side]
-        cost = float(self.cost_to_precision(symbol, amount * price))
-        return {
-            'type': takerOrMaker,
-            'currency': market['quote'],
-            'rate': rate,
-            'cost': float(self.fee_to_precision(symbol, rate * cost)),
-        }

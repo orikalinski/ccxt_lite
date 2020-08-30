@@ -7,7 +7,7 @@ from ccxt.base.exchange import Exchange
 from ccxt.base.errors import ExchangeError
 
 
-class foxbit (Exchange):
+class foxbit(Exchange):
 
     def describe(self):
         return self.deep_extend(super(foxbit, self).describe(), {
@@ -15,19 +15,25 @@ class foxbit (Exchange):
             'name': 'FoxBit',
             'countries': ['BR'],
             'has': {
+                'cancelOrder': True,
                 'CORS': False,
                 'createMarketOrder': False,
+                'createOrder': True,
+                'fetchBalance': True,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
+                'fetchTrades': True,
             },
             'rateLimit': 1000,
             'version': 'v1',
             'urls': {
-                'logo': 'https://user-images.githubusercontent.com/1294454/27991413-11b40d42-647f-11e7-91ee-78ced874dd09.jpg',
+                'logo': 'https://user-images.githubusercontent.com/51840849/87443320-01c0d080-c5fe-11ea-92e2-4ef56d32b026.jpg',
                 'api': {
                     'public': 'https://api.blinktrade.com/api',
                     'private': 'https://api.blinktrade.com/tapi',
                 },
-                'www': 'https://foxbit.exchange',
-                'doc': 'https://blinktrade.com/docs',
+                'www': 'https://foxbit.com.br/exchange',
+                'doc': 'https://foxbit.com.br/api/',
             },
             'comment': 'Blinktrade API',
             'api': {
@@ -78,14 +84,19 @@ class foxbit (Exchange):
             currencyIds = list(self.currencies_by_id.keys())
             for i in range(0, len(currencyIds)):
                 currencyId = currencyIds[i]
-                currency = self.currencies_by_id[currencyId]
-                code = currency['code']
+                code = self.safe_currency_code(currencyId)
                 # we only set the balance for the currency if that currency is present in response
                 # otherwise we will lose the info if the currency balance has been funded or traded or not
                 if currencyId in balances:
                     account = self.account()
-                    account['used'] = float(balances[currencyId + '_locked']) * 1e-8
-                    account['total'] = float(balances[currencyId]) * 1e-8
+                    used = self.safe_float(balances, currencyId + '_locked')
+                    if used is not None:
+                        used *= 1e-8
+                    total = self.safe_float(balances, currencyId)
+                    if total is not None:
+                        total *= 1e-8
+                    account['used'] = used
+                    account['total'] = total
                     result[code] = account
         return self.parse_balance(result)
 
@@ -135,9 +146,7 @@ class foxbit (Exchange):
         }
 
     def parse_trade(self, trade, market=None):
-        timestamp = self.safe_integer(trade, 'date')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(trade, 'date')
         id = self.safe_string(trade, 'tid')
         symbol = None
         if market is not None:

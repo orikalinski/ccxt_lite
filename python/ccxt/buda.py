@@ -10,11 +10,12 @@ import math
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import PermissionDenied
+from ccxt.base.errors import ArgumentsRequired
 from ccxt.base.errors import AddressPending
 from ccxt.base.errors import NotSupported
 
 
-class buda (Exchange):
+class buda(Exchange):
 
     def describe(self):
         return self.deep_extend(super(buda, self).describe(), {
@@ -24,19 +25,25 @@ class buda (Exchange):
             'rateLimit': 1000,
             'version': 'v2',
             'has': {
+                'cancelOrder': True,
                 'CORS': False,
                 'createDepositAddress': True,
+                'createOrder': True,
+                'fetchBalance': True,
                 'fetchClosedOrders': True,
                 'fetchCurrencies': True,
                 'fetchDepositAddress': True,
                 'fetchDeposits': True,
                 'fetchFundingFees': True,
+                'fetchMarkets': True,
                 'fetchMyTrades': False,
                 'fetchOHLCV': True,
                 'fetchOpenOrders': True,
                 'fetchOrder': True,
+                'fetchOrderBook': True,
                 'fetchOrders': True,
                 'fetchTrades': True,
+                'fetchTicker': True,
                 'fetchWithdrawals': True,
                 'withdraw': True,
             },
@@ -167,8 +174,8 @@ class buda (Exchange):
             id = self.safe_string(market, 'id')
             baseId = self.safe_string(market, 'base_currency')
             quoteId = self.safe_string(market, 'quote_currency')
-            base = self.common_currency_code(baseId)
-            quote = self.common_currency_code(quoteId)
+            base = self.safe_currency_code(baseId)
+            quote = self.safe_currency_code(quoteId)
             baseInfo = self.fetch_currency_info(baseId, currencies)
             quoteInfo = self.fetch_currency_info(quoteId, currencies)
             symbol = base + '/' + quote
@@ -213,7 +220,7 @@ class buda (Exchange):
             if not currency['managed']:
                 continue
             id = self.safe_string(currency, 'id')
-            code = self.common_currency_code(id)
+            code = self.safe_currency_code(id)
             precision = self.safe_float(currency, 'input_decimals')
             minimum = math.pow(10, -precision)
             result[code] = {
@@ -426,7 +433,7 @@ class buda (Exchange):
         for i in range(0, len(balances)):
             balance = balances[i]
             currencyId = self.safe_string(balance, 'id')
-            code = self.common_currency_code(currencyId)
+            code = self.safe_currency_code(currencyId)
             account = self.account()
             account['free'] = float(balance['available_amount'][0])
             account['total'] = float(balance['amount'][0])
@@ -511,9 +518,7 @@ class buda (Exchange):
         if market is not None:
             symbol = market['symbol']
         type = self.safe_string(order, 'price_type')
-        side = self.safe_string(order, 'type')
-        if side is not None:
-            side = side.lower()
+        side = self.safe_string_lower(order, 'type')
         status = self.parse_order_status(self.safe_string(order, 'state'))
         amount = float(order['original_amount'][0])
         remaining = float(order['amount'][0])
@@ -530,6 +535,7 @@ class buda (Exchange):
         }
         return {
             'id': id,
+            'clientOrderId': None,
             'datetime': self.iso8601(timestamp),
             'timestamp': timestamp,
             'lastTradeTimestamp': None,
@@ -545,6 +551,7 @@ class buda (Exchange):
             'trades': None,
             'fee': fee,
             'info': order,
+            'average': None,
         }
 
     def is_fiat(self, code):
@@ -605,7 +612,7 @@ class buda (Exchange):
         statuses = {
             'rejected': 'failed',
             'confirmed': 'ok',
-            'anulled': 'canceled',
+            'aNoneed': 'canceled',
             'retained': 'canceled',
             'pending_confirmation': 'pending',
         }
@@ -614,20 +621,13 @@ class buda (Exchange):
     def parse_transaction(self, transaction, currency=None):
         id = self.safe_string(transaction, 'id')
         timestamp = self.parse8601(self.safe_string(transaction, 'created_at'))
-        code = None
-        currencyId = None
-        if currency is None:
-            currencyId = self.safe_string(transaction, 'currency')
-            currency = self.safe_value(self.currencies_by_id, currencyId)
-        if currency is not None:
-            code = currency['code']
-        else:
-            code = self.common_currency_code(currencyId)
+        currencyId = self.safe_string(transaction, 'currency')
+        code = self.safe_currency_code(currencyId, currency)
         amount = float(transaction['amount'][0])
         fee = float(transaction['fee'][0])
         feeCurrency = transaction['fee'][1]
         status = self.parse_transaction_status(self.safe_string(transaction, 'state'))
-        type = 'deposit' if ('deposit_data' in list(transaction.keys())) else 'withdrawal'
+        type = 'deposit' if ('deposit_data' in transaction) else 'withdrawal'
         data = self.safe_value(transaction, type + '_data', {})
         address = self.safe_value(data, 'target_address')
         txid = self.safe_string(data, 'tx_hash')
@@ -653,7 +653,7 @@ class buda (Exchange):
     def fetch_deposits(self, code=None, since=None, limit=None, params={}):
         self.load_markets()
         if code is None:
-            raise ExchangeError(self.id + ': fetchDeposits() requires a currency code argument')
+            raise ArgumentsRequired(self.id + ': fetchDeposits() requires a currency code argument')
         currency = self.currency(code)
         request = {
             'currency': currency['id'],
@@ -661,12 +661,12 @@ class buda (Exchange):
         }
         response = self.privateGetCurrenciesCurrencyDeposits(self.extend(request, params))
         deposits = self.safe_value(response, 'deposits')
-        return self.parseTransactions(deposits, currency, since, limit)
+        return self.parse_transactions(deposits, currency, since, limit)
 
     def fetch_withdrawals(self, code=None, since=None, limit=None, params={}):
         self.load_markets()
         if code is None:
-            raise ExchangeError(self.id + ': fetchDeposits() requires a currency code argument')
+            raise ArgumentsRequired(self.id + ': fetchDeposits() requires a currency code argument')
         currency = self.currency(code)
         request = {
             'currency': currency['id'],
@@ -674,7 +674,7 @@ class buda (Exchange):
         }
         response = self.privateGetCurrenciesCurrencyWithdrawals(self.extend(request, params))
         withdrawals = self.safe_value(response, 'withdrawals')
-        return self.parseTransactions(withdrawals, currency, since, limit)
+        return self.parse_transactions(withdrawals, currency, since, limit)
 
     def withdraw(self, code, amount, address, tag=None, params={}):
         self.check_address(address)
@@ -728,9 +728,6 @@ class buda (Exchange):
             errorCode = self.safe_string(response, 'code')
             message = self.safe_string(response, 'message', body)
             feedback = self.id + ' ' + message
-            exceptions = self.exceptions
             if errorCode is not None:
-                if errorCode in exceptions:
-                    raise exceptions[errorCode](feedback)
-                else:
-                    raise ExchangeError(feedback)
+                self.throw_exactly_matched_exception(self.exceptions, errorCode, feedback)
+                raise ExchangeError(feedback)

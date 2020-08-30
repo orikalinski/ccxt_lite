@@ -8,7 +8,7 @@ import math
 from ccxt.base.errors import ArgumentsRequired
 
 
-class coss (Exchange):
+class coss(Exchange):
 
     def describe(self):
         return self.deep_extend(super(coss, self).describe(), {
@@ -17,9 +17,9 @@ class coss (Exchange):
             'countries': ['SG', 'NL'],
             'rateLimit': 1000,
             'version': 'v1',
-            'certified': True,
+            'certified': False,
             'urls': {
-                'logo': 'https://user-images.githubusercontent.com/1294454/50328158-22e53c00-0503-11e9-825c-c5cfd79bfa74.jpg',
+                'logo': 'https://user-images.githubusercontent.com/51840849/87443313-008fa380-c5fe-11ea-8400-34d4749c7da5.jpg',
                 'api': {
                     'trade': 'https://trade.coss.io/c/api/v1',
                     'engine': 'https://engine.coss.io/api/v1',
@@ -111,8 +111,8 @@ class coss (Exchange):
                 'trading': {
                     'tierBased': True,
                     'percentage': True,
-                    'taker': 0.0020,
-                    'maker': 0.0014,
+                    'taker': 0.0025,
+                    'maker': 0.0,
                 },
                 'funding': {
                     'tierBased': False,
@@ -120,6 +120,10 @@ class coss (Exchange):
                     'withdraw': {},
                     'deposit': {},
                 },
+            },
+            'commonCurrencies': {
+                'COS': 'COSS',
+                'COSS': 'COSS.io',
             },
         })
 
@@ -161,8 +165,8 @@ class coss (Exchange):
             market = markets[i]
             marketId = market['symbol']
             baseId, quoteId = marketId.split('_')
-            base = self.common_currency_code(baseId)
-            quote = self.common_currency_code(quoteId)
+            base = self.safe_currency_code(baseId)
+            quote = self.safe_currency_code(quoteId)
             symbol = base + '/' + quote
             precision = {
                 'amount': self.safe_integer(market, 'amount_limit_decimal'),
@@ -236,7 +240,7 @@ class coss (Exchange):
         for i in range(0, len(response)):
             currency = response[i]
             currencyId = self.safe_string(currency, 'currency_code')
-            code = self.common_currency_code(currencyId)
+            code = self.safe_currency_code(currencyId)
             name = self.safe_string(currency, 'name')
             allowBuy = self.safe_value(currency, 'allow_buy')
             allowSell = self.safe_value(currency, 'allow_sell')
@@ -308,7 +312,7 @@ class coss (Exchange):
         for i in range(0, len(response)):
             balance = response[i]
             currencyId = self.safe_string(balance, 'currency_code')
-            code = self.common_currency_code(currencyId)
+            code = self.safe_currency_code(currencyId)
             total = self.safe_float(balance, 'total')
             used = self.safe_float(balance, 'in_order')
             free = self.safe_float(balance, 'available')
@@ -319,14 +323,24 @@ class coss (Exchange):
             }
         return self.parse_balance(result)
 
-    def parse_ohlcv(self, ohlcv, market=None, timeframe='1m', since=None, limit=None):
+    def parse_ohlcv(self, ohlcv, market=None):
+        #
+        #     [
+        #         1545138960000,
+        #         "0.02705000",
+        #         "0.02705000",
+        #         "0.02705000",
+        #         "0.02705000",
+        #         "0.00000000"
+        #     ]
+        #
         return [
-            int(ohlcv[0]),   # timestamp
-            float(ohlcv[1]),  # Open
-            float(ohlcv[2]),  # High
-            float(ohlcv[3]),  # Low
-            float(ohlcv[4]),  # Close
-            float(ohlcv[5]),  # base Volume
+            self.safe_integer(ohlcv, 0),   # timestamp
+            self.safe_float(ohlcv, 1),  # Open
+            self.safe_float(ohlcv, 2),  # High
+            self.safe_float(ohlcv, 3),  # Low
+            self.safe_float(ohlcv, 4),  # Close
+            self.safe_float(ohlcv, 5),  # base Volume
         ]
 
     def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):
@@ -338,25 +352,25 @@ class coss (Exchange):
         }
         response = self.engineGetCs(self.extend(request, params))
         #
-        #     {      tt:   "1m",
-        #         symbol:   "ETH_BTC",
-        #       nextTime:    1545138960000,
-        #         series: [[ 1545138960000,
-        #                     "0.02705000",
-        #                     "0.02705000",
-        #                     "0.02705000",
-        #                     "0.02705000",
-        #                     "0.00000000"    ],
-        #                   ...
-        #                   [ 1545168900000,
-        #                     "0.02684000",
-        #                     "0.02684000",
-        #                     "0.02684000",
-        #                     "0.02684000",
-        #                     "0.00000000"    ]  ],
-        #          limit:    500                    }
+        #     {
+        #         tt: "1m",
+        #         symbol: "ETH_BTC",
+        #         nextTime: 1545138960000,
+        #         series: [
+        #             [
+        #                 1545138960000,
+        #                 "0.02705000",
+        #                 "0.02705000",
+        #                 "0.02705000",
+        #                 "0.02705000",
+        #                 "0.00000000"
+        #             ],
+        #         ],
+        #         limit: 500
+        #     }
         #
-        return self.parse_ohlcvs(response['series'], market, timeframe, since, limit)
+        series = self.safe_value(response, 'series', [])
+        return self.parse_ohlcvs(series, market, timeframe, since, limit)
 
     def fetch_order_book(self, symbol, limit=None, params={}):
         self.load_markets()
@@ -404,8 +418,8 @@ class coss (Exchange):
         if market is None:
             if marketId is not None:
                 baseId, quoteId = marketId.split('_')
-                base = self.common_currency_code(baseId)
-                quote = self.common_currency_code(quoteId)
+                base = self.safe_currency_code(baseId)
+                quote = self.safe_currency_code(quoteId)
                 symbol = base + '/' + quote
         if market is not None:
             symbol = market['symbol']
@@ -531,7 +545,7 @@ class coss (Exchange):
         cost = parts[0]
         code = None
         if numParts > 1:
-            code = self.common_currency_code(parts[1])
+            code = self.safe_currency_code(parts[1])
         return {
             'cost': cost,
             'currency': code,
@@ -563,17 +577,15 @@ class coss (Exchange):
         id = self.safe_string(trade, 'id')
         timestamp = self.safe_integer(trade, 'time')
         orderId = self.safe_string(trade, 'order_id')
-        side = self.safe_string(trade, 'order_side')
-        if side is not None:
-            side = side.lower()
+        side = self.safe_string_lower(trade, 'order_side')
         symbol = None
         marketId = self.safe_string(trade, 'symbol')
         if marketId is not None:
             market = self.safe_value(self.markets_by_id, marketId, market)
             if market is None:
                 baseId, quoteId = marketId.split('_')
-                base = self.common_currency_code(baseId)
-                quote = self.common_currency_code(quoteId)
+                base = self.safe_currency_code(baseId)
+                quote = self.safe_currency_code(quoteId)
                 symbol = base + '/' + quote
         elif market is not None:
             symbol = market['symbol']
@@ -758,8 +770,8 @@ class coss (Exchange):
             market = self.safe_value(self.markets_by_id, marketId, market)
             if market is None:
                 baseId, quoteId = marketId.split('_')
-                base = self.common_currency_code(baseId)
-                quote = self.common_currency_code(quoteId)
+                base = self.safe_currency_code(baseId)
+                quote = self.safe_currency_code(quoteId)
                 symbol = base + '/' + quote
             else:
                 symbol = market['symbol']
@@ -774,15 +786,14 @@ class coss (Exchange):
             if filled is not None:
                 remaining = amount - filled
         average = self.safe_float(order, 'avg')
-        side = self.safe_string(order, 'order_side')
-        if side is not None:
-            side = side.lower()
+        side = self.safe_string_lower(order, 'order_side')
         cost = self.safe_float(order, 'total')
         fee = None
         trades = None
         return {
             'info': order,
             'id': id,
+            'clientOrderId': None,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'lastTradeTimestamp': None,
@@ -873,6 +884,7 @@ class coss (Exchange):
             headers = {
                 'Signature': self.hmac(self.encode(request), self.encode(self.secret)),
                 'Authorization': self.apiKey,
+                'X-Requested-With': 'XMLHttpRequest',
             }
         else:
             if params:

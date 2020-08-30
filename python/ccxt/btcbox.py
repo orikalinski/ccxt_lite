@@ -4,6 +4,14 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.base.exchange import Exchange
+
+# -----------------------------------------------------------------------------
+
+try:
+    basestring  # Python 3
+except NameError:
+    basestring = str  # Python 2
+import json
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import PermissionDenied
@@ -14,7 +22,7 @@ from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import InvalidNonce
 
 
-class btcbox (Exchange):
+class btcbox(Exchange):
 
     def describe(self):
         return self.deep_extend(super(btcbox, self).describe(), {
@@ -24,17 +32,23 @@ class btcbox (Exchange):
             'rateLimit': 1000,
             'version': 'v1',
             'has': {
+                'cancelOrder': True,
                 'CORS': False,
-                'fetchOrder': True,
-                'fetchOrders': True,
+                'createOrder': True,
+                'fetchBalance': True,
                 'fetchOpenOrders': True,
+                'fetchOrder': True,
+                'fetchOrderBook': True,
+                'fetchOrders': True,
+                'fetchTicker': True,
                 'fetchTickers': False,
+                'fetchTrades': True,
             },
             'urls': {
-                'logo': 'https://user-images.githubusercontent.com/1294454/31275803-4df755a8-aaa1-11e7-9abb-11ec2fad9f2d.jpg',
+                'logo': 'https://user-images.githubusercontent.com/51840849/87327317-98c55400-c53c-11ea-9a11-81f7d951cc74.jpg',
                 'api': 'https://www.btcbox.co.jp/api',
                 'www': 'https://www.btcbox.co.jp/',
-                'doc': 'https://www.btcbox.co.jp/help/asm',
+                'doc': 'https://blog.btcbox.jp/en/archives/8762',
                 'fees': 'https://support.btcbox.co.jp/hc/en-us/articles/360001235694-Fees-introduction',
             },
             'api': {
@@ -144,9 +158,7 @@ class btcbox (Exchange):
         return self.parse_ticker(response, market)
 
     def parse_trade(self, trade, market=None):
-        timestamp = self.safe_integer(trade, 'date')
-        if timestamp is not None:
-            timestamp *= 1000  # GMT time
+        timestamp = self.safe_timestamp(trade, 'date')
         symbol = None
         if market is not None:
             symbol = market['symbol']
@@ -232,7 +244,16 @@ class btcbox (Exchange):
 
     def parse_order(self, order, market=None):
         #
-        # {"id":11,"datetime":"2014-10-21 10:47:20","type":"sell","price":42000,"amount_original":1.2,"amount_outstanding":1.2,"status":"closed","trades":[]}
+        #     {
+        #         "id":11,
+        #         "datetime":"2014-10-21 10:47:20",
+        #         "type":"sell",
+        #         "price":42000,
+        #         "amount_original":1.2,
+        #         "amount_outstanding":1.2,
+        #         "status":"closed",
+        #         "trades":[]
+        #     }
         #
         id = self.safe_string(order, 'id')
         datetimeString = self.safe_string(order, 'datetime')
@@ -263,6 +284,7 @@ class btcbox (Exchange):
         side = self.safe_string(order, 'type')
         return {
             'id': id,
+            'clientOrderId': None,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'lastTradeTimestamp': None,
@@ -278,6 +300,7 @@ class btcbox (Exchange):
             'trades': trades,
             'fee': None,
             'info': order,
+            'average': None,
         }
 
     def fetch_order(self, id, symbol=None, params={}):
@@ -342,7 +365,7 @@ class btcbox (Exchange):
             }
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, httpCode, reason, url, method, headers, body, response):
+    def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
             return  # resort to defaultErrorHandler
         # typical error response: {"result":false,"code":"401"}
@@ -351,9 +374,17 @@ class btcbox (Exchange):
         result = self.safe_value(response, 'result')
         if result is None or result is True:
             return  # either public API(no error codes expected) or success
-        errorCode = self.safe_value(response, 'code')
-        feedback = self.id + ' ' + self.json(response)
-        exceptions = self.exceptions
-        if errorCode in exceptions:
-            raise exceptions[errorCode](feedback)
+        code = self.safe_value(response, 'code')
+        feedback = self.id + ' ' + body
+        self.throw_exactly_matched_exception(self.exceptions, code, feedback)
         raise ExchangeError(feedback)  # unknown message
+
+    def request(self, path, api='public', method='GET', params={}, headers=None, body=None):
+        response = self.fetch2(path, api, method, params, headers, body)
+        if isinstance(response, basestring):
+            # sometimes the exchange returns whitespace prepended to json
+            response = self.strip(response)
+            if not self.is_json_encoded_object(response):
+                raise ExchangeError(self.id + ' ' + response)
+            response = json.loads(response)
+        return response

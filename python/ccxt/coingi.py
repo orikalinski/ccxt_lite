@@ -15,7 +15,7 @@ import math
 from ccxt.base.errors import ExchangeError
 
 
-class coingi (Exchange):
+class coingi(Exchange):
 
     def describe(self):
         return self.deep_extend(super(coingi, self).describe(), {
@@ -24,8 +24,15 @@ class coingi (Exchange):
             'rateLimit': 1000,
             'countries': ['PA', 'BG', 'CN', 'US'],  # Panama, Bulgaria, China, US
             'has': {
+                'cancelOrder': True,
                 'CORS': False,
+                'createOrder': True,
+                'fetchBalance': True,
+                'fetchMarkets': True,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
                 'fetchTickers': True,
+                'fetchTrades': True,
             },
             'urls': {
                 'referral': 'https://www.coingi.com/?r=XTPPMC',
@@ -112,8 +119,8 @@ class coingi (Exchange):
             baseId, quoteId = id.split('-')
             base = baseId.upper()
             quote = quoteId.upper()
-            base = self.common_currency_code(base)
-            quote = self.common_currency_code(quote)
+            base = self.safe_currency_code(base)
+            quote = self.safe_currency_code(quote)
             symbol = base + '/' + quote
             precision = {
                 'amount': 8,
@@ -161,11 +168,13 @@ class coingi (Exchange):
         for i in range(0, len(response)):
             balance = response[i]
             currencyId = self.safe_string(balance['currency'], 'name')
-            code = currencyId.upper()
-            code = self.common_currency_code(code)
+            code = self.safe_currency_code(currencyId)
             account = self.account()
-            account['free'] = balance['available']
-            account['used'] = balance['blocked'] + balance['inOrders'] + balance['withdrawing']
+            account['free'] = self.safe_float(balance, 'available')
+            blocked = self.safe_float(balance, 'blocked')
+            inOrders = self.safe_float(balance, 'inOrders')
+            withdrawing = self.safe_float(balance, 'withdrawing')
+            account['used'] = self.sum(blocked, inOrders, withdrawing)
             result[code] = account
         return self.parse_balance(result)
 

@@ -8,7 +8,7 @@ from ccxt.base.errors import InsufficientFunds
 from ccxt.base.errors import OrderNotFound
 
 
-class acx (Exchange):
+class acx(Exchange):
 
     def describe(self):
         return self.deep_extend(super(acx, self).describe(), {
@@ -18,11 +18,19 @@ class acx (Exchange):
             'rateLimit': 1000,
             'version': 'v2',
             'has': {
+                'cancelOrder': True,
                 'CORS': True,
-                'fetchTickers': True,
+                'createOrder': True,
+                'fetchBalance': True,
+                'fetchMarkets': True,
                 'fetchOHLCV': True,
-                'withdraw': True,
                 'fetchOrder': True,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
+                'fetchTickers': True,
+                'fetchTime': True,
+                'fetchTrades': True,
+                'withdraw': True,
             },
             'timeframes': {
                 '1m': '1',
@@ -94,6 +102,9 @@ class acx (Exchange):
                     'withdraw': {},  # There is only 1% fee on withdrawals to your bank account.
                 },
             },
+            'commonCurrencies': {
+                'PLA': 'Plair',
+            },
             'exceptions': {
                 '2002': InsufficientFunds,
                 '2003': OrderNotFound,
@@ -115,8 +126,8 @@ class acx (Exchange):
                 quoteId = ids[1].lower()
             base = baseId.upper()
             quote = quoteId.upper()
-            base = self.common_currency_code(base)
-            quote = self.common_currency_code(quote)
+            base = self.safe_currency_code(base)
+            quote = self.safe_currency_code(quote)
             # todo: find out their undocumented precision and limits
             precision = {
                 'amount': 8,
@@ -131,6 +142,8 @@ class acx (Exchange):
                 'quoteId': quoteId,
                 'precision': precision,
                 'info': market,
+                'active': None,
+                'limits': self.limits,
             })
         return result
 
@@ -142,11 +155,7 @@ class acx (Exchange):
         for i in range(0, len(balances)):
             balance = balances[i]
             currencyId = self.safe_string(balance, 'currency')
-            code = currencyId
-            if currencyId in self.currencies_by_id:
-                code = self.currencies_by_id[currencyId]['code']
-            else:
-                code = self.common_currency_code(currencyId.upper())
+            code = self.safe_currency_code(currencyId)
             account = self.account()
             account['free'] = self.safe_float(balance, 'balance')
             account['used'] = self.safe_float(balance, 'locked')
@@ -162,15 +171,11 @@ class acx (Exchange):
         if limit is not None:
             request['limit'] = limit  # default = 300
         orderbook = self.publicGetDepth(self.extend(request, params))
-        timestamp = self.safe_integer(orderbook, 'timestamp')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(orderbook, 'timestamp')
         return self.parse_order_book(orderbook, timestamp)
 
     def parse_ticker(self, ticker, market=None):
-        timestamp = self.safe_integer(ticker, 'at')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(ticker, 'at')
         ticker = ticker['ticker']
         symbol = None
         if market:
@@ -216,8 +221,8 @@ class acx (Exchange):
                 quote = id[3:6]
                 base = base.upper()
                 quote = quote.upper()
-                base = self.common_currency_code(base)
-                quote = self.common_currency_code(quote)
+                base = self.safe_currency_code(base)
+                quote = self.safe_currency_code(quote)
                 symbol = base + '/' + quote
             result[symbol] = self.parse_ticker(response[id], market)
         return result
@@ -253,6 +258,13 @@ class acx (Exchange):
             'fee': None,
         }
 
+    def fetch_time(self, params={}):
+        response = self.publicGetTimestamp(params)
+        #
+        #     1594911427
+        #
+        return response * 1000
+
     def fetch_trades(self, symbol, since=None, limit=None, params={}):
         self.load_markets()
         market = self.market(symbol)
@@ -262,14 +274,14 @@ class acx (Exchange):
         response = self.publicGetTrades(self.extend(request, params))
         return self.parse_trades(response, market, since, limit)
 
-    def parse_ohlcv(self, ohlcv, market=None, timeframe='1m', since=None, limit=None):
+    def parse_ohlcv(self, ohlcv, market=None):
         return [
-            ohlcv[0] * 1000,
-            ohlcv[1],
-            ohlcv[2],
-            ohlcv[3],
-            ohlcv[4],
-            ohlcv[5],
+            self.safe_timestamp(ohlcv, 0),
+            self.safe_float(ohlcv, 1),
+            self.safe_float(ohlcv, 2),
+            self.safe_float(ohlcv, 3),
+            self.safe_float(ohlcv, 4),
+            self.safe_float(ohlcv, 5),
         ]
 
     def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):
@@ -309,6 +321,7 @@ class acx (Exchange):
         id = self.safe_string(order, 'id')
         return {
             'id': id,
+            'clientOrderId': None,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'lastTradeTimestamp': None,
@@ -323,6 +336,8 @@ class acx (Exchange):
             'trades': None,
             'fee': None,
             'info': order,
+            'cost': None,
+            'average': None,
         }
 
     def fetch_order(self, id, symbol=None, params={}):
@@ -427,7 +442,5 @@ class acx (Exchange):
             error = self.safe_value(response, 'error')
             errorCode = self.safe_string(error, 'code')
             feedback = self.id + ' ' + self.json(response)
-            exceptions = self.exceptions
-            if errorCode in exceptions:
-                raise exceptions[errorCode](feedback)
+            self.throw_exactly_matched_exception(self.exceptions, errorCode, feedback)
             # fallback to default error handler

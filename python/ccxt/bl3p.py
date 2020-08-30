@@ -8,7 +8,7 @@ import base64
 import hashlib
 
 
-class bl3p (Exchange):
+class bl3p(Exchange):
 
     def describe(self):
         return self.deep_extend(super(bl3p, self).describe(), {
@@ -20,14 +20,17 @@ class bl3p (Exchange):
             'comment': 'An exchange market by BitonicNL',
             'has': {
                 'CORS': False,
+                'cancelOrder': True,
+                'createOrder': True,
+                'fetchBalance': True,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
+                'fetchTrades': True,
             },
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/1294454/28501752-60c21b82-6feb-11e7-818b-055ee6d0e754.jpg',
                 'api': 'https://api.bl3p.eu',
-                'www': [
-                    'https://bl3p.eu',
-                    'https://bitonic.nl',
-                ],
+                'www': 'https://bl3p.eu',  # 'https://bitonic.nl'
                 'doc': [
                     'https://github.com/BitonicNL/bl3p-api/tree/master/docs',
                     'https://bl3p.eu/api',
@@ -82,13 +85,10 @@ class bl3p (Exchange):
             account = self.account()
             account['free'] = self.safe_float(available, 'value')
             account['total'] = self.safe_float(balance, 'value')
-            if account['total']:
-                if account['free']:
-                    account['used'] = account['total'] - account['free']
             result[code] = account
         return self.parse_balance(result)
 
-    def parse_bid_ask(self, bidask, priceKey=0, amountKey=0):
+    def parse_bid_ask(self, bidask, priceKey=0, amountKey=1):
         return [
             bidask[priceKey] / 100000.0,
             bidask[amountKey] / 100000000.0,
@@ -108,9 +108,7 @@ class bl3p (Exchange):
             'market': self.market_id(symbol),
         }
         ticker = self.publicGetMarketTicker(self.extend(request, params))
-        timestamp = self.safe_integer(ticker, 'timestamp')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(ticker, 'timestamp')
         last = self.safe_float(ticker, 'last')
         return {
             'symbol': symbol,

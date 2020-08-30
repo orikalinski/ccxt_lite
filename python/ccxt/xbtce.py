@@ -10,7 +10,7 @@ from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import NotSupported
 
 
-class xbtce (Exchange):
+class xbtce(Exchange):
 
     def describe(self):
         return self.deep_extend(super(xbtce, self).describe(), {
@@ -20,10 +20,17 @@ class xbtce (Exchange):
             'rateLimit': 2000,  # responses are cached every 2 seconds
             'version': 'v1',
             'has': {
+                'cancelOrder': True,
                 'CORS': False,
-                'fetchTickers': True,
                 'createMarketOrder': False,
+                'createOrder': True,
+                'fetchBalance': True,
+                'fetchMarkets': True,
                 'fetchOHLCV': False,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
+                'fetchTickers': True,
+                'fetchTrades': True,
             },
             'urls': {
                 'referral': 'https://xbtce.com/?agent=XX97BTCXXXG687021000B',
@@ -120,8 +127,8 @@ class xbtce (Exchange):
             id = self.safe_string(market, 'Symbol')
             baseId = self.safe_string(market, 'MarginCurrency')
             quoteId = self.safe_string(market, 'ProfitCurrency')
-            base = self.common_currency_code(baseId)
-            quote = self.common_currency_code(quoteId)
+            base = self.safe_currency_code(baseId)
+            quote = self.safe_currency_code(quoteId)
             symbol = base + '/' + quote
             symbol = symbol if market['IsTradeAllowed'] else id
             result.append({
@@ -132,6 +139,9 @@ class xbtce (Exchange):
                 'baseId': baseId,
                 'quoteId': quoteId,
                 'info': market,
+                'active': None,
+                'precision': self.precision,
+                'limits': self.limits,
             })
         return result
 
@@ -142,11 +152,7 @@ class xbtce (Exchange):
         for i in range(0, len(balances)):
             balance = balances[i]
             currencyId = self.safe_string(balance, 'Currency')
-            code = currencyId
-            if currencyId in self.currencies_by_id:
-                code = self.currencies_by_id[currencyId]['code']
-            else:
-                code = self.common_currency_code(currencyId.upper())
+            code = self.safe_currency_code(currencyId)
             account = {
                 'free': self.safe_float(balance, 'FreeAmount'),
                 'used': self.safe_float(balance, 'LockedAmount'),
@@ -221,8 +227,8 @@ class xbtce (Exchange):
             else:
                 baseId = id[0:3]
                 quoteId = id[3:6]
-                base = self.common_currency_code(baseId)
-                quote = self.common_currency_code(quoteId)
+                base = self.safe_currency_code(baseId)
+                quote = self.safe_currency_code(quoteId)
                 symbol = base + '/' + quote
             ticker = tickers[id]
             result[symbol] = self.parse_ticker(ticker, market)
@@ -247,14 +253,14 @@ class xbtce (Exchange):
         # no method for trades?
         return self.privateGetTrade(params)
 
-    def parse_ohlcv(self, ohlcv, market=None, timeframe='1m', since=None, limit=None):
+    def parse_ohlcv(self, ohlcv, market=None):
         return [
-            ohlcv['Timestamp'],
-            ohlcv['Open'],
-            ohlcv['High'],
-            ohlcv['Low'],
-            ohlcv['Close'],
-            ohlcv['Volume'],
+            self.safe_integer(ohlcv, 'Timestamp'),
+            self.safe_float(ohlcv, 'Open'),
+            self.safe_float(ohlcv, 'High'),
+            self.safe_float(ohlcv, 'Low'),
+            self.safe_float(ohlcv, 'Close'),
+            self.safe_float(ohlcv, 'Volume'),
         ]
 
     def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):

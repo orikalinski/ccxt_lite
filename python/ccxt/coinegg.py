@@ -14,7 +14,7 @@ from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import InvalidNonce
 
 
-class coinegg (Exchange):
+class coinegg(Exchange):
 
     def describe(self):
         return self.deep_extend(super(coinegg, self).describe(), {
@@ -22,11 +22,18 @@ class coinegg (Exchange):
             'name': 'CoinEgg',
             'countries': ['CN', 'UK'],
             'has': {
-                'fetchOrder': True,
-                'fetchOrders': True,
-                'fetchOpenOrders': 'emulated',
+                'cancelOrder': True,
+                'createOrder': True,
+                'fetchBalance': True,
+                'fetchMarkets': True,
                 'fetchMyTrades': False,
+                'fetchOpenOrders': 'emulated',
+                'fetchOrder': True,
+                'fetchOrderBook': True,
+                'fetchOrders': True,
+                'fetchTicker': True,
                 'fetchTickers': False,
+                'fetchTrades': True,
             },
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/1294454/36770310-adfa764e-1c5a-11e8-8e09-449daac3d2fb.jpg',
@@ -173,8 +180,8 @@ class coinegg (Exchange):
                 baseId = id.split('_')[0]
                 base = baseId.upper()
                 quote = quoteId.upper()
-                base = self.common_currency_code(base)
-                quote = self.common_currency_code(quote)
+                base = self.safe_currency_code(base)
+                quote = self.safe_currency_code(quote)
                 symbol = base + '/' + quote
                 precision = {
                     'amount': 8,
@@ -264,9 +271,7 @@ class coinegg (Exchange):
         return self.parse_order_book(response)
 
     def parse_trade(self, trade, market=None):
-        timestamp = self.safe_integer(trade, 'date')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(trade, 'date')
         price = self.safe_float(trade, 'price')
         amount = self.safe_float(trade, 'amount')
         symbol = market['symbol']
@@ -313,12 +318,8 @@ class coinegg (Exchange):
         for i in range(0, len(keys)):
             key = keys[i]
             currencyId, accountType = key.split('_')
-            code = currencyId
-            if currencyId in self.currencies_by_id:
-                code = self.currencies_by_id[currencyId]['code']
-            else:
-                code = self.common_currency_code(currencyId.upper())
-            if not(code in list(result.keys())):
+            code = self.safe_currency_code(currencyId)
+            if not (code in result):
                 result[code] = self.account()
             type = 'used' if (accountType == 'lock') else 'free'
             result[code][type] = self.safe_float(balances, key)
@@ -347,6 +348,7 @@ class coinegg (Exchange):
         id = self.safe_string(order, 'id')
         return {
             'id': id,
+            'clientOrderId': None,
             'datetime': self.iso8601(timestamp),
             'timestamp': timestamp,
             'lastTradeTimestamp': None,
@@ -362,6 +364,7 @@ class coinegg (Exchange):
             'trades': None,
             'fee': None,
             'info': info,
+            'average': None,
         }
 
     def create_order(self, symbol, type, side, amount, price=None, params={}):
@@ -385,7 +388,6 @@ class coinegg (Exchange):
             'type': side,
             'info': response,
         }, market)
-        self.orders[id] = order
         return order
 
     def cancel_order(self, id, symbol=None, params={}):
@@ -407,7 +409,8 @@ class coinegg (Exchange):
             'quote': market['quoteId'],
         }
         response = self.privatePostTradeViewRegionQuote(self.extend(request, params))
-        return self.parse_order(response['data'], market)
+        data = self.safe_value(response, 'data')
+        return self.parse_order(data, market)
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
         self.load_markets()
@@ -419,7 +422,8 @@ class coinegg (Exchange):
         if since is not None:
             request['since'] = since / 1000
         response = self.privatePostTradeListRegionQuote(self.extend(request, params))
-        return self.parse_orders(response['data'], market, since, limit)
+        data = self.safe_value(response, 'data', [])
+        return self.parse_orders(data, market, since, limit)
 
     def fetch_open_orders(self, symbol=None, since=None, limit=None, params={}):
         request = {
@@ -475,7 +479,6 @@ class coinegg (Exchange):
         errorCode = self.safe_string(response, 'code')
         errorMessages = self.errorMessages
         message = self.safe_string(errorMessages, errorCode, 'Unknown Error')
-        if errorCode in self.exceptions:
-            raise self.exceptions[errorCode](self.id + ' ' + message)
-        else:
-            raise ExchangeError(self.id + ' ' + message)
+        feedback = self.id + ' ' + message
+        self.throw_exactly_matched_exception(self.exceptions, errorCode, feedback)
+        raise ExchangeError(self.id + ' ' + message)

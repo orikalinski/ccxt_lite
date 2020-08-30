@@ -10,7 +10,7 @@ import math
 from ccxt.base.errors import ExchangeError
 
 
-class btcturk (Exchange):
+class btcturk(Exchange):
 
     def describe(self):
         return self.deep_extend(super(btcturk, self).describe(), {
@@ -19,15 +19,22 @@ class btcturk (Exchange):
             'countries': ['TR'],  # Turkey
             'rateLimit': 1000,
             'has': {
+                'cancelOrder': True,
                 'CORS': True,
-                'fetchTickers': True,
+                'createOrder': True,
+                'fetchBalance': True,
+                'fetchMarkets': True,
                 'fetchOHLCV': True,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
+                'fetchTickers': True,
+                'fetchTrades': True,
             },
             'timeframes': {
                 '1d': '1d',
             },
             'urls': {
-                'logo': 'https://user-images.githubusercontent.com/1294454/27992709-18e15646-64a3-11e7-9fa2-b0950ec7712f.jpg',
+                'logo': 'https://user-images.githubusercontent.com/51840849/87153926-efbef500-c2c0-11ea-9842-05b63612c4b9.jpg',
                 'api': 'https://www.btcturk.com/api',
                 'www': 'https://www.btcturk.com',
                 'doc': 'https://github.com/BTCTrader/broker-api-docs',
@@ -56,7 +63,7 @@ class btcturk (Exchange):
             'fees': {
                 'trading': {
                     'maker': 0.002 * 1.18,
-                    'taker': 0.0035 * 1.18,
+                    'taker': 0.003 * 1.18,
                 },
             },
         })
@@ -69,8 +76,8 @@ class btcturk (Exchange):
             id = self.safe_string(market, 'pair')
             baseId = id[0:3]
             quoteId = id[3:6]
-            base = self.common_currency_code(baseId)
-            quote = self.common_currency_code(quoteId)
+            base = self.safe_currency_code(baseId)
+            quote = self.safe_currency_code(quoteId)
             baseId = baseId.lower()
             quoteId = quoteId.lower()
             symbol = base + '/' + quote
@@ -132,18 +139,14 @@ class btcturk (Exchange):
             'pairSymbol': market['id'],
         }
         response = self.publicGetOrderbook(self.extend(request, params))
-        timestamp = self.safe_integer(response, 'timestamp')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(response, 'timestamp')
         return self.parse_order_book(response, timestamp)
 
     def parse_ticker(self, ticker, market=None):
         symbol = None
         if market:
             symbol = market['symbol']
-        timestamp = self.safe_integer(ticker, 'timestamp')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(ticker, 'timestamp')
         last = self.safe_float(ticker, 'last')
         return {
             'symbol': symbol,
@@ -190,9 +193,7 @@ class btcturk (Exchange):
         return self.safe_value_2(tickers, market['id'], symbol)
 
     def parse_trade(self, trade, market=None):
-        timestamp = self.safe_integer(trade, 'date')
-        if timestamp is not None:
-            timestamp *= 1000
+        timestamp = self.safe_timestamp(trade, 'date')
         id = self.safe_string(trade, 'tid')
         price = self.safe_float(trade, 'price')
         amount = self.safe_float(trade, 'amount')
@@ -229,10 +230,9 @@ class btcturk (Exchange):
         response = self.publicGetTrades(self.extend(request, params))
         return self.parse_trades(response, market, since, limit)
 
-    def parse_ohlcv(self, ohlcv, market=None, timeframe='1d', since=None, limit=None):
-        timestamp = self.parse8601(self.safe_string(ohlcv, 'Time'))
+    def parse_ohlcv(self, ohlcv, market=None):
         return [
-            timestamp,
+            self.parse8601(self.safe_string(ohlcv, 'Time')),
             self.safe_float(ohlcv, 'Open'),
             self.safe_float(ohlcv, 'High'),
             self.safe_float(ohlcv, 'Low'),
@@ -257,7 +257,7 @@ class btcturk (Exchange):
             'OrderMethod': 1 if (type == 'market') else 0,
         }
         if type == 'market':
-            if not('Total' in list(params.keys())):
+            if not ('Total' in params):
                 raise ExchangeError(self.id + ' createOrder requires the "Total" extra parameter for market orders(amount and price are both ignored)')
         else:
             request['Price'] = price

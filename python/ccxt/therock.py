@@ -12,7 +12,7 @@ from ccxt.base.errors import InvalidAddress
 from ccxt.base.errors import OrderNotFound
 
 
-class therock (Exchange):
+class therock(Exchange):
 
     def describe(self):
         return self.deep_extend(super(therock, self).describe(), {
@@ -22,16 +22,24 @@ class therock (Exchange):
             'rateLimit': 1000,
             'version': 'v1',
             'has': {
+                'cancelOrder': True,
                 'CORS': False,
-                'fetchTickers': True,
-                'fetchMyTrades': True,
-                'fetchLedger': True,
-                'fetchDeposits': True,
-                'fetchWithdrawals': True,
-                'fetchTransactions': 'emulated',
-                'fetchOrders': True,
-                'fetchOpenOrders': True,
+                'createOrder': True,
+                'fetchBalance': True,
                 'fetchClosedOrders': True,
+                'fetchDeposits': True,
+                'fetchLedger': True,
+                'fetchMarkets': True,
+                'fetchMyTrades': True,
+                'fetchOpenOrders': True,
+                'fetchOrder': True,
+                'fetchOrderBook': True,
+                'fetchOrders': True,
+                'fetchTicker': True,
+                'fetchTickers': True,
+                'fetchTrades': True,
+                'fetchTransactions': 'emulated',
+                'fetchWithdrawals': True,
             },
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/1294454/27766869-75057fa2-5ee9-11e7-9a6f-13e641fa4707.jpg',
@@ -165,8 +173,8 @@ class therock (Exchange):
                 id = self.safe_string(market, 'id')
                 baseId = self.safe_string(market, 'trade_currency')
                 quoteId = self.safe_string(market, 'base_currency')
-                base = self.common_currency_code(baseId)
-                quote = self.common_currency_code(quoteId)
+                base = self.safe_currency_code(baseId)
+                quote = self.safe_currency_code(quoteId)
                 symbol = base + '/' + quote
                 buy_fee = self.safe_float(market, 'buy_fee')
                 sell_fee = self.safe_float(market, 'sell_fee')
@@ -213,11 +221,7 @@ class therock (Exchange):
         for i in range(0, len(balances)):
             balance = balances[i]
             currencyId = self.safe_string(balance, 'currency')
-            code = currencyId
-            if currencyId in self.currencies_by_id:
-                code = self.currencies_by_id[currencyId]['code']
-            else:
-                code = self.common_currency_code(currencyId)
+            code = self.safe_currency_code(currencyId)
             account = self.account()
             account['free'] = self.safe_float(balance, 'trading_balance')
             account['total'] = self.safe_float(balance, 'balance')
@@ -494,10 +498,7 @@ class therock (Exchange):
         if type == 'trade' or type == 'fee':
             referenceId = self.safe_string(item, 'trade_id')
         currencyId = self.safe_string(item, 'currency')
-        code = None
-        if currencyId is not None:
-            currencyId = currencyId.upper()
-            code = self.common_currency_code(currencyId)
+        code = self.safe_currency_code(currencyId)
         amount = self.safe_float(item, 'price')
         timestamp = self.parse8601(self.safe_string(item, 'date'))
         status = 'ok'
@@ -722,10 +723,7 @@ class therock (Exchange):
                 txid = self.safe_string(detail, 'id')
                 address = self.safe_string(detail, 'recipient')
         currencyId = self.safe_string(transaction, 'currency')
-        code = None
-        if currencyId is not None:
-            currencyId = currencyId.upper()
-            code = self.common_currency_code(currencyId)
+        code = self.safe_currency_code(currencyId)
         amount = self.safe_float(transaction, 'price')
         timestamp = self.parse8601(self.safe_string(transaction, 'date'))
         status = 'ok'
@@ -845,7 +843,7 @@ class therock (Exchange):
         transactions = self.safe_value(response, 'transactions', [])
         transactionTypes = ['withdraw', 'atm_payment']
         depositsAndWithdrawals = self.filter_by_array(transactions, 'type', transactionTypes, False)
-        return self.parseTransactions(depositsAndWithdrawals, currency, since, limit)
+        return self.parse_transactions(depositsAndWithdrawals, currency, since, limit)
 
     def parse_order_status(self, status):
         statuses = {
@@ -928,6 +926,7 @@ class therock (Exchange):
                 cost = 0
         return {
             'id': id,
+            'clientOrderId': None,
             'info': order,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
@@ -1122,6 +1121,7 @@ class therock (Exchange):
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         url = self.urls['api'] + '/' + self.version + '/' + self.implode_params(path, params)
         query = self.omit(params, self.extract_params(path))
+        headers = {} if (headers is None) else headers
         if api == 'private':
             self.check_required_credentials()
             if query:
@@ -1134,17 +1134,15 @@ class therock (Exchange):
                         url += '?' + queryString
             nonce = str(self.nonce())
             auth = nonce + url
-            headers = {
-                'X-TRT-KEY': self.apiKey,
-                'X-TRT-NONCE': nonce,
-                'X-TRT-SIGN': self.hmac(self.encode(auth), self.encode(self.secret), hashlib.sha512),
-            }
+            headers['X-TRT-KEY'] = self.apiKey
+            headers['X-TRT-NONCE'] = nonce
+            headers['X-TRT-SIGN'] = self.hmac(self.encode(auth), self.encode(self.secret), hashlib.sha512)
         elif api == 'public':
             if query:
                 url += '?' + self.rawencode(query)
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, httpCode, reason, url, method, headers, body, response):
+    def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
             return  # fallback to default error handler
         #
@@ -1163,15 +1161,10 @@ class therock (Exchange):
         numErrors = len(errors)
         if numErrors > 0:
             feedback = self.id + ' ' + body
-            exact = self.exceptions['exact']
-            broad = self.exceptions['broad']
             # here we raise the first error we can identify
             for i in range(0, numErrors):
                 error = errors[i]
                 message = self.safe_string(error, 'message')
-                if message in exact:
-                    raise exact[message](feedback)
-                broadKey = self.findBroadlyMatchedKey(broad, message)
-                if broadKey is not None:
-                    raise broad[broadKey](feedback)
+                self.throw_exactly_matched_exception(self.exceptions['exact'], message, feedback)
+                self.throw_broadly_matched_exception(self.exceptions['broad'], message, feedback)
             raise ExchangeError(feedback)  # unknown message
