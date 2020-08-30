@@ -161,6 +161,11 @@ class OrderCancelled(InvalidOrder):
     pass
 
 
+class MaxStopAllowed(BaseError):
+    """"Raised when an exchange server replies with an error in JSON"""
+    pass
+
+
 __all__ = [
     'error_hierarchy',
     'ExchangeError',
@@ -191,5 +196,6 @@ __all__ = [
     'OnMaintenance',
     'InvalidNonce',
     'RequestTimeout',
-    'OrderCancelled'
+    'OrderCancelled',
+    'MaxStopAllowed',
 ]
