@@ -2054,11 +2054,11 @@ class bybit(Exchange):
                 body = self.json(self.extend(query, {
                     'sign': signature,
                 }))
-                headers = {
-                    'Content-Type': 'application/json',
-                }
             else:
                 request += '?' + auth + '&sign=' + signature
+            headers = {
+                'Content-Type': 'application/json',
+            }
             if self.partner_name:
                 headers["Referer"] = self.partner_name
         url += request
