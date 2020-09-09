@@ -1985,7 +1985,7 @@ class Exchange(object):
     def get_currency(self, symbol):
         symbol_parts = symbol.split("/")
         currency = symbol_parts[0].split("-")
-        return currency
+        return currency[0]
 
     def get_currencies(self):
         symbols = self.load_markets().keys()
