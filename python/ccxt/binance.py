@@ -473,7 +473,7 @@ class binance(Exchange):
         _id = self.find_market(symbol)["id"]
         return self.fapiPrivate_post_leverage({"symbol": _id, "leverage": int(float(leverage))})
 
-    def get_positions(self):
+    def get_positions(self, symbol=None):
         self.load_markets()
         positions_to_return = list()
         account_positions = self.fapiPrivateGetAccount().get("positions", list())

@@ -500,10 +500,9 @@ class deribit(Exchange):
                 })
         return result
 
-    def get_positions(self):
+    def get_positions(self, symbol=None):
         self.load_markets()
-        response = self.public_get_get_currencies()
-        currencies = self.safe_value(response, 'result')
+        currencies = {self.get_currency(symbol)} if symbol is not None else self.get_currencies()
         positions_to_return = list()
         for currency_data in currencies:
             positions = self.private_get_get_positions({"currency": currency_data["currency"]})
@@ -1400,11 +1399,6 @@ class deribit(Exchange):
         result = self.safe_value(response, 'result', {})
         trades = self.safe_value(result, 'trades', [])
         return self.parse_trades(trades, None, since, limit)
-
-    def get_currency(self, symbol):
-        symbol_parts = symbol.split("/")
-        currency = symbol_parts[0].split("-")
-        return currency
 
     def get_stop_order_history(self, symbol):
         self.load_markets()

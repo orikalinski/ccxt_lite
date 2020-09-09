@@ -1982,6 +1982,15 @@ class Exchange(object):
         )
         return '0x' + base64.b16encode(sha3).decode('ascii').lower()
 
+    def get_currency(self, symbol):
+        symbol_parts = symbol.split("/")
+        currency = symbol_parts[0].split("-")
+        return currency
+
+    def get_currencies(self):
+        symbols = self.load_markets().keys()
+        return {self.get_currency(symbol) for symbol in symbols}
+
     def signZeroExOrderV2(self, order, privateKey):
         orderHash = self.getZeroExOrderHashV2(order)
         signature = self.signMessage(orderHash[-64:], privateKey)
