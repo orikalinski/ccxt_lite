@@ -1681,6 +1681,10 @@ class deribit(Exchange):
     def nonce(self):
         return self.milliseconds()
 
+    def random_nonce(self, length):
+        result = self.hash((self.apiKey + str(self.nonce())).encode(), 'sha512', 'base64')
+        return result[:length]
+
     def sign(self, path, api='public', method='GET', params=None, headers=None, body=''):
         if params is None:
             params = {}

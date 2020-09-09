@@ -965,7 +965,8 @@ class bybit(Exchange):
             # conditional orders
             'Active': 'open',  # order is triggered and placed successfully
             'Untriggered': 'open',  # order waits to be triggered
-            'Triggered': 'closed',  # order is triggered
+            'Triggered': 'open',
+            'NotActive': 'inactive',
             # 'Cancelled': 'canceled',  # order is cancelled
             # 'Rejected': 'rejected',  # order is triggered but fail to be placed
             'Deactivated': 'canceled',  # conditional order was cancelled before triggering
