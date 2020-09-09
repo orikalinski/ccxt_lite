@@ -283,10 +283,11 @@ class deribit(Exchange):
             })
         return result
 
-    def get_positions(self):
+    def get_positions(self, symbol=None):
         self.load_markets()
         positions_to_return = list()
-        for currency in self.get_currencies():
+        currencies = {self.get_currency(symbol)} if symbol is not None else self.get_currencies()
+        for currency in currencies:
             positions = self.private_get_get_positions({"currency": currency})
             for position in positions["result"]:
                 liq_price = self.safe_float(position, "estimated_liquidation_price", 0)
