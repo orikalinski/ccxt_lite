@@ -22,7 +22,7 @@ class bybit(Exchange):
     def describe(self):
         return self.deep_extend(super(bybit, self).describe(), {
             'id': 'bybit',
-            'name': 'Bybit',
+            'name': 'ByBit',
             'countries': ['VG'],  # British Virgin Islands
             'version': 'v2',
             'userAgent': None,
