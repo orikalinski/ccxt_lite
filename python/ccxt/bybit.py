@@ -418,7 +418,7 @@ class bybit(Exchange):
                 'symbol': symbol,
                 'base': base,
                 'quote': quote,
-                'active': None,
+                'active': True,
                 'precision': precision,
                 'taker': self.safe_float(market, 'taker_fee'),
                 'maker': self.safe_float(market, 'maker_fee'),
