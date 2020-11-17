@@ -335,7 +335,7 @@ class bybit(Exchange):
         self.load_markets()
         symbol = self.find_symbol(symbol)
         _id = self.market(symbol)["id"]
-        return self.private_post_user_leverage_save({"symbol": _id, "leverage": leverage})
+        return self.user_post_leverage_save({"symbol": _id, "leverage": leverage})
 
     def get_positions(self, symbol=None):
         self.load_markets()
@@ -2082,6 +2082,7 @@ class bybit(Exchange):
         #
         errorCode = self.safe_value(response, 'ret_code')
         if errorCode != 0:
+            errorCode = str(errorCode)
             return_message = self.safe_value(response, "ret_msg")
             return_message = return_message.lower() if return_message else return_message
             feedback = self.id + ' ' + body
