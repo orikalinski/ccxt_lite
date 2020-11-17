@@ -448,13 +448,7 @@ class bybit(Exchange):
 
     def fetch_balance(self, params={}):
         self.load_markets()
-        defaultCode = self.safe_value(self.options, 'code', 'BTC')
-        options = self.safe_value(self.options, 'fetchBalance', {})
-        code = self.safe_value(options, 'code', defaultCode)
-        currency = self.currency(code)
-        request = {
-            'coin': currency['id'],
-        }
+        request = {}
         response = self.privateGetWalletBalance(self.extend(request, params))
         #
         #     {
