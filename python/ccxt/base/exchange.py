@@ -691,6 +691,13 @@ class Exchange(object):
         return value
 
     @staticmethod
+    def validate_float(my_str):
+        try:
+            return float(my_str)
+        except ValueError:
+            return
+
+    @staticmethod
     def safe_string(dictionary, key, default_value=None):
         return str(dictionary[key]) if Exchange.key_exists(dictionary, key) else default_value
 

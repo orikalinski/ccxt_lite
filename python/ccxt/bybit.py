@@ -332,6 +332,8 @@ class bybit(Exchange):
         return self.safe_timestamp(response, 'time_now')
 
     def set_leverage(self, symbol, leverage):
+        leverage = self.validate_float(leverage)
+        assert leverage is not None
         self.load_markets()
         symbol = self.find_symbol(symbol)
         _id = self.market(symbol)["id"]
