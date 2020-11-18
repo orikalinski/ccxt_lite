@@ -1258,7 +1258,7 @@ class bybit(Exchange):
             priceIsRequired = True
         if priceIsRequired:
             if price is not None:
-                request['price'] = float(self.price_to_precision(symbol, price))
+                request['price'] = self.is_int_format(float(self.price_to_precision(symbol, price)))
             else:
                 raise ArgumentsRequired(self.id + ' createOrder requires a price argument for a ' + type + ' order')
         stopPx = self.safe_value(params, 'stop_px')
@@ -1271,8 +1271,8 @@ class bybit(Exchange):
                 raise ArgumentsRequired(self.id + ' createOrder requires both the stop_px and base_price params for a conditional ' + type + ' order')
             else:
                 method = 'privateLinearPostStopOrderCreate' if (marketType == 'linear') else 'openapiPostStopOrderCreate'
-                request['stop_px'] = float(self.price_to_precision(symbol, stopPx))
-                request['base_price'] = float(self.price_to_precision(symbol, basePrice))
+                request['stop_px'] = self.is_int_format(float(self.price_to_precision(symbol, stopPx)))
+                request['base_price'] = self.is_int_format(float(self.price_to_precision(symbol, basePrice)))
                 params = self.omit(params, ['stop_px', 'base_price'])
         elif basePrice is not None:
             raise ArgumentsRequired(self.id + ' createOrder requires both the stop_px and base_price params for a conditional ' + type + ' order')

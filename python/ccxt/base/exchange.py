@@ -691,11 +691,25 @@ class Exchange(object):
         return value
 
     @staticmethod
-    def validate_float(my_str):
+    def validate_float(_str):
         try:
-            return float(my_str)
+            return float(_str)
         except ValueError:
             return
+
+    @staticmethod
+    def is_int_format(_float):
+        return int(_float) if _float.is_integer() else _float
+
+    @staticmethod
+    def convert_to_real_value(value):
+        import ast
+        if type(value) not in {str, bytes}:
+            return value
+        try:
+            return ast.literal_eval(value)
+        except (ValueError, SyntaxError):
+            return value
 
     @staticmethod
     def safe_string(dictionary, key, default_value=None):
