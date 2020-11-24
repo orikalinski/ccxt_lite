@@ -228,9 +228,9 @@ class bybit(Exchange):
                     '30008': InvalidOrder,  # invalid order_type
                     '30009': ExchangeError,  # no position found
                     '30010': InsufficientFunds,  # insufficient wallet balance
-                    '30011': PermissionDenied,  # operation not allowed as position is undergoing liquidation
-                    '30012': PermissionDenied,  # operation not allowed as position is undergoing ADL
-                    '30013': PermissionDenied,  # position is in liq or adl status
+                    '30011': InvalidOrder,  # operation not allowed as position is undergoing liquidation
+                    '30012': InvalidOrder,  # operation not allowed as position is undergoing ADL
+                    '30013': InvalidOrder,  # position is in liq or adl status
                     '30014': InvalidOrder,  # invalid closing order, qty should not greater than size
                     '30015': InvalidOrder,  # invalid closing order, side should be opposite
                     '30016': ExchangeError,  # TS and SL must be cancelled first while closing position
@@ -249,7 +249,7 @@ class bybit(Exchange):
                     '30029': InvalidOrder,  # price set for Stop loss should be between Last Traded Price and Liquidation price
                     '30030': InvalidOrder,  # price set for Take profit should be lower than Last Traded Price
                     '30031': InsufficientFunds,  # insufficient available balance for order cost
-                    '30032': InvalidOrder,  # order has been filled or cancelled
+                    '30032': OrderNotFound,  # order has been filled or cancelled
                     '30033': RateLimitExceeded,  # The number of stop orders exceeds maximum limit allowed
                     '30034': OrderNotFound,  # no order found
                     '30035': RateLimitExceeded,  # too fast to cancel
@@ -257,9 +257,9 @@ class bybit(Exchange):
                     '30037': OrderCancelled,
                     '30041': ExchangeError,  # no position found
                     '30042': InsufficientFunds,  # insufficient wallet balance
-                    '30043': PermissionDenied,  # operation not allowed as position is undergoing liquidation
-                    '30044': PermissionDenied,  # operation not allowed as position is undergoing AD
-                    '30045': PermissionDenied,  # operation not allowed as position is not normal status
+                    '30043': ExchangeError,  # operation not allowed as position is undergoing liquidation
+                    '30044': ExchangeError,  # operation not allowed as position is undergoing AD
+                    '30045': ExchangeError,  # operation not allowed as position is not normal status
                     '30049': InsufficientFunds,  # insufficient available balance
                     '30050': ExchangeError,  # any adjustments made will trigger immediate liquidation
                     '30051': ExchangeError,  # due to risk limit, cannot adjust leverage
