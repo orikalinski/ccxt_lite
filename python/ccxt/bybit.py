@@ -192,7 +192,7 @@ class bybit(Exchange):
                     '10005': PermissionDenied,  # permission denied for current apikey
                     '10006': RateLimitExceeded,  # too many requests
                     '10007': AuthenticationError,  # api_key not found in your request parameters
-                    '10010': PermissionDenied,  # request ip mismatch
+                    '10010': ExchangeError,  # request ip mismatch
                     '10017': BadRequest,  # request path not found or request method is invalid
                     '20001': OrderNotFound,  # Order not exists
                     '20003': InvalidOrder,  # missing parameter side
