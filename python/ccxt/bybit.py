@@ -403,8 +403,6 @@ class bybit(Exchange):
             quoteId = self.safe_string(market, 'quote_currency')
             base = self.safe_currency_code(baseId)
             quote = self.safe_currency_code(quoteId)
-            if quote == "USDT":
-                continue
             linear = (quote in linearQuoteCurrencies)
             inverse = not linear
             symbol = base + '/' + quote

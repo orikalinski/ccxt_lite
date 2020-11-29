@@ -237,8 +237,6 @@ class bitmex(Exchange):
             basequote = baseId + quoteId
             base = self.safe_currency_code(baseId)
             quote = self.safe_currency_code(quoteId)
-            if quote == "USDT":
-                continue
             swap = (id == basequote)
             # 'positionCurrency' may be empty("", as Bitmex currently returns for ETHUSD)
             # so let's take the quote currency first and then adjust if needed
