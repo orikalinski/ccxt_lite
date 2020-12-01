@@ -1275,6 +1275,7 @@ class bybit(Exchange):
             qty = int(qty)
         else:
             qty = float(qty)
+            qty = self.is_int_format(qty)
         request = {
             # orders ---------------------------------------------------------
             'side': self.capitalize(side),
