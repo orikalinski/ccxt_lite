@@ -412,6 +412,9 @@ class bybit(Exchange):
                     if side == "sell":
                         size = -size
                     leverage = self.safe_float(position, "leverage")
+                    is_isolated = self.safe_value(position, "is_isolated")
+                    if is_isolated is False:
+                        leverage = 0
                     margin_type = "cross" if leverage == 0 else "isolated"
                     result = {"info": position, "symbol": self.find_market(position["symbol"])["symbol"],
                               "quantity": size, "leverage": leverage, "margin_type": margin_type,
