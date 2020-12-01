@@ -266,8 +266,8 @@ class bybit(Exchange):
                     '30051': ExchangeError,  # due to risk limit, cannot adjust leverage
                     '30052': ExchangeError,  # leverage can not less than 1
                     '30054': ExchangeError,  # position margin is invalid
-                    '30057': ExchangeError,  # requested quantity of contracts exceeds risk limit
-                    '30063': ExchangeError,  # reduce-only rule not satisfied
+                    '30057': InvalidOrder,  # requested quantity of contracts exceeds risk limit
+                    '30063': InvalidOrder,  # reduce-only rule not satisfied
                     '30067': InsufficientFunds,  # insufficient available balance
                     '30068': ExchangeError,  # exit value must be positive
                     '31003': PermissionDenied,  # user has been banned
@@ -389,12 +389,21 @@ class bybit(Exchange):
 
     def get_positions(self, symbol=None):
         self.load_markets()
-        symbols = {symbol} if symbol is not None else self.load_markets().keys()
-        method = 'privateLinearGetPositionList' if self.is_linear(symbol) else 'privateGetPositionList'
-        positions_to_return = list()
-        for symbol in symbols:
+        if symbol:
+            method = 'privateLinearGetPositionList' if self.is_linear(symbol) else 'privateGetPositionList'
             response = getattr(self, method)({"symbol": self.market_id(symbol)})
-            position = self.safe_value(response, 'result')
+            positions = self.safe_value(response, 'result')
+            positions = positions if type(positions) is list else [positions]
+        else:
+            response = getattr(self, 'privateLinearGetPositionList')()
+            linear_positions = self.safe_value(response, 'result')
+            response = getattr(self, 'privateGetPositionList')()
+            inverse_positions = self.safe_value(response, 'result')
+            positions = linear_positions + inverse_positions
+
+        positions_to_return = list()
+        for _position in positions:
+            position = self.safe_value(_position, "data", _position)
             if position:
                 liq_price = self.safe_float(position, "liq_price", 0)
                 size = self.safe_float(position, "size")
