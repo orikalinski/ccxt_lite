@@ -408,11 +408,12 @@ class bybit(Exchange):
                 liq_price = self.safe_float(position, "liq_price", 0)
                 size = self.safe_float(position, "size")
                 if size:
+                    _symbol = self.find_market(position["symbol"])["symbol"]
                     side = position.get("side", "buy").lower()
                     if side == "sell":
                         size = -size
                     leverage = self.safe_float(position, "leverage")
-                    if self.is_linear(symbol):
+                    if self.is_linear(_symbol):
                         maintenance_margin = self.safe_float(position, "position_value") / leverage
                     else:
                         maintenance_margin = self.safe_float(position, "position_margin")
@@ -420,7 +421,7 @@ class bybit(Exchange):
                     if is_isolated is False:
                         leverage = 0
                     margin_type = "cross" if leverage == 0 else "isolated"
-                    result = {"info": position, "symbol": self.find_market(position["symbol"])["symbol"],
+                    result = {"info": position, "symbol": _symbol,
                               "quantity": size, "leverage": leverage, "margin_type": margin_type,
                               "maintenance_margin": maintenance_margin,
                               "liquidation_price": max(liq_price, 0)}
