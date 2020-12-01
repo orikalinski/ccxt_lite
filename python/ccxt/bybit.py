@@ -339,6 +339,8 @@ class bybit(Exchange):
     def is_linear(self, symbol=None):
         if symbol is None:
             return
+        self.load_markets()
+        symbol = self.find_symbol(symbol)
         market = self.market(symbol)
         return market["linear"]
 
@@ -346,6 +348,7 @@ class bybit(Exchange):
         leverage = self.validate_float(leverage)
         assert leverage is not None
         self.load_markets()
+        symbol = self.find_symbol(symbol)
         _id = self.find_market(symbol)["id"]
         leverage = self.is_int_format(leverage)
         try:
