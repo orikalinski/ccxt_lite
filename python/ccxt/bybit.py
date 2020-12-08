@@ -274,7 +274,100 @@ class bybit(Exchange):
                     '34015': SameLeverage,
                     '34026': ExchangeError,  # the limit is no change
                     '34036': SameLeverage,
-                    '130134': SameLeverage
+                    '130001': ExchangeError,  # Not get position
+                    '130002': ExchangeError,  # wallet is nil
+                    '130003': ExchangeError,  # the pz status is not normal
+                    '130004': InvalidOrder,  # Order number is out of permissible range
+                    '130005': InvalidOrder,  # Order price is out of permissible range
+                    '130006': InvalidOrder,  # order qty is out of permissible range
+                    '130007': InvalidOrder,  # Order price is out of permissible range
+                    '130008': InvalidOrder,  # order_type invalid
+                    '130009': ExchangeError,  # The number of contracts below min limit allowed
+                    '130010': OrderNotFound,  # order not exists or Too late to operate
+                    '130011': ExchangeError,  # Operation not allowed as position is undergoing liquidation
+                    '130012': ExchangeError,  # Operation not allowed as position is undergoing ADL
+                    '130013': ExchangeError,  # stop_order trail value invalid
+                    '130014': ExchangeError,  # stop_order trigger price invalid
+                    '130015': ExchangeError,  # stop_order expected_direction or base_price invalid
+                    '130016': ExchangeError,  # invalid stop_order_type, cannot replace price
+                    '130017': ExchangeError,  # invalid stop_order_type, cannot replace qty
+                    '130018': ExchangeError,  # invalid trail_value
+                    '130019': ExchangeError,  # invalid stop_order_type, cannot replace trigger_price
+                    '130020': ExchangeError,  # invalid stop_order_type, cannot replace trail_value
+                    '130021': ExchangeError,  # order cost not available
+                    '130024': ExchangeError,  # cannot set tp_sl_ts for zero position
+                    '130025': ExchangeError,  # below < 10% of base price
+                    '130026': ExchangeError,  # the price is too high
+                    '130027': ExchangeError,  # the price set for Buy position should be higher than base_price
+                    '130028': ExchangeError,  # the price set for Sell position should be between base_price and liq_price
+                    '130029': ExchangeError,  # the price set for Buy position should be between liq_price and base_price
+                    '130030': ExchangeError,  # the price set for Sell position should be lower than base_price
+                    '130032': ExchangeError,  # invalid order_status, cannot cancel or execute trigger
+                    '130033': ExchangeError,  # number of stop order >= 10
+                    '130034': ExchangeError,  # stop_order cannot replace
+                    '130035': ExchangeError,  # Too freq to cancel, Try it later
+                    '130037': ExchangeError,  # Order already cancelled
+                    '130040': ExchangeError,  # position will be liq
+                    '130041': ExchangeError,  # AvailableBalanceE8 less than 0
+                    '130049': ExchangeError,  # available balance not enough
+                    '130050': ExchangeError,  # Any adjustments made will trigger liq
+                    '130051': ExchangeError,  # cannot set leverage ,due to risk limit,
+                    '130052': ExchangeError,  # cannot set leverage , below the lower limit
+                    '130056': ExchangeError,  # the position is in cross_margin
+                    '130057': ExchangeError,  # the position size is 0
+                    '130058': ExchangeError,  # can not set margin less than minPositionCost
+                    '130059': ExchangeError,  # can not set pz open limit more than symbol limit
+                    '130060': ExchangeError,  # autoAddMargin not changed
+                    '130061': ExchangeError,  # not change fee，invalid req
+                    '130062': ExchangeError,  # can not set pz open limit less than current buy pz value
+                    '130063': ExchangeError,  # can not set pz open limit less than current sell pz value
+                    '130064': ExchangeError,  # just support usdt
+                    '130074': ExchangeError,  # expect Rising, trigger_price <= current
+                    '130075': ExchangeError,  # expect Falling, trigger_price >= current
+                    '130076': ExchangeError,  # replace params invalid
+                    '130077': ExchangeError,  # the deposit req has handled
+                    '130078': ExchangeError,  # the withdraw req has handled
+                    '130079': ExchangeError,  # the rotate req has handled
+                    '130101': ExchangeError,  # unknown request for create order
+                    '130102': ExchangeError,  # unknown request for cancel order
+                    '130103': ExchangeError,  # unknown request for cancelAll
+                    '130104': ExchangeError,  # unknown request for LiqExecuteReq, req param not match liqExecuteReq
+                    '130105': ExchangeError,  # unknown request for pre create order
+                    '130106': ExchangeError,  # unknown req for query order
+                    '130107': ExchangeError,  # unmatch request for triggeredToActiveImpl
+                    '130108': ExchangeError,  # unknown request for addMargin
+                    '130109': ExchangeError,  # unknown request for calculatePositionPnl
+                    '130110': ExchangeError,  # unknown request for qryAssetImpl
+                    '130111': ExchangeError,  # unknown request for query_position_list
+                    '130112': ExchangeError,  # unknown request for setAutoAddMargin
+                    '130113': ExchangeError,  # unknown request for setFeeRate
+                    '130114': ExchangeError,  # unknown request for setLeverage
+                    '130115': ExchangeError,  # unknown request for setMargin
+                    '130116': ExchangeError,  # unknown request for setOpenLimit
+                    '130117': ExchangeError,  # unknown request for setTpSlTs
+                    '130118': ExchangeError,  # unknown request for settleFundingFeeReq
+                    '130119': ExchangeError,  # unknown request for setPositionMode
+                    '130120': ExchangeError,  # unknown request for walletDeposit
+                    '130121': ExchangeError,  # unknown request for walletWithDraw
+                    '130122': ExchangeError,  # unknown request for rotateRealisedPnl
+                    '130123': ExchangeError,  # unknown request for AdlExecute
+                    '130124': ExchangeError,  # unknown request for AdlCleanReq
+                    '130125': ExchangeError,  # No change made for TP/SL price
+                    '130126': ExchangeError,  # No orders
+                    '130023': ExchangeError,  # Will be triggered Liq after order is completed
+                    '130127': ExchangeError,  # Take Profit, Stop Loss and Trailing Stop Loss are not modified
+                    '130134': SameLeverage,
+                    '130149': ExchangeError,  # Order creation successful but SL/TP setting failed
+                    '130150': RateLimitExceeded,  # Please try again later.
+                    '130151': ExchangeError,  # Switching failed. Please cancel the current SL/TP setting
+                    '130152': ExchangeError,  # Switching failed. Please cancel the current SL/TP setting
+                    '130153': ExchangeError,  # Switching failed. Please cancel the current SL/TP setting
+                    '130154': ExchangeError,  # Switching failed. Please cancel the SL/TP setting of active orders
+                    '130155': ExchangeError,  # Insufficient quantity required to set TP/SL
+                    '130156': ExchangeError,  # Replacing active order price and qty simultaneously is not allowed
+                    '130157': ExchangeError,  # Amendment failed. SL/TP price cannot be amended as order is partially filled
+                    '130158': ExchangeError,  # SL/TP price cannot be amended under 'Full' position mode
+                    '130159': ExchangeError,  # Max SL/TP orders under 'Partial' mode is 20
                 },
                 'broad': {
                     'unknown orderInfo': OrderNotFound,  # {"ret_code":-1,"ret_msg":"unknown orderInfo","ext_code":"","ext_info":"","result":null,"time_now":"1584030414.005545","rate_limit_status":99,"rate_limit_reset_ms":1584030414003,"rate_limit":100}
@@ -552,10 +645,17 @@ class bybit(Exchange):
         }
         balances = self.safe_value(response, 'result', {})
         currencyIds = list(balances.keys())
+        linearQuoteCurrencies = self.safe_value(self.options, 'linear', {'USDT': True})
+        defaultType = self.safe_string(self.options, 'defaultType')
+        _type = self.safe_string(params, 'type', defaultType)
         for i in range(0, len(currencyIds)):
             currencyId = currencyIds[i]
             balance = balances[currencyId]
             code = self.safe_currency_code(currencyId)
+            linear = (code in linearQuoteCurrencies)
+            inverse = not linear
+            if (_type == 'inverse' and linear) or (_type == 'linear' and inverse):
+                continue
             account = self.account()
             account['free'] = self.safe_float(balance, 'available_balance')
             account['used'] = self.safe_float(balance, 'used_margin')
