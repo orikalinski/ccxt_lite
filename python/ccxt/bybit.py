@@ -271,6 +271,7 @@ class bybit(Exchange):
                     '30067': InsufficientFunds,  # insufficient available balance
                     '30068': ExchangeError,  # exit value must be positive
                     '31003': PermissionDenied,  # user has been banned
+                    '33004': PermissionDenied,  # key expired
                     '34015': SameLeverage,
                     '34026': ExchangeError,  # the limit is no change
                     '34036': SameLeverage,
