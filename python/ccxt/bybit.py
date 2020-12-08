@@ -489,11 +489,16 @@ class bybit(Exchange):
             positions = self.safe_value(response, 'result')
             positions = positions if type(positions) is list else [positions]
         else:
-            response = getattr(self, 'privateLinearGetPositionList')()
-            linear_positions = self.safe_value(response, 'result')
-            response = getattr(self, 'privateGetPositionList')()
-            inverse_positions = self.safe_value(response, 'result')
-            positions = linear_positions + inverse_positions
+            defaultType = self.safe_string(self.options, 'defaultType')
+            positions = list()
+            if not defaultType or defaultType == "linear":
+                response = getattr(self, 'privateLinearGetPositionList')()
+                linear_positions = self.safe_value(response, 'result')
+                positions.extend(linear_positions)
+            if not defaultType or defaultType == "inverse":
+                response = getattr(self, 'privateGetPositionList')()
+                inverse_positions = self.safe_value(response, 'result')
+                positions.extend(inverse_positions)
 
         positions_to_return = list()
         for _position in positions:
