@@ -506,7 +506,7 @@ class bybit(Exchange):
             if position:
                 liq_price = self.safe_float(position, "liq_price", 0)
                 size = self.safe_float(position, "size")
-                if size:
+                if size is not None:
                     _symbol = self.find_market(position["symbol"])["symbol"]
                     side = position.get("side", "buy").lower()
                     if side == "sell":
