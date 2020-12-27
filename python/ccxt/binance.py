@@ -628,7 +628,8 @@ class binance(Exchange):
 
         for account_position in account_positions:
             margin = self.safe_float(account_position, "initialMargin", 0.) + \
-                     self.safe_float(account_position, "unrealizedProfit", 0.)
+                     self.safe_float(account_position, "unrealizedProfit", 0.) - \
+                     self.safe_float(account_position, "openOrderInitialMargin", 0.)
             symbol = account_position["symbol"]
             position = risk_positions.get(symbol)
             if position:
@@ -1230,7 +1231,6 @@ class binance(Exchange):
         defaultType = self.safe_string_2(self.options, 'fetchTickers', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
         query = self.omit(params, 'type')
-        method = self.safe_string(self.options, 'fetchTickersMethod')
         if type == 'future':
             method = 'fapiPublicGetTicker24hr'
         elif type == 'delivery':
