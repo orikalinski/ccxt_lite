@@ -1230,14 +1230,13 @@ class binance(Exchange):
         defaultType = self.safe_string_2(self.options, 'fetchTickers', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
         query = self.omit(params, 'type')
-        defaultMethod = None
+        method = self.safe_string(self.options, 'fetchTickersMethod')
         if type == 'future':
-            defaultMethod = 'fapiPublicGetTicker24hr'
+            method = 'fapiPublicGetTicker24hr'
         elif type == 'delivery':
-            defaultMethod = 'dapiPublicGetTicker24hr'
+            method = 'dapiPublicGetTicker24hr'
         else:
-            defaultMethod = 'publicGetTicker24hr'
-        method = self.safe_string(self.options, 'fetchTickersMethod', defaultMethod)
+            method = 'publicGetTicker24hr'
         response = getattr(self, method)(query)
         return self.parse_tickers(response, symbols)
 
