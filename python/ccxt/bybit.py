@@ -98,35 +98,35 @@ class bybit(Exchange):
                     'get': [
                         'order',
                         'stop-order',
+                        'order/list',
+                        'stop-order/list',
                         'position/list',
                         'wallet/balance',
                         'execution/list',
+                        'wallet/fund/records',
+                        'wallet/withdraw/list',
                     ],
                     'post': [
                         'order/create',
                         'order/cancel',
                         'order/cancelAll',
+                        'order/replace',
+                        'stop-order/create',
+                        'stop-order/cancel',
+                        'stop-order/replace',
                         'stop-order/cancelAll',
                     ],
                 },
                 'openapi': {
                     'get': [
-                        'order/list',
-                        'stop-order/list',
                         'wallet/risk-limit/list',
                         'wallet/risk-limit',
                         'funding/prev-funding-rate',
                         'funding/prev-funding',
                         'funding/predicted-funding',
                         'api-key',
-                        'wallet/fund/records',
-                        'wallet/withdraw/list',
                     ],
                     'post': [
-                        'order/replace',
-                        'stop-order/create',
-                        'stop-order/cancel',
-                        'stop-order/replace',
                         'position/trading-stop',
                     ],
                 },
@@ -1438,7 +1438,7 @@ class bybit(Exchange):
             if basePrice is None:
                 raise ArgumentsRequired(self.id + ' createOrder requires both the stop_px and base_price params for a conditional ' + type + ' order')
             else:
-                method = 'privateLinearPostStopOrderCreate' if self.is_linear(symbol) else 'openapiPostStopOrderCreate'
+                method = 'privateLinearPostStopOrderCreate' if self.is_linear(symbol) else 'privatePostStopOrderCreate'
                 request['stop_px'] = self.is_int_format(float(self.price_to_precision(symbol, stopPx)))
                 request['base_price'] = self.is_int_format(float(self.price_to_precision(symbol, basePrice)))
                 params = self.omit(params, ['stop_px', 'base_price'])
@@ -1540,10 +1540,10 @@ class bybit(Exchange):
             # 'stop_order_id': id,  # only for conditional orders
             # 'p_r_trigger_price': 123.45,  # new trigger price also known as stop_px
         }
-        method = 'privateLinearPostOrderReplace' if self.is_linear(symbol) else 'openapiPostOrderReplace'
+        method = 'privateLinearPostOrderReplace' if self.is_linear(symbol) else 'privatePostOrderReplace'
         stopOrderId = self.safe_string(params, 'stop_order_id')
         if stopOrderId is not None:
-            method = 'privateLinearPostStopOrderReplace' if self.is_linear(symbol) else 'openapiPostStopOrderReplace'
+            method = 'privateLinearPostStopOrderReplace' if self.is_linear(symbol) else 'privatePostStopOrderReplace'
             request['stop_order_id'] = stopOrderId
             params = self.omit(params, ['stop_order_id'])
         else:
@@ -1607,7 +1607,7 @@ class bybit(Exchange):
             if orderLinkId is None:
                 request['order_id'] = id
         else:
-            method = 'privateLinearPostStopOrderCancel' if self.is_linear(symbol) else 'openapiPostStopOrderCancel'
+            method = 'privateLinearPostStopOrderCancel' if self.is_linear(symbol) else 'privatePostStopOrderCancel'
         response = getattr(self, method)(self.extend(request, params))
         result = self.safe_value(response, 'result', {})
         return self.parse_order(result, market)
@@ -1650,7 +1650,7 @@ class bybit(Exchange):
             request['limit'] = limit
         options = self.safe_value(self.options, 'fetchOrders', {})
 
-        defaultMethod = 'privateLinearGetOrderList' if self.is_linear(symbol) else 'openapiGetOrderList'
+        defaultMethod = 'privateLinearGetOrderList' if self.is_linear(symbol) else 'privateGetOrderList'
         query = params
         if ('stop_order_id' in params) or ('stop_order_status' in params):
             stopOrderStatus = self.safe_value(params, 'stopOrderStatus')
@@ -1659,7 +1659,7 @@ class bybit(Exchange):
                     stopOrderStatus = ','.join(stopOrderStatus)
                 request['stop_order_status'] = stopOrderStatus
                 query = self.omit(params, 'stop_order_status')
-            defaultMethod = 'privateLinearGetStopOrderList' if self.is_linear(symbol) else 'openapiGetStopOrderList'
+            defaultMethod = 'privateLinearGetStopOrderList' if self.is_linear(symbol) else 'privateGetStopOrderList'
         method = self.safe_string(options, 'method', defaultMethod)
         response = getattr(self, method)(self.extend(request, query))
         #
@@ -1969,7 +1969,7 @@ class bybit(Exchange):
             request['start_date'] = self.iso8601(since)
         if limit is not None:
             request['limit'] = limit
-        response = self.openapiGetWalletWithdrawList(self.extend(request, params))
+        response = self.privateGetWalletWithdrawList(self.extend(request, params))
         #
         #     {
         #         "ret_code": 0,
@@ -2085,7 +2085,7 @@ class bybit(Exchange):
             request['start_date'] = self.iso8601(since)
         if limit is not None:
             request['limit'] = limit
-        response = self.openapiGetWalletFundRecords(self.extend(request, params))
+        response = self.privateGetWalletFundRecords(self.extend(request, params))
         #
         #     {
         #         "ret_code": 0,
