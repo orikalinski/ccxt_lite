@@ -5,7 +5,7 @@
 import re
 
 from ccxt.base.exchange import Exchange
-from ccxt.base.errors import ExchangeError, SameLeverage, OrderCancelled
+from ccxt.base.errors import ExchangeError, SameLeverage, OrderCancelled, MaxStopAllowed
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import PermissionDenied
 from ccxt.base.errors import ArgumentsRequired
@@ -251,7 +251,7 @@ class bybit(Exchange):
                     '30030': InvalidOrder,  # price set for Take profit should be lower than Last Traded Price
                     '30031': InsufficientFunds,  # insufficient available balance for order cost
                     '30032': OrderNotFound,  # order has been filled or cancelled
-                    '30033': RateLimitExceeded,  # The number of stop orders exceeds maximum limit allowed
+                    '30033': MaxStopAllowed,  # The number of stop orders exceeds maximum limit allowed
                     '30034': OrderNotFound,  # no order found
                     '30035': RateLimitExceeded,  # too fast to cancel
                     '30036': ExchangeError,  # the expected position value after order execution exceeds the current risk limit
@@ -304,7 +304,7 @@ class bybit(Exchange):
                     '130029': ExchangeError,  # the price set for Buy position should be between liq_price and base_price
                     '130030': ExchangeError,  # the price set for Sell position should be lower than base_price
                     '130032': ExchangeError,  # invalid order_status, cannot cancel or execute trigger
-                    '130033': ExchangeError,  # number of stop order >= 10
+                    '130033': MaxStopAllowed,  # number of stop order >= 10
                     '130034': ExchangeError,  # stop_order cannot replace
                     '130035': ExchangeError,  # Too freq to cancel, Try it later
                     '130037': ExchangeError,  # Order already cancelled
