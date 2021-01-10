@@ -239,7 +239,7 @@ class bybit(Exchange):
                     '30018': InvalidOrder,  # estimated fill price cannot be higher than current Sell liq_price
                     '30019': InvalidOrder,  # cannot attach TP/SL params for non-zero position when placing non-opening position order
                     '30020': InvalidOrder,  # position already has TP/SL params
-                    '30021': InvalidOrder,  # cannot afford estimated position_margin
+                    '30021': InsufficientFunds,  # cannot afford estimated position_margin
                     '30022': InvalidOrder,  # estimated buy liq_price cannot be higher than current mark_price
                     '30023': InvalidOrder,  # estimated sell liq_price cannot be lower than current mark_price
                     '30024': InvalidOrder,  # cannot set TP/SL/TS for zero-position
@@ -295,7 +295,7 @@ class bybit(Exchange):
                     '130018': ExchangeError,  # invalid trail_value
                     '130019': ExchangeError,  # invalid stop_order_type, cannot replace trigger_price
                     '130020': ExchangeError,  # invalid stop_order_type, cannot replace trail_value
-                    '130021': ExchangeError,  # order cost not available
+                    '130021': InsufficientFunds,  # order cost not available
                     '130024': ExchangeError,  # cannot set tp_sl_ts for zero position
                     '130025': ExchangeError,  # below < 10% of base price
                     '130026': ExchangeError,  # the price is too high
@@ -310,7 +310,7 @@ class bybit(Exchange):
                     '130037': ExchangeError,  # Order already cancelled
                     '130040': ExchangeError,  # position will be liq
                     '130041': ExchangeError,  # AvailableBalanceE8 less than 0
-                    '130049': ExchangeError,  # available balance not enough
+                    '130049': InsufficientFunds,  # available balance not enough
                     '130050': ExchangeError,  # Any adjustments made will trigger liq
                     '130051': ExchangeError,  # cannot set leverage ,due to risk limit,
                     '130052': ExchangeError,  # cannot set leverage , below the lower limit
