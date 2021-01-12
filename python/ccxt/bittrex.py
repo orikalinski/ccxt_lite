@@ -6,7 +6,6 @@
 from ccxt.base.exchange import Exchange
 
 # -----------------------------------------------------------------------------
-from python.ccxt.base.errors import AccountNotVerified
 
 try:
     basestring  # Python 3
@@ -26,6 +25,7 @@ from ccxt.base.errors import OrderNotFound
 from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import ExchangeNotAvailable
 from ccxt.base.errors import OnMaintenance
+from ccxt.base.errors import AccountNotVerified
 from ccxt.base.decimal_to_precision import TRUNCATE
 from ccxt.base.decimal_to_precision import DECIMAL_PLACES
 
