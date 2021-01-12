@@ -6,6 +6,7 @@
 from ccxt.base.exchange import Exchange
 
 # -----------------------------------------------------------------------------
+from python.ccxt.base.errors import AccountNotVerified
 
 try:
     basestring  # Python 3
@@ -263,6 +264,7 @@ class bittrex(Exchange):
                     'WHITELIST_VIOLATION_IP': PermissionDenied,
                     'DUST_TRADE_DISALLOWED_MIN_VALUE': InvalidOrder,
                     'RESTRICTED_MARKET': BadSymbol,
+                    'ACCOUNT_NOT_VERIFIED': AccountNotVerified,
                     'We are down for scheduled maintenance, but we\u2019ll be back up shortly.': OnMaintenance,  # {"success":false,"message":"We are down for scheduled maintenance, but we\u2019ll be back up shortly.","result":null,"explanation":null}
                 },
                 'broad': {

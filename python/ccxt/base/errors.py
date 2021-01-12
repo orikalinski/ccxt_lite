@@ -60,6 +60,10 @@ class AccountSuspended(AuthenticationError):
     pass
 
 
+class AccountNotVerified(AuthenticationError):
+    pass
+
+
 class ArgumentsRequired(ExchangeError):
     pass
 
