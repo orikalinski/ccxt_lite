@@ -10,6 +10,7 @@ from ccxt.base.errors import NotSupported               # noqa: F401
 from ccxt.base.errors import AuthenticationError        # noqa: F401
 from ccxt.base.errors import PermissionDenied           # noqa: F401
 from ccxt.base.errors import AccountSuspended           # noqa: F401
+from ccxt.base.errors import AccountNotVerified         # noqa: F401
 from ccxt.base.errors import InvalidNonce               # noqa: F401
 from ccxt.base.errors import InsufficientFunds          # noqa: F401
 from ccxt.base.errors import InvalidOrder               # noqa: F401

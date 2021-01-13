@@ -4,6 +4,7 @@ error_hierarchy = {
             'AuthenticationError': {
                 'PermissionDenied': {},
                 'AccountSuspended': {},
+                'AccountNotVerified': {},
             },
             'ArgumentsRequired': {},
             'BadRequest': {
