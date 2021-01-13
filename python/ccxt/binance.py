@@ -546,6 +546,7 @@ class binance(Exchange):
                 '-3008': InsufficientFunds,  # {"code":-3008,"msg":"Borrow not allowed. Your borrow amount has exceed maximum borrow amount."}
                 '-3010': ExchangeError,  # {"code":-3010,"msg":"Repay not allowed. Repay amount exceeds borrow amount."}
                 '-3022': AccountSuspended,  # You account's trading is banned.
+                '-4161': ExchangeError,  # Leverage reduction is not supported in Isolated Margin Mode with open positions.
             },
         })
 

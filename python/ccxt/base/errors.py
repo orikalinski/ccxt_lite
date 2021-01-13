@@ -4,6 +4,7 @@ error_hierarchy = {
             'AuthenticationError': {
                 'PermissionDenied': {},
                 'AccountSuspended': {},
+                'AccountNotVerified': {},
             },
             'ArgumentsRequired': {},
             'BadRequest': {
@@ -57,6 +58,10 @@ class PermissionDenied(AuthenticationError):
 
 
 class AccountSuspended(AuthenticationError):
+    pass
+
+
+class AccountNotVerified(AuthenticationError):
     pass
 
 
@@ -173,6 +178,7 @@ __all__ = [
     'AuthenticationError',
     'PermissionDenied',
     'AccountSuspended',
+    'AccountNotVerified',
     'ArgumentsRequired',
     'BadRequest',
     'BadSymbol',

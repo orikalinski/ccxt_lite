@@ -15,6 +15,7 @@ import hashlib
 import math
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import AuthenticationError
+from ccxt.base.errors import AccountNotVerified
 from ccxt.base.errors import PermissionDenied
 from ccxt.base.errors import BadRequest
 from ccxt.base.errors import BadSymbol
@@ -263,6 +264,7 @@ class bittrex(Exchange):
                     'WHITELIST_VIOLATION_IP': PermissionDenied,
                     'DUST_TRADE_DISALLOWED_MIN_VALUE': InvalidOrder,
                     'RESTRICTED_MARKET': BadSymbol,
+                    'ACCOUNT_NOT_VERIFIED': AccountNotVerified,
                     'We are down for scheduled maintenance, but we\u2019ll be back up shortly.': OnMaintenance,  # {"success":false,"message":"We are down for scheduled maintenance, but we\u2019ll be back up shortly.","result":null,"explanation":null}
                 },
                 'broad': {
