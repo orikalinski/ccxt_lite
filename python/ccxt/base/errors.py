@@ -177,6 +177,7 @@ __all__ = [
     'AuthenticationError',
     'PermissionDenied',
     'AccountSuspended',
+    'AccountNotVerified',
     'ArgumentsRequired',
     'BadRequest',
     'BadSymbol',
