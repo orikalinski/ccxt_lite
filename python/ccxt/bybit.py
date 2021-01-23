@@ -527,6 +527,13 @@ class bybit(Exchange):
                     positions_to_return.append(result)
         return positions_to_return
 
+    def calculate_precision(self, qty_step):
+        right_part = str(float(qty_step)).split(".")[-1].rstrip("0")
+        if not right_part or int(right_part) == 1:
+            return len(right_part)
+        else:
+            return -1
+
     def fetch_markets(self, params={}):
         if self.options['adjustForTimeDifference']:
             self.load_time_difference()
@@ -576,8 +583,12 @@ class bybit(Exchange):
                 symbol = id
             lotSizeFilter = self.safe_value(market, 'lot_size_filter', {})
             priceFilter = self.safe_value(market, 'price_filter', {})
+            qty_step = self.safe_float(lotSizeFilter, 'qty_step')
+            amount_precision = self.calculate_precision(qty_step)
+            if amount_precision == -1:
+                continue
             precision = {
-                'amount': self.safe_float(lotSizeFilter, 'qty_step'),
+                'amount': amount_precision,
                 'price': self.safe_float(priceFilter, 'tick_size'),
             }
             result.append({
