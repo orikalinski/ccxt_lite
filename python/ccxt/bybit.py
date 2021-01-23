@@ -374,7 +374,6 @@ class bybit(Exchange):
                     'unknown orderInfo': OrderNotFound,  # {"ret_code":-1,"ret_msg":"unknown orderInfo","ext_code":"","ext_info":"","result":null,"time_now":"1584030414.005545","rate_limit_status":99,"rate_limit_reset_ms":1584030414003,"rate_limit":100}
                 },
             },
-            'precisionMode': TICK_SIZE,
             'options': {
                 'defaultType': None,  # 'inverse', 'linear', None
                 'marketTypes': {
