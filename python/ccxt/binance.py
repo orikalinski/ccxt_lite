@@ -569,6 +569,35 @@ class binance(Exchange):
         self.options['timeDifference'] = after - serverTime
         return self.options['timeDifference']
 
+    def parse_symbol_leverage_limits(self, symbol_leverage_limits):
+        last_max = 0
+        results = list()
+        symbol_leverage_limits = filter(lambda x: x.get("initialLeverage"), symbol_leverage_limits)
+        symbol_leverage_limits = sorted(symbol_leverage_limits, key=lambda x: x.get("initialLeverage"))
+        for symbol_leverage_limit in symbol_leverage_limits:
+            max_leverage = self.safe_float(symbol_leverage_limit, "initialLeverage")
+            result = {"position": {"max": self.safe_float(symbol_leverage_limit, "notionalCap")},
+                      "leverage": {"min": last_max + 1,
+                                   "max": max_leverage}}
+            results.append(result)
+            last_max = max_leverage
+
+        return results
+
+    def get_leverage_limits(self):
+        _type = self.safe_string(self.options, 'defaultType')
+        if _type == "future":
+            response = self.fapiPrivateGetLeverageBracket()
+        elif _type == "delivery":
+            response = self.dapiPrivateGetLeverageBracket()
+        else:
+            raise NotSupported()
+        return {self.find_symbol("%s_PERP" % self.safe_string_2(symbol_data, "symbol", "pair")) or
+                self.find_symbol(self.safe_string_2(symbol_data, "symbol", "pair")):
+                self.parse_symbol_leverage_limits(self.safe_value(symbol_data, "brackets"))
+                for symbol_data in response if ("symbol" in symbol_data or "pair" in symbol_data)
+                and "brackets" in symbol_data}
+
     def change_margin_type(self, symbol, cross):
         self.load_markets()
         _id = self.find_market(symbol)["id"]
@@ -656,6 +685,7 @@ class binance(Exchange):
         elif type == 'delivery':
             method = 'dapiPublicGetExchangeInfo'
         response = getattr(self, method)(query)
+
         #
         # spot / margin
         #
