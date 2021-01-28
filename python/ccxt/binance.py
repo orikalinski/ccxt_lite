@@ -585,6 +585,7 @@ class binance(Exchange):
         return results
 
     def get_leverage_limits(self):
+        self.load_markets()
         _type = self.safe_string(self.options, 'defaultType')
         if _type == "future":
             response = self.fapiPrivateGetLeverageBracket()
