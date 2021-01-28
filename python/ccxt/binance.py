@@ -593,11 +593,18 @@ class binance(Exchange):
             response = self.dapiPrivateGetLeverageBracket()
         else:
             raise NotSupported()
-        return {self.find_symbol("%s_PERP" % self.safe_string_2(symbol_data, "symbol", "pair")) or
-                self.find_symbol(self.safe_string_2(symbol_data, "symbol", "pair")):
-                self.parse_symbol_leverage_limits(self.safe_value(symbol_data, "brackets"))
-                for symbol_data in response if ("symbol" in symbol_data or "pair" in symbol_data)
-                and "brackets" in symbol_data}
+        results = dict()
+        for symbol_data in response:
+            if ("symbol" in symbol_data or "pair" in symbol_data) and "brackets" in symbol_data:
+                pass
+            symbol = self.safe_string(symbol_data, "symbol")
+            if symbol:
+                symbol = self.find_symbol(symbol)
+            else:
+                pair = self.safe_string(symbol_data, "pair")
+                symbol = self.find_symbol("%s_PERP" % pair)
+            results[symbol] = self.parse_symbol_leverage_limits(self.safe_value(symbol_data, "brackets"))
+        return results
 
     def change_margin_type(self, symbol, cross):
         self.load_markets()
