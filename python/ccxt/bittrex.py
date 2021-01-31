@@ -265,6 +265,7 @@ class bittrex(Exchange):
                     'DUST_TRADE_DISALLOWED_MIN_VALUE': InvalidOrder,
                     'RESTRICTED_MARKET': BadSymbol,
                     'ACCOUNT_NOT_VERIFIED': AccountNotVerified,
+                    'ACCOUNT_TERMS_NOT_ACCEPTED': AccountNotVerified,
                     'We are down for scheduled maintenance, but we\u2019ll be back up shortly.': OnMaintenance,  # {"success":false,"message":"We are down for scheduled maintenance, but we\u2019ll be back up shortly.","result":null,"explanation":null}
                 },
                 'broad': {
