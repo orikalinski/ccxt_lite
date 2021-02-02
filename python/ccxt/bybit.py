@@ -438,46 +438,95 @@ class bybit(Exchange):
         market = self.market(symbol)
         return market["linear"]
 
-    def change_margin_type(self, symbol, cross, leverage):
-        leverage = self.validate_float(leverage)
-        assert leverage is not None
-        self.load_markets()
-        symbol = self.find_symbol(symbol)
-        _id = self.find_market(symbol)["id"]
-        leverage = self.is_int_format(leverage)
+    def _change_margin_type(self, symbol, _id, is_isolated, long_leverage, short_leverage):
         try:
-            return self.privateLinear_post_position_switch_isolated({"symbol": _id, "is_isolated": not cross,
-                                                                     "buy_leverage": leverage,
-                                                                     "sell_leverage": leverage})
+            return self.privateLinear_post_position_switch_isolated({"symbol": _id, "is_isolated": is_isolated,
+                                                                     "buy_leverage": long_leverage,
+                                                                     "sell_leverage": short_leverage})
         except Exception as e:
             args = e.args
             if args:
                 if re.search('\"ret_code\":\s?130056', e.args[0]):
                     raise SameLeverage(args[0])
                 elif re.search('\"ret_code\":\s?130129', e.args[0]):
-                    self.set_leverage(symbol, leverage)
+                    self.set_leverage(symbol, long_leverage=long_leverage, short_leverage=short_leverage)
             raise e
 
-    def set_leverage(self, symbol, leverage):
+    def get_change_margin_input(self, positions, is_cross, leverage, is_long):
+        long_leverage = short_leverage = leverage
+        if is_long is not None:
+            for position in positions:
+                _is_long = position["is_long"]
+                # we're using the new leverage for both long and short in case it was previously at cross.
+                _leverage = position["leverage"] or leverage
+                _is_cross = position["margin_type"] == "cross"
+                _maintenance_margin = position["maintenance_margin"]
+                if is_long != _is_long:
+                    if is_cross != _is_cross and _maintenance_margin > 0:
+                        raise ExchangeError("cannot change margin type when you got an open opposite position with "
+                                            "different margin type")
+                    if _is_long:
+                        long_leverage = _leverage
+                    else:
+                        short_leverage = _leverage
+        if is_cross:
+            return 0, 0
+        long_leverage, short_leverage = self.is_int_format(long_leverage), self.is_int_format(short_leverage)
+        return long_leverage, short_leverage
+
+    @staticmethod
+    def get_same_direction_position(positions, is_long):
+        for position in positions:
+            _is_long = position["is_long"]
+            if is_long == _is_long:
+                return position
+
+    def classify_change_margin(self, symbol, _id, is_long, is_cross, leverage):
+        positions = self.get_positions(symbol)
+        long_leverage, short_leverage = self.get_change_margin_input(positions, is_cross, leverage, is_long)
+        same_direction_position = self.get_same_direction_position(positions, is_long)
+
+        _is_long = same_direction_position["is_long"]
+        _leverage = same_direction_position["leverage"]
+        _is_cross = same_direction_position["margin_type"] == "cross"
+        if is_cross == _is_cross and (is_cross is True or leverage == _leverage):
+            return
+        elif is_cross != _is_cross and is_cross is True:
+            return self._change_margin_type(symbol, _id, False, 0, 0)
+        elif is_cross != _is_cross and is_cross is False:
+            return self._change_margin_type(symbol, _id, True, long_leverage, short_leverage)
+        else:
+            return self.set_leverage(symbol, long_leverage=long_leverage, short_leverage=short_leverage)
+
+    def change_margin_type(self, symbol, is_cross, leverage, is_long):
         leverage = self.validate_float(leverage)
-        assert leverage is not None
+        assert is_cross is not None and leverage is not None and is_long is not None
+        self.load_markets()
+        symbol = self.find_symbol(symbol)
+        _id = self.find_market(symbol)["id"]
+        return self.classify_change_margin(symbol, _id, is_long, is_cross, leverage)
+
+    def set_leverage(self, symbol, leverage=None, long_leverage=None, short_leverage=None):
+        leverage = self.validate_float(leverage)
+        long_leverage = self.validate_float(long_leverage)
+        short_leverage = self.validate_float(short_leverage)
+        assert leverage is not None or (long_leverage is not None and short_leverage is not None)
         self.load_markets()
         symbol = self.find_symbol(symbol)
         _id = self.market(symbol)["id"]
         method = 'privateLinear_post_position_set_leverage' if self.is_linear(symbol) else 'user_post_leverage_save'
-        leverage = self.is_int_format(leverage)
         params = {"symbol": _id}
         if self.is_linear(symbol):
-            params["buy_leverage"] = leverage
-            params["sell_leverage"] = leverage
+            params["buy_leverage"] = self.is_int_format(long_leverage)
+            params["sell_leverage"] = self.is_int_format(short_leverage)
         else:
-            params["leverage"] = leverage
+            params["leverage"] = self.is_int_format(leverage)
 
         try:
             return getattr(self, method)(params)
         except Exception as e:
             args = e.args
-            if args and re.search('\"ret_code\":\s?30052', e.args[0]) and leverage == 0:
+            if args and re.search('\"ret_code\":\s?(?:30052|130129)', e.args[0]) and leverage == 0:
                 raise SameLeverage(args[0])
             raise e
 
@@ -523,7 +572,7 @@ class bybit(Exchange):
                     result = {"info": position, "symbol": _symbol,
                               "quantity": size, "leverage": leverage, "margin_type": margin_type,
                               "maintenance_margin": maintenance_margin,
-                              "liquidation_price": max(liq_price, 0)}
+                              "liquidation_price": max(liq_price, 0), "is_long": side == "buy"}
                     positions_to_return.append(result)
         return positions_to_return
 
