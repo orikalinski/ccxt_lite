@@ -1263,7 +1263,10 @@ class bybit(Exchange):
                 if price is not None:
                     cost = price * filled
         if average is None and filled and cost:
-            average = filled / cost
+            if self.is_linear(symbol):
+                average = cost / filled
+            else:
+                average = filled / cost
             average = float(self.price_to_precision(symbol, average))
         status = self.parse_order_status(self.safe_string(order, 'order_status'))
         side = self.safe_string_lower(order, 'side')
