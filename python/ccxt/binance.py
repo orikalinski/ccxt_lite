@@ -857,7 +857,7 @@ class binance(Exchange):
             quote = self.safe_currency_code(quoteId)
             parts = id.split('_')
             lastPart = self.safe_string(parts, 1)
-            idSymbol = (delivery) and (lastPart != 'PERP')
+            idSymbol = (delivery and lastPart != 'PERP') or (future and lastPart is not None)
             symbol = id if idSymbol else (base + '/' + quote)
             filters = self.safe_value(market, 'filters', [])
             filtersByType = self.index_by(filters, 'filterType')
