@@ -692,6 +692,8 @@ class Exchange(object):
 
     @staticmethod
     def validate_float(_str):
+        if _str is None:
+            return
         try:
             return float(_str)
         except ValueError:
@@ -699,6 +701,8 @@ class Exchange(object):
 
     @staticmethod
     def is_int_format(_float):
+        if type(_float) is int:
+            return _float
         return int(_float) if _float.is_integer() else _float
 
     @staticmethod
