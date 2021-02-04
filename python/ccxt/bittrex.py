@@ -1484,6 +1484,9 @@ class bittrex(Exchange):
                         raise DDoSProtection(feedback)
                     else:
                         raise AuthenticationError(feedback)
+                elif message == "INVALID_RESTRICTED_ACCOUNT":
+                    feedback = feedback.replace("ACCOUNT", "MARKET")
+                    raise BadSymbol(feedback)
                 # https://github.com/ccxt/ccxt/issues/4932
                 # the following two lines are now redundant, see line 171 in describe()
                 #
