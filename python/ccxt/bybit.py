@@ -753,8 +753,8 @@ class bybit(Exchange):
         symbol = None
         if marketId in self.markets_by_id:
             market = self.markets_by_id[marketId]
-            if market is not None:
-                symbol = market['symbol']
+        if market is not None:
+            symbol = market['symbol']
         last = self.safe_float(ticker, 'last_price')
         open = self.safe_float(ticker, 'prev_price_24h')
         percentage = self.safe_float(ticker, 'price_24h_pcnt')
