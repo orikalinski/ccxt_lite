@@ -657,20 +657,22 @@ class binance(Exchange):
         positions_to_return = list()
         if _type == "future":
             account_positions = self.fapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in self.fapiPrivateGetPositionRisk()}
+            risk_positions = {position["symbol"]: position for position in
+                              self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
         elif _type == "delivery":
             account_positions = self.dapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in self.dapiPrivateGetPositionRisk()}
+            risk_positions = {position["symbol"]: position for position in
+                              self.dapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
         else:
             raise NotSupported()
 
         for account_position in account_positions:
-            margin = self.safe_float(account_position, "initialMargin", 0.) + \
-                     self.safe_float(account_position, "unrealizedProfit", 0.) - \
-                     self.safe_float(account_position, "openOrderInitialMargin", 0.)
             symbol = account_position["symbol"]
             position = risk_positions.get(symbol)
             if position:
+                margin = self.safe_float(account_position, "initialMargin", 0.) + \
+                         self.safe_float(account_position, "unrealizedProfit", 0.) - \
+                         self.safe_float(account_position, "openOrderInitialMargin", 0.)
                 market = self.find_market(position["symbol"])
                 if type(market) is dict:
                     liq_price = self.safe_float(position, "liquidationPrice", 0)
@@ -954,7 +956,11 @@ class binance(Exchange):
             'cost': float(cost),
         }
 
-    def fetch_balance(self, params={}):
+    def fetch_partial_balance(self, part, params={}):
+        balance = self.fetch_balance(part, params)
+        return balance[part]
+
+    def fetch_balance(self, part=None, params={}):
         self.load_markets()
         defaultType = self.safe_string_2(self.options, 'fetchBalance', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
@@ -1118,6 +1124,8 @@ class binance(Exchange):
         result = {'info': response}
         if (type == 'spot') or (type == 'margin'):
             balances = self.safe_value_2(response, 'balances', 'userAssets', [])
+            if part:
+                balances = [balance for balance in balances if balance.get("asset") == part]
             for i in range(0, len(balances)):
                 balance = balances[i]
                 currencyId = self.safe_string(balance, 'asset')
@@ -1130,6 +1138,8 @@ class binance(Exchange):
             balances = response
             if not isinstance(response, list):
                 balances = self.safe_value(response, 'assets', [])
+            if part:
+                balances = [balance for balance in balances if balance.get("asset") == part]
             for i in range(0, len(balances)):
                 balance = balances[i]
                 currencyId = self.safe_string(balance, 'asset')
