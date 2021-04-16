@@ -750,10 +750,10 @@ class bybit(Exchange):
         #
         timestamp = None
         marketId = self.safe_string(ticker, 'symbol')
-        symbol = marketId
+        symbol = None
         if marketId in self.markets_by_id:
             market = self.markets_by_id[marketId]
-        if (symbol is None) and (market is not None):
+        if market is not None:
             symbol = market['symbol']
         last = self.safe_float(ticker, 'last_price')
         open = self.safe_float(ticker, 'prev_price_24h')
