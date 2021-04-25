@@ -933,7 +933,10 @@ class binance(Exchange):
                 }
             if 'MIN_NOTIONAL' in filtersByType:
                 filter = self.safe_value(filtersByType, 'MIN_NOTIONAL', {})
-                entry['limits']['cost']['min'] = self.safe_float(filter, 'minNotional')
+                min_notional = self.safe_float(filter, 'minNotional')
+                if not min_notional:
+                    min_notional = self.safe_float(filter, 'notional')
+                entry['limits']['cost']['min'] = min_notional
             result.append(entry)
         return result
 
