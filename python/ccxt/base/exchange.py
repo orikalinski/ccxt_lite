@@ -110,6 +110,7 @@ except ImportError:
     Web3 = HTTPProvider = None  # web3/0x not supported in Python 2
 
 # -----------------------------------------------------------------------------
+INACTIVE_STATUSES = ['rejected', 'canceled', 'closed']
 
 
 class Exchange(object):

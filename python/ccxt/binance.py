@@ -4,7 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 from uuid import uuid4
 
-from ccxt.base.exchange import Exchange
+from ccxt.base.exchange import Exchange, INACTIVE_STATUSES
 import math
 import json
 from ccxt.base.errors import ExchangeError
@@ -1607,6 +1607,7 @@ class binance(Exchange):
             timestamp = self.safe_integer(order, 'time')
         elif 'transactTime' in order:
             timestamp = self.safe_integer(order, 'transactTime')
+        update_timestamp = self.safe_integer(order, 'updateTime')
         price = self.safe_float(order, 'price')
         amount = self.safe_float(order, 'origQty')
         filled = self.safe_float(order, 'executedQty')
@@ -1683,6 +1684,7 @@ class binance(Exchange):
             'status': status,
             'fee': fee,
             'trades': trades,
+            'close_datetime': self.iso8601(update_timestamp) if status in INACTIVE_STATUSES else None
         }
 
     def create_order(self, symbol, type, side, amount, price=None, params={}):
