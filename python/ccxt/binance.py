@@ -1815,8 +1815,7 @@ class binance(Exchange):
         response = getattr(self, method)(self.extend(request, params))
         return self.parse_order(response, market)
 
-    def parse_order_fee(self, id, trades):
-        order_trades = [trade for trade in trades if trade["order"] == str(id)]
+    def parse_order_fee(self, order_trades):
         if not order_trades:
             raise TradesNotFound("Couldn't get find trades(fees) for external_order_id: %s", id)
         _, fee = self.parse_trades_cost_fee(order_trades)
@@ -1849,10 +1848,10 @@ class binance(Exchange):
 
         parsed_order = self.parse_order(response, market)
 
-        if type == "spot" and self.safe_value(parsed_order, 'fee') is None \
-                and self.safe_float(response, 'executedQty') > 0:
+        if type == "spot" and parsed_order['fee'] is None and parsed_order['filled'] > 0:
             trades = self.fetch_my_trades(symbol)
-            parsed_order['fee'] = self.parse_order_fee(id, trades)
+            order_trades = [trade for trade in trades if trade["order"] == str(id)]
+            parsed_order['fee'] = self.parse_order_fee(order_trades)
         return parsed_order
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
