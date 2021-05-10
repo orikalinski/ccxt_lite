@@ -962,7 +962,11 @@ class binance(Exchange):
     def fetch_partial_balance(self, part, params={}):
         currency = self.safe_currency_code(part)
         balance = self.fetch_balance(currency, params)
-        return balance[currency]
+        partial_balance = balance.get(currency)
+        if partial_balance:
+            return partial_balance
+        else:
+            return balance[part]
 
     def fetch_balance(self, part=None, params={}):
         self.load_markets()
