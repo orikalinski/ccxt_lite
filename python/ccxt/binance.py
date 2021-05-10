@@ -1557,7 +1557,7 @@ class binance(Exchange):
     def parse_order_status(self, status):
         return self.safe_string(STATUSES_MAPPING, status, status)
 
-    def parse_order(self, order, market=None, skip_fills_parsing=False):
+    def parse_order(self, order, market=None):
         #
         #  spot
         #
@@ -1643,17 +1643,10 @@ class binance(Exchange):
         trades = None
         fills = self.safe_value(order, 'fills')
         if fills is not None:
-            trades = fills if skip_fills_parsing else self.parse_trades(fills, market)
-            numTrades = len(trades)
-            if numTrades > 0:
-                cost = trades[0]['cost']
-                fee = {
-                    'cost': trades[0]['fee']['cost'],
-                    'currency': trades[0]['fee']['currency'],
-                }
-                for i in range(1, len(trades)):
-                    cost = self.sum(cost, trades[i]['cost'])
-                    fee['cost'] = self.sum(fee['cost'], trades[i]['fee']['cost'])
+            trades = self.parse_trades(fills, market)
+            res = self.calc_fee_section(trades)
+            if res:
+                cost, fee = res
         average = None
         if cost is not None:
             if filled:
@@ -1687,6 +1680,19 @@ class binance(Exchange):
             'fee': fee,
             'trades': trades,
         }
+
+    def calc_fee_section(self, trades):
+        numTrades = len(trades)
+        if numTrades > 0:
+            cost = trades[0]['cost']
+            fee = {
+                'cost': trades[0]['fee']['cost'],
+                'currency': trades[0]['fee']['currency'],
+            }
+            for i in range(1, len(trades)):
+                cost = self.sum(cost, trades[i]['cost'])
+                fee['cost'] = self.sum(fee['cost'], trades[i]['fee']['cost'])
+            return cost, fee
 
     def create_order(self, symbol, type, side, amount, price=None, params={}):
         self.load_markets()
@@ -1836,14 +1842,20 @@ class binance(Exchange):
         query = self.omit(params, ['type', 'clientOrderId', 'origClientOrderId'])
         response = getattr(self, method)(self.extend(request, query))
 
-        if type == "spot":
+        parsed_order = self.parse_order(response, market)
+
+        if type == "spot" and self.safe_value(parsed_order, 'fee') is None \
+                and self.safe_float(response, 'executedQty') > 0:
             trades = self.fetch_my_trades(symbol)
             order_trades = [trade for trade in trades if trade["order"] == str(id)]
             if not order_trades:
                 raise TradesNotFound("Couldn't get find trades(fees) for external_order_id: %s", id)
-            response['fills'] = order_trades
-            return self.parse_order(response, market, skip_fills_parsing=True)
-        return self.parse_order(response, market)
+            res = self.calc_fee_section(order_trades)
+            if res:
+                _, fee = res
+                parsed_order['fee'] = fee
+        return parsed_order
+
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:
