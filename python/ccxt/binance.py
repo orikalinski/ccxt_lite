@@ -1838,7 +1838,10 @@ class binance(Exchange):
 
         if type == "spot":
             trades = self.fetch_my_trades(symbol)
-            response['fills'] = [trade for trade in trades if trade["order"] == str(id)]
+            order_trades = [trade for trade in trades if trade["order"] == str(id)]
+            if not order_trades:
+                raise TRADES_NOT_FOUND
+            response['fills'] = order_trades
             return self.parse_order(response, market, skip_fills_parsing=True)
         return self.parse_order(response, market)
 

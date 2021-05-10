@@ -28,6 +28,7 @@ declare module 'ccxt' {
     export class AddressPending extends InvalidAddress {}
     export class InvalidOrder extends ExchangeError {}
     export class OrderNotFound extends InvalidOrder {}
+    export class TradesNotFound extends InvalidOrder {}
     export class OrderNotCached extends InvalidOrder {}
     export class CancelPending extends InvalidOrder {}
     export class OrderImmediatelyFillable extends InvalidOrder {}
