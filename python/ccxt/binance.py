@@ -7,7 +7,7 @@ from uuid import uuid4
 from ccxt.base.exchange import Exchange
 import math
 import json
-from ccxt.base.errors import ExchangeError
+from ccxt.base.errors import ExchangeError, TradesNotFound
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import PermissionDenied
 from ccxt.base.errors import AccountSuspended
@@ -1840,7 +1840,7 @@ class binance(Exchange):
             trades = self.fetch_my_trades(symbol)
             order_trades = [trade for trade in trades if trade["order"] == str(id)]
             if not order_trades:
-                raise TRADES_NOT_FOUND
+                raise TradesNotFound("Couldn't get find trades(fees) for external_order_id: %s", id)
             response['fills'] = order_trades
             return self.parse_order(response, market, skip_fills_parsing=True)
         return self.parse_order(response, market)
