@@ -1557,6 +1557,17 @@ class binance(Exchange):
     def parse_order_status(self, status):
         return self.safe_string(STATUSES_MAPPING, status, status)
 
+    def parse_trades_cost_fee(self, trades):
+        cost = trades[0]['cost']
+        fee = {
+            'cost': trades[0]['fee']['cost'],
+            'currency': trades[0]['fee']['currency'],
+        }
+        for i in range(1, len(trades)):
+            cost = self.sum(cost, trades[i]['cost'])
+            fee['cost'] = self.sum(fee['cost'], trades[i]['fee']['cost'])
+        return cost, fee
+
     def parse_order(self, order, market=None):
         #
         #  spot
@@ -1679,19 +1690,7 @@ class binance(Exchange):
             'status': status,
             'fee': fee,
             'trades': trades,
-            'close_datetime': self.iso8601(update_timestamp) if status in INACTIVE_STATUSES else None
         }
-
-    def parse_trades_cost_fee(self, trades):
-        cost = trades[0]['cost']
-        fee = {
-            'cost': trades[0]['fee']['cost'],
-            'currency': trades[0]['fee']['currency'],
-        }
-        for i in range(1, len(trades)):
-            cost = self.sum(cost, trades[i]['cost'])
-            fee['cost'] = self.sum(fee['cost'], trades[i]['fee']['cost'])
-        return cost, fee
 
     def create_order(self, symbol, type, side, amount, price=None, params={}):
         self.load_markets()
@@ -1816,6 +1815,13 @@ class binance(Exchange):
         response = getattr(self, method)(self.extend(request, params))
         return self.parse_order(response, market)
 
+    def parse_order_fee(self, id, trades):
+        order_trades = [trade for trade in trades if trade["order"] == str(id)]
+        if not order_trades:
+            raise TradesNotFound("Couldn't get find trades(fees) for external_order_id: %s", id)
+        _, fee = self.parse_trades_cost_fee(order_trades)
+        return fee
+
     def fetch_order(self, id, symbol=None, params={}):
         if symbol is None:
             raise ArgumentsRequired(self.id + ' fetchOrder requires a symbol argument')
@@ -1848,13 +1854,6 @@ class binance(Exchange):
             trades = self.fetch_my_trades(symbol)
             parsed_order['fee'] = self.parse_order_fee(id, trades)
         return parsed_order
-
-    def parse_order_fee(self, id, trades):
-        order_trades = [trade for trade in trades if trade["order"] == str(id)]
-        if not order_trades:
-            raise TradesNotFound("Couldn't get find trades(fees) for external_order_id: %s", id)
-        _, fee = self.parse_trades_cost_fee(order_trades)
-        return fee
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:
