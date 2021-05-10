@@ -331,8 +331,7 @@ class Exchange(object):
         'BCC': 'BCH',
         'DRK': 'DASH',
         'BCHABC': 'BCH',
-        'BCHSV': 'BSV',
-        'YOYOW': 'YOYO'
+        'BCHSV': 'BSV'
     }
 
     def __init__(self, config={}):
