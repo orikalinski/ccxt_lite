@@ -1644,9 +1644,9 @@ class binance(Exchange):
         fills = self.safe_value(order, 'fills')
         if fills is not None:
             trades = self.parse_trades(fills, market)
-            res = self.calc_fee_section(trades)
-            if res:
-                cost, fee = res
+            numTrades = len(trades)
+            if numTrades > 0:
+                cost, fee = self.parse_trades_cost_fee(trades)
         average = None
         if cost is not None:
             if filled:
@@ -1679,20 +1679,19 @@ class binance(Exchange):
             'status': status,
             'fee': fee,
             'trades': trades,
+            'close_datetime': self.iso8601(update_timestamp) if status in INACTIVE_STATUSES else None
         }
 
-    def calc_fee_section(self, trades):
-        numTrades = len(trades)
-        if numTrades > 0:
-            cost = trades[0]['cost']
-            fee = {
-                'cost': trades[0]['fee']['cost'],
-                'currency': trades[0]['fee']['currency'],
-            }
-            for i in range(1, len(trades)):
-                cost = self.sum(cost, trades[i]['cost'])
-                fee['cost'] = self.sum(fee['cost'], trades[i]['fee']['cost'])
-            return cost, fee
+    def parse_trades_cost_fee(self, trades):
+        cost = trades[0]['cost']
+        fee = {
+            'cost': trades[0]['fee']['cost'],
+            'currency': trades[0]['fee']['currency'],
+        }
+        for i in range(1, len(trades)):
+            cost = self.sum(cost, trades[i]['cost'])
+            fee['cost'] = self.sum(fee['cost'], trades[i]['fee']['cost'])
+        return cost, fee
 
     def create_order(self, symbol, type, side, amount, price=None, params={}):
         self.load_markets()
@@ -1847,15 +1846,15 @@ class binance(Exchange):
         if type == "spot" and self.safe_value(parsed_order, 'fee') is None \
                 and self.safe_float(response, 'executedQty') > 0:
             trades = self.fetch_my_trades(symbol)
-            order_trades = [trade for trade in trades if trade["order"] == str(id)]
-            if not order_trades:
-                raise TradesNotFound("Couldn't get find trades(fees) for external_order_id: %s", id)
-            res = self.calc_fee_section(order_trades)
-            if res:
-                _, fee = res
-                parsed_order['fee'] = fee
+            parsed_order['fee'] = self.parse_order_fee(id, trades)
         return parsed_order
 
+    def parse_order_fee(self, id, trades):
+        order_trades = [trade for trade in trades if trade["order"] == str(id)]
+        if not order_trades:
+            raise TradesNotFound("Couldn't get find trades(fees) for external_order_id: %s", id)
+        _, fee = self.parse_trades_cost_fee(order_trades)
+        return fee
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:
