@@ -28,6 +28,18 @@ from ccxt.base.decimal_to_precision import ROUND
 from ccxt.base.decimal_to_precision import TRUNCATE
 
 
+
+STATUSES_MAPPING = {
+    'NEW': 'open',
+    'PARTIALLY_FILLED': 'open',
+    'FILLED': 'closed',
+    'CANCELED': 'canceled',
+    'PENDING_CANCEL': 'canceling',  # currently unused
+    'REJECTED': 'rejected',
+    'EXPIRED': 'canceled',
+}
+
+
 class binance(Exchange):
 
     def describe(self):
@@ -1543,18 +1555,9 @@ class binance(Exchange):
         return self.parse_trades(response, market, since, limit)
 
     def parse_order_status(self, status):
-        statuses = {
-            'NEW': 'open',
-            'PARTIALLY_FILLED': 'open',
-            'FILLED': 'closed',
-            'CANCELED': 'canceled',
-            'PENDING_CANCEL': 'canceling',  # currently unused
-            'REJECTED': 'rejected',
-            'EXPIRED': 'canceled',
-        }
-        return self.safe_string(statuses, status, status)
+        return self.safe_string(STATUSES_MAPPING, status, status)
 
-    def parse_order(self, order, market=None):
+    def parse_order(self, order, market=None, skip_fills_parsing=False):
         #
         #  spot
         #
@@ -1640,7 +1643,7 @@ class binance(Exchange):
         trades = None
         fills = self.safe_value(order, 'fills')
         if fills is not None:
-            trades = self.parse_trades(fills, market)
+            trades = fills if skip_fills_parsing else self.parse_trades(fills, market)
             numTrades = len(trades)
             if numTrades > 0:
                 cost = trades[0]['cost']
@@ -1832,6 +1835,11 @@ class binance(Exchange):
             request['orderId'] = int(id)
         query = self.omit(params, ['type', 'clientOrderId', 'origClientOrderId'])
         response = getattr(self, method)(self.extend(request, query))
+
+        if type == "spot":
+            trades = self.fetch_my_trades(symbol)
+            response['fills'] = [trade for trade in trades if trade["order"] == str(id)]
+            return self.parse_order(response, market, skip_fills_parsing=True)
         return self.parse_order(response, market)
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
