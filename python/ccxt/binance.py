@@ -1815,13 +1815,21 @@ class binance(Exchange):
         response = getattr(self, method)(self.extend(request, params))
         return self.parse_order(response, market)
 
-    def parse_order_fee(self, order_trades):
-        if not order_trades:
-            raise TradesNotFound("Couldn't get find trades(fees) for external_order_id: %s", id)
+    @staticmethod
+    def filter_order_trades(trades, _id):
+        _id_str = str(_id)
+        order_trades = [trade for trade in trades if trade["order"] == _id_str]
+        return order_trades
+
+    def get_order_fee(self, _id, symbol, validate_filled=True):
+        trades = self.fetch_my_trades(symbol)
+        order_trades = self.filter_order_trades(trades, _id)
+        if validate_filled and not order_trades:
+            raise TradesNotFound("Couldn't get order's trades for external_order_id: %s", id)
         _, fee = self.parse_trades_cost_fee(order_trades)
         return fee
 
-    def fetch_order(self, id, symbol=None, params={}):
+    def fetch_order(self, _id, symbol=None, params={}):
         if symbol is None:
             raise ArgumentsRequired(self.id + ' fetchOrder requires a symbol argument')
         self.load_markets()
@@ -1842,16 +1850,14 @@ class binance(Exchange):
         if clientOrderId is not None:
             request['origClientOrderId'] = clientOrderId
         else:
-            request['orderId'] = int(id)
+            request['orderId'] = int(_id)
         query = self.omit(params, ['type', 'clientOrderId', 'origClientOrderId'])
         response = getattr(self, method)(self.extend(request, query))
 
         parsed_order = self.parse_order(response, market)
 
         if type == "spot" and parsed_order['fee'] is None and parsed_order['filled'] > 0:
-            trades = self.fetch_my_trades(symbol)
-            order_trades = [trade for trade in trades if trade["order"] == str(id)]
-            parsed_order['fee'] = self.parse_order_fee(order_trades)
+            parsed_order['fee'] = self.get_order_fee(_id, symbol, validate_filled=True)
         return parsed_order
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
