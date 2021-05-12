@@ -105,8 +105,10 @@ class InvalidOrder(ExchangeError):
 class OrderNotFound(InvalidOrder):
     pass
 
+
 class TradesNotFound(InvalidOrder):
     pass
+
 
 class OrderNotCached(InvalidOrder):
     pass
