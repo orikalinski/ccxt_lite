@@ -1825,7 +1825,7 @@ class binance(Exchange):
         trades = self.fetch_my_trades(symbol)
         order_trades = self.filter_order_trades(trades, _id)
         if validate_filled and not order_trades:
-            raise TradesNotFound("Couldn't get order's trades for external_order_id: %s", _id)
+            raise TradesNotFound("Couldn't get order's trades for external_order_id: %s" % _id)
         _, fee = self.parse_trades_cost_fee(order_trades)
         return fee
 
