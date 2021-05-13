@@ -7,7 +7,7 @@ from uuid import uuid4
 from ccxt.base.exchange import Exchange
 import math
 import json
-from ccxt.base.errors import ExchangeError
+from ccxt.base.errors import ExchangeError, TradesNotFound
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import PermissionDenied
 from ccxt.base.errors import AccountSuspended
@@ -26,6 +26,18 @@ from ccxt.base.errors import ExchangeNotAvailable
 from ccxt.base.errors import InvalidNonce
 from ccxt.base.decimal_to_precision import ROUND
 from ccxt.base.decimal_to_precision import TRUNCATE
+
+
+
+STATUSES_MAPPING = {
+    'NEW': 'open',
+    'PARTIALLY_FILLED': 'open',
+    'FILLED': 'closed',
+    'CANCELED': 'canceled',
+    'PENDING_CANCEL': 'canceling',  # currently unused
+    'REJECTED': 'rejected',
+    'EXPIRED': 'canceled',
+}
 
 
 class binance(Exchange):
@@ -1543,16 +1555,18 @@ class binance(Exchange):
         return self.parse_trades(response, market, since, limit)
 
     def parse_order_status(self, status):
-        statuses = {
-            'NEW': 'open',
-            'PARTIALLY_FILLED': 'open',
-            'FILLED': 'closed',
-            'CANCELED': 'canceled',
-            'PENDING_CANCEL': 'canceling',  # currently unused
-            'REJECTED': 'rejected',
-            'EXPIRED': 'canceled',
+        return self.safe_string(STATUSES_MAPPING, status, status)
+
+    def parse_trades_cost_fee(self, trades):
+        cost = trades[0]['cost']
+        fee = {
+            'cost': trades[0]['fee']['cost'],
+            'currency': trades[0]['fee']['currency'],
         }
-        return self.safe_string(statuses, status, status)
+        for i in range(1, len(trades)):
+            cost = self.sum(cost, trades[i]['cost'])
+            fee['cost'] = self.sum(fee['cost'], trades[i]['fee']['cost'])
+        return cost, fee
 
     def parse_order(self, order, market=None):
         #
@@ -1643,14 +1657,7 @@ class binance(Exchange):
             trades = self.parse_trades(fills, market)
             numTrades = len(trades)
             if numTrades > 0:
-                cost = trades[0]['cost']
-                fee = {
-                    'cost': trades[0]['fee']['cost'],
-                    'currency': trades[0]['fee']['currency'],
-                }
-                for i in range(1, len(trades)):
-                    cost = self.sum(cost, trades[i]['cost'])
-                    fee['cost'] = self.sum(fee['cost'], trades[i]['fee']['cost'])
+                cost, fee = self.parse_trades_cost_fee(trades)
         average = None
         if cost is not None:
             if filled:
@@ -1808,7 +1815,21 @@ class binance(Exchange):
         response = getattr(self, method)(self.extend(request, params))
         return self.parse_order(response, market)
 
-    def fetch_order(self, id, symbol=None, params={}):
+    @staticmethod
+    def filter_order_trades(trades, _id):
+        _id_str = str(_id)
+        order_trades = [trade for trade in trades if trade["order"] == _id_str]
+        return order_trades
+
+    def fetch_order_fee(self, _id, symbol, validate_filled=True):
+        trades = self.fetch_my_trades(symbol)
+        order_trades = self.filter_order_trades(trades, _id)
+        if validate_filled and not order_trades:
+            raise TradesNotFound("Couldn't get order's trades for external_order_id: %s", _id)
+        _, fee = self.parse_trades_cost_fee(order_trades)
+        return fee
+
+    def fetch_order(self, _id, symbol=None, params={}):
         if symbol is None:
             raise ArgumentsRequired(self.id + ' fetchOrder requires a symbol argument')
         self.load_markets()
@@ -1829,10 +1850,15 @@ class binance(Exchange):
         if clientOrderId is not None:
             request['origClientOrderId'] = clientOrderId
         else:
-            request['orderId'] = int(id)
+            request['orderId'] = int(_id)
         query = self.omit(params, ['type', 'clientOrderId', 'origClientOrderId'])
         response = getattr(self, method)(self.extend(request, query))
-        return self.parse_order(response, market)
+
+        parsed_order = self.parse_order(response, market)
+
+        if type == "spot" and parsed_order['fee'] is None and parsed_order['filled'] > 0:
+            parsed_order['fee'] = self.fetch_order_fee(_id, symbol, validate_filled=True)
+        return parsed_order
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:

@@ -15,6 +15,7 @@ from ccxt.base.errors import InvalidNonce               # noqa: F401
 from ccxt.base.errors import InsufficientFunds          # noqa: F401
 from ccxt.base.errors import InvalidOrder               # noqa: F401
 from ccxt.base.errors import OrderNotFound              # noqa: F401
+from ccxt.base.errors import TradesNotFound             # noqa: F401
 from ccxt.base.errors import OrderNotCached             # noqa: F401
 from ccxt.base.errors import DuplicateOrderId           # noqa: F401
 from ccxt.base.errors import CancelPending              # noqa: F401

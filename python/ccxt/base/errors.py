@@ -24,6 +24,7 @@ error_hierarchy = {
                 'OrderImmediatelyFillable': {},
                 'OrderNotFillable': {},
                 'DuplicateOrderId': {},
+                'TradesNotFound': {}
             },
             'NotSupported': {},
         },
@@ -102,6 +103,10 @@ class InvalidOrder(ExchangeError):
 
 
 class OrderNotFound(InvalidOrder):
+    pass
+
+
+class TradesNotFound(InvalidOrder):
     pass
 
 
@@ -189,6 +194,7 @@ __all__ = [
     'AddressPending',
     'InvalidOrder',
     'OrderNotFound',
+    'TradesNotFound',
     'OrderNotCached',
     'CancelPending',
     'OrderImmediatelyFillable',
