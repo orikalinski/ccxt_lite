@@ -1557,16 +1557,27 @@ class binance(Exchange):
     def parse_order_status(self, status):
         return self.safe_string(STATUSES_MAPPING, status, status)
 
-    def parse_trades_cost_fee(self, trades):
+    def parse_trades_cost_fee(self, symbol, trades):
+        referred_currency = self.get_preferred_currency(symbol, trades)
+
         cost = trades[0]['cost']
         fee = {
             'cost': trades[0]['fee']['cost'],
-            'currency': trades[0]['fee']['currency'],
+            'currency': referred_currency
         }
         for i in range(1, len(trades)):
-            cost = self.sum(cost, trades[i]['cost'])
-            fee['cost'] = self.sum(fee['cost'], trades[i]['fee']['cost'])
+            if referred_currency == trades[i]['fee']['currency']:
+                cost = self.sum(cost, trades[i]['cost'])
+
+        fee['cost'] = cost
         return cost, fee
+
+    def get_preferred_currency(self, symbol, trades):
+        market = self.market(symbol)
+        preferred_fee_currency = market['base']
+        currency = preferred_fee_currency if filter(lambda x: x['fee']['currency'] == preferred_fee_currency, trades) \
+            else trades[0]['fee']['currency']
+        return currency
 
     def parse_order(self, order, market=None):
         #
@@ -1657,7 +1668,7 @@ class binance(Exchange):
             trades = self.parse_trades(fills, market)
             numTrades = len(trades)
             if numTrades > 0:
-                cost, fee = self.parse_trades_cost_fee(trades)
+                cost, fee = self.parse_trades_cost_fee(symbol, trades)
         average = None
         if cost is not None:
             if filled:
@@ -1826,7 +1837,8 @@ class binance(Exchange):
         order_trades = self.filter_order_trades(trades, _id)
         if validate_filled and not order_trades:
             raise TradesNotFound("Couldn't get order's trades for external_order_id: %s" % _id)
-        _, fee = self.parse_trades_cost_fee(order_trades)
+
+        _, fee = self.parse_trades_cost_fee(symbol, order_trades)
         return fee
 
     def fetch_order(self, _id, symbol=None, params={}):
