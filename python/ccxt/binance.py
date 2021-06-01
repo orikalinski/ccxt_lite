@@ -476,6 +476,9 @@ class binance(Exchange):
                 'BCC': 'BCC',  # kept for backward-compatibility https://github.com/ccxt/ccxt/issues/4848
                 'YOYO': 'YOYOW',
             },
+            'supportedReversedCurrencies': {
+                'YOYOW'
+            },
             # exchange-specific options
             'options': {
                 'fetchTradesMethod': 'publicGetAggTrades',  # publicGetTrades, publicGetHistoricalTrades
