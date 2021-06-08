@@ -1559,7 +1559,7 @@ class binance(Exchange):
         return self.safe_string(STATUSES_MAPPING, status, status)
 
     def parse_trades_cost_fee(self, symbol, trades):
-        cost, fees, fee = None, defaultdict(lambda: {'cost': 0.}), None
+        cost, fees, fee = 0., defaultdict(lambda: {'cost': 0.}), None
         for trade in trades:
             cost += trade['cost']
             trade_fee = trade['fee']
@@ -1570,7 +1570,8 @@ class binance(Exchange):
 
         if fees:
             base_currency = self.get_currency(symbol)
-            fee = fees.get(base_currency)
+            pair = self.get_pair(symbol)
+            fee = fees.get(base_currency) or fees.get(pair)
             if fee is None:
                 fee = list(fees.values())[0]
         return cost, fee
