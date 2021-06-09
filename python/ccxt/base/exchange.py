@@ -2007,6 +2007,11 @@ class Exchange(object):
         )
         return '0x' + base64.b16encode(sha3).decode('ascii').lower()
 
+    def get_pair(self, symbol):
+        symbol_parts = symbol.split("/")
+        pair = symbol_parts[1].split("-")
+        return pair[0]
+
     def get_currency(self, symbol):
         symbol_parts = symbol.split("/")
         currency = symbol_parts[0].split("-")
