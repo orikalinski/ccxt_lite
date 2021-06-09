@@ -1561,12 +1561,15 @@ class binance(Exchange):
     def parse_trades_cost_fee(self, symbol, trades):
         cost, fees, fee = 0., defaultdict(lambda: {'cost': 0.}), None
         for trade in trades:
-            cost += trade['cost']
+            trade_cost = self.safe_float(trade, 'cost')
+            if trade_cost:
+                cost += trade_cost
             trade_fee = trade['fee']
-            _fee_cost = trade_fee['cost']
-            _fee_currency = trade_fee['currency']
-            fees[_fee_currency]['currency'] = _fee_currency
-            fees[_fee_currency]['cost'] += _fee_cost
+            _fee_cost = self.safe_float(trade_fee, 'cost')
+            if _fee_cost:
+                _fee_currency = trade_fee['currency']
+                fees[_fee_currency]['currency'] = _fee_currency
+                fees[_fee_currency]['cost'] += _fee_cost
 
         if fees:
             base_currency = self.get_currency(symbol)
