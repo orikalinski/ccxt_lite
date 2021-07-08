@@ -489,6 +489,9 @@ class binance(Exchange):
                 'BCC': 'BCC',  # kept for backward-compatibility https://github.com/ccxt/ccxt/issues/4848
                 'YOYO': 'YOYOW',
             },
+            'supportedReversedCurrencies': {
+                'YOYOW'
+            },
             # exchange-specific options
             'options': {
                 'fetchTradesMethod': 'publicGetAggTrades',  # publicGetTrades, publicGetHistoricalTrades
@@ -973,9 +976,9 @@ class binance(Exchange):
         }
 
     def fetch_partial_balance(self, part, params={}):
-        currency = self.safe_currency_code(part)
-        balance = self.fetch_balance(part, params)
-        return balance[currency]
+        currency = self.reversed_commonCurrencies.get(part, part)
+        balance = self.fetch_balance(currency, params)
+        return balance[part]
 
     def fetch_balance(self, part=None, params={}):
         self.load_markets()

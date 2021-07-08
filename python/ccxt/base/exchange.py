@@ -331,8 +331,9 @@ class Exchange(object):
         'BCC': 'BCH',
         'DRK': 'DASH',
         'BCHABC': 'BCH',
-        'BCHSV': 'BSV',
+        'BCHSV': 'BSV'
     }
+    supportedReversedCurrencies = {}
 
     def __init__(self, config={}):
 
@@ -399,6 +400,9 @@ class Exchange(object):
 
         if self.requiresWeb3 and Web3 and not self.web3:
             self.web3 = Web3(HTTPProvider())
+
+        self.reversed_commonCurrencies = {v: k for k, v in self.commonCurrencies.items()
+                                          if v in self.supportedReversedCurrencies}
 
     def __del__(self):
         if self.session:
