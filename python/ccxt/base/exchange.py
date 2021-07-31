@@ -25,6 +25,7 @@ from ccxt.base.errors import RateLimitExceeded
 from ccxt.base.decimal_to_precision import decimal_to_precision
 from ccxt.base.decimal_to_precision import DECIMAL_PLACES, TRUNCATE, ROUND, ROUND_UP, ROUND_DOWN
 from ccxt.base.decimal_to_precision import number_to_string
+from ccxt.base.precise import Precise
 
 # -----------------------------------------------------------------------------
 
@@ -302,6 +303,7 @@ class Exchange(object):
         'withdraw': False,
     }
     precisionMode = DECIMAL_PLACES
+    number = float  # or str (a pointer to a class)
     minFundingAddressLength = 1  # used in check_address
     substituteCommonCurrencyCodes = True
     lastRestRequestTimestamp = 0
@@ -920,6 +922,9 @@ class Exchange(object):
     @staticmethod
     def extract_params(string):
         return re.findall(r'{([\w-]+)}', string)
+
+    def implode_hostname(self, url):
+        return Exchange.implode_params(url, {'hostname': self.hostname})
 
     @staticmethod
     def implode_params(string, params):
@@ -2184,3 +2189,32 @@ class Exchange(object):
             string.append(Exchange.base58_encoder[next_character])
         string.reverse()
         return ''.join(string)
+
+    def parse_number(self, value, default=None):
+        if value is None:
+            return default
+        else:
+            try:
+                return self.number(value)
+            except Exception:
+                return default
+
+    def safe_number(self, dictionary, key, default=None):
+        value = self.safe_string(dictionary, key)
+        return self.parse_number(value, default)
+
+    def safe_number_2(self, dictionary, key1, key2, default=None):
+        value = self.safe_string_2(dictionary, key1, key2)
+        return self.parse_number(value, default)
+
+    def parse_precision(self, precision):
+        if precision is None:
+            return None
+        return '1e' + Precise.string_neg(precision)
+
+    def omit_zero(self, string_number):
+        if string_number is None:
+            return None
+        if float(string_number) == 0:
+            return None
+        return string_number
