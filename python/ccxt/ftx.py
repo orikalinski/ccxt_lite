@@ -1589,12 +1589,12 @@ class ftx(Exchange):
         _id = self.find_market(symbol)["id"]
         return self.privatePostAccountLeverage({"symbol": _id, "leverage": int(float(leverage))})
 
-    def get_positions(self, symbols=None, params={}):
+    def get_positions(self, symbol=None):
         self.load_markets()
         request = {
             # 'showAvgPrice': False,
         }
-        response = self.privateGetPositions(self.extend(request, params))
+        response = self.privateGetPositions(self.extend(request))
         #
         #     {
         #         "success": True,
