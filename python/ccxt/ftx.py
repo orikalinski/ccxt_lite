@@ -1620,7 +1620,19 @@ class ftx(Exchange):
         #     }
         #
         # todo unify parsePosition/parsePositions
-        return self.safe_value(response, 'result', [])
+        account_positions = self.safe_value(response, 'result', [])
+        positions_to_return = list()
+        for position in account_positions:
+            symbol = position["future"]
+            market = self.find_market(symbol)
+            if type(market) is dict:
+                liq_price = self.safe_float(position, "estimatedLiquidationPrice", 0)
+                result = {"info": position, "symbol": market["symbol"],
+                          "quantity": self.safe_float(position, "netSize", 0.),
+                          "leverage": 0, "maintenance_margin": self.safe_float(position, "cost"),
+                          "margin_type": "cross", "liquidation_price": max(liq_price, 0)}
+                positions_to_return.append(result)
+        return positions_to_return
 
     def fetch_collateral(self, params={}):
         self.load_markets()
