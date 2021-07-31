@@ -1624,12 +1624,16 @@ class ftx(Exchange):
         positions_to_return = list()
         for position in account_positions:
             symbol = position["future"]
+            quantity = self.safe_float(position, "netSize", 0.)
+            total_open = self.safe_float(position, "openSize")
+            collateral_used = self.safe_float(position, "collateralUsed")
+
+            maintenance_margin = (quantity / total_open * collateral_used) if total_open else 0.
             market = self.find_market(symbol)
             if type(market) is dict:
                 liq_price = self.safe_float(position, "estimatedLiquidationPrice", 0)
                 result = {"info": position, "symbol": market["symbol"],
-                          "quantity": self.safe_float(position, "netSize", 0.),
-                          "leverage": 0, "maintenance_margin": self.safe_float(position, "cost"),
+                          "quantity": quantity, "leverage": 0, "maintenance_margin": maintenance_margin,
                           "margin_type": "cross", "liquidation_price": max(liq_price, 0)}
                 positions_to_return.append(result)
         return positions_to_return
