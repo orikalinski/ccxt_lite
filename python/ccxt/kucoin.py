@@ -188,6 +188,7 @@ class kucoin(Exchange):
                     'order_not_exist_or_not_allow_to_cancel': InvalidOrder,  # {"code":"400100","msg":"order_not_exist_or_not_allow_to_cancel"}
                     'Order size below the minimum requirement.': InvalidOrder,  # {"code":"400100","msg":"Order size below the minimum requirement."}
                     'The withdrawal amount is below the minimum requirement.': ExchangeError,  # {"code":"400100","msg":"The withdrawal amount is below the minimum requirement."}
+                    'System Upgrading': ExchangeNotAvailable,
                     '400': BadRequest,
                     '401': AuthenticationError,
                     '403': NotSupported,
