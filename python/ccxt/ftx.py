@@ -1387,9 +1387,17 @@ class ftx(Exchange):
         self.load_markets()
         request = {}
         clientOrderId = self.safe_value_2(params, 'client_order_id', 'clientOrderId')
-        method = 'privateGetOrdersOrderId'
         if clientOrderId is None:
-            request['order_id'] = id
+            type = self.safe_value(params, 'type')
+            if (type == 'stop') or (type == 'trailingStop') or (type == 'takeProfit'):
+                orders = self.fetch_orders(symbol=symbol, params={"type": type})
+                for order in orders:
+                    if order["id"] == str(id):
+                        return order
+                raise OrderNotFound("Couldn't find conditional order, possibly too old")
+            else:
+                method = 'privateGetOrdersOrderId'
+                request['order_id'] = id
         else:
             request['client_order_id'] = clientOrderId
             params = self.omit(params, ['client_order_id', 'clientOrderId'])
