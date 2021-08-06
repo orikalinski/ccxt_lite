@@ -1343,11 +1343,11 @@ class ftx(Exchange):
         options = self.safe_value(self.options, 'cancelOrder', {})
         defaultMethod = self.safe_string(options, 'method', 'privateDeleteOrdersOrderId')
         method = self.safe_string(params, 'method', defaultMethod)
-        stop_order_id = params.pop("stop_order_id", None)
+        type = self.safe_value(params, 'type')
         clientOrderId = self.safe_value_2(params, 'client_order_id', 'clientOrderId')
         if clientOrderId is None:
             request['order_id'] = int(id)
-            if stop_order_id:
+            if (type == 'stop') or (type == 'trailingStop') or (type == 'takeProfit'):
                 method = 'privateDeleteConditionalOrdersOrderId'
         else:
             request['client_order_id'] = clientOrderId
