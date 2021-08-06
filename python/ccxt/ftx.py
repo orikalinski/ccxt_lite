@@ -446,7 +446,11 @@ class ftx(Exchange):
             parts = id.split('-')
             lastPart = self.safe_string(parts, 1)
             idSymbol = lastPart != 'PERP'
-            symbol = id if idSymbol else (base + '/' + quote)
+            tokens = id.split("-")
+            if len(tokens) > 2:
+                symbol = id
+            else:
+                symbol = id.replace("-", "/") if idSymbol else (base + '/' + quote)
             active = self.safe_value(market, 'enabled')
             sizeIncrement = self.safe_number(market, 'sizeIncrement')
             priceIncrement = self.safe_number(market, 'priceIncrement')
