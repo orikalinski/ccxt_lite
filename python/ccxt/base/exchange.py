@@ -1706,6 +1706,13 @@ class Exchange(object):
         offset = timestamp % ms
         return timestamp - offset + (ms if direction == ROUND_UP else 0)
 
+    def parse_tickers(self, tickers, symbols=None, params={}):
+        result = []
+        values = self.to_array(tickers)
+        for i in range(0, len(values)):
+            result.append(self.extend(self.parse_ticker(values[i]), params))
+        return self.filter_by_array(result, 'symbol', symbols)
+
     def parse_trades(self, trades, market=None, since=None, limit=None, params={}):
         array = self.to_array(trades)
         array = [self.extend(self.parse_trade(trade, market), params) for trade in array]
