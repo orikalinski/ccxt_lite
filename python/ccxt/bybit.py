@@ -556,24 +556,26 @@ class bybit(Exchange):
                 liq_price = self.safe_float(position, "liq_price", 0)
                 size = self.safe_float(position, "size")
                 if size is not None:
-                    _symbol = self.find_market(position["symbol"])["symbol"]
-                    side = position.get("side", "buy").lower()
-                    if side == "sell":
-                        size = -size
-                    leverage = self.safe_float(position, "leverage")
-                    if self.is_linear(_symbol):
-                        maintenance_margin = self.safe_float(position, "position_value") / leverage
-                    else:
-                        maintenance_margin = self.safe_float(position, "position_margin")
-                    is_isolated = self.safe_value(position, "is_isolated")
-                    if is_isolated is False:
-                        leverage = 0
-                    margin_type = "cross" if leverage == 0 else "isolated"
-                    result = {"info": position, "symbol": _symbol,
-                              "quantity": size, "leverage": leverage, "margin_type": margin_type,
-                              "maintenance_margin": maintenance_margin,
-                              "liquidation_price": max(liq_price, 0), "is_long": side == "buy"}
-                    positions_to_return.append(result)
+                    market = self.find_market(position["symbol"])
+                    if type(market) is dict:
+                        _symbol = market["symbol"]
+                        side = position.get("side", "buy").lower()
+                        if side == "sell":
+                            size = -size
+                        leverage = self.safe_float(position, "leverage")
+                        if self.is_linear(_symbol):
+                            maintenance_margin = self.safe_float(position, "position_value") / leverage
+                        else:
+                            maintenance_margin = self.safe_float(position, "position_margin")
+                        is_isolated = self.safe_value(position, "is_isolated")
+                        if is_isolated is False:
+                            leverage = 0
+                        margin_type = "cross" if leverage == 0 else "isolated"
+                        result = {"info": position, "symbol": _symbol,
+                                  "quantity": size, "leverage": leverage, "margin_type": margin_type,
+                                  "maintenance_margin": maintenance_margin,
+                                  "liquidation_price": max(liq_price, 0), "is_long": side == "buy"}
+                        positions_to_return.append(result)
         return positions_to_return
 
     def fetch_markets(self, params={}):
