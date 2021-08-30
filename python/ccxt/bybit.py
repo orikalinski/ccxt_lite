@@ -457,8 +457,7 @@ class bybit(Exchange):
         if is_long is not None:
             for position in positions:
                 _is_long = position["is_long"]
-                # we're using the new leverage for both long and short in case it was previously at cross.
-                _leverage = position["leverage"] or leverage
+                _leverage = position["leverage"]
                 _is_cross = position["margin_type"] == "cross"
                 _maintenance_margin = position["maintenance_margin"]
                 if is_long != _is_long:
@@ -469,8 +468,6 @@ class bybit(Exchange):
                         long_leverage = _leverage
                     else:
                         short_leverage = _leverage
-        if is_cross:
-            return 0, 0
         long_leverage, short_leverage = self.is_int_format(long_leverage), self.is_int_format(short_leverage)
         return long_leverage, short_leverage
 
@@ -489,12 +486,10 @@ class bybit(Exchange):
         _is_long = same_direction_position["is_long"]
         _leverage = same_direction_position["leverage"]
         _is_cross = same_direction_position["margin_type"] == "cross"
-        if is_cross == _is_cross and (is_cross is True or leverage == _leverage):
+        if is_cross == _is_cross and (leverage == _leverage):
             return
-        elif is_cross != _is_cross and is_cross is True:
-            return self._change_margin_type(symbol, _id, False, 0, 0)
-        elif is_cross != _is_cross and is_cross is False:
-            return self._change_margin_type(symbol, _id, True, long_leverage, short_leverage)
+        elif is_cross != _is_cross:
+            return self._change_margin_type(symbol, _id, not is_cross, long_leverage, short_leverage)
         else:
             return self.set_leverage(symbol, long_leverage=long_leverage, short_leverage=short_leverage)
 
@@ -568,9 +563,7 @@ class bybit(Exchange):
                         else:
                             maintenance_margin = self.safe_float(position, "position_margin")
                         is_isolated = self.safe_value(position, "is_isolated")
-                        if is_isolated is False:
-                            leverage = 0
-                        margin_type = "cross" if leverage == 0 else "isolated"
+                        margin_type = "isolated" if is_isolated else "cross"
                         result = {"info": position, "symbol": _symbol,
                                   "quantity": size, "leverage": leverage, "margin_type": margin_type,
                                   "maintenance_margin": maintenance_margin,
