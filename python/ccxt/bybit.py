@@ -563,6 +563,8 @@ class bybit(Exchange):
                         else:
                             maintenance_margin = self.safe_float(position, "position_margin")
                         is_isolated = self.safe_value(position, "is_isolated")
+                        if not self.is_linear(_symbol) and is_isolated is False:
+                            leverage = 0
                         margin_type = "isolated" if is_isolated else "cross"
                         result = {"info": position, "symbol": _symbol,
                                   "quantity": size, "leverage": leverage, "margin_type": margin_type,
