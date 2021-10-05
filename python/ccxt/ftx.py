@@ -324,7 +324,8 @@ class ftx(Exchange):
                     'Please try again': ExchangeNotAvailable,  # {"error":"Please try again","success":false}
                     'Try again': ExchangeNotAvailable,  # {"error":"Try again","success":false}
                     'Only have permissions for subaccount': PermissionDenied,  # {"success":false,"error":"Only have permissions for subaccount *sub_name*"}
-                    'identity verification': PermissionDenied
+                    'identity verification': PermissionDenied,
+                    'complete KYC': PermissionDenied
                 },
             },
             'precisionMode': TICK_SIZE,
