@@ -211,6 +211,7 @@ class kucoin(Exchange):
                     '400007': AuthenticationError,
                     '400008': NotSupported,
                     '400100': BadRequest,
+                    '400330': InvalidOrder,  # {'code': '400330', 'msg': "Order price can't deviate from NAV by 50%"}
                     '411100': AccountSuspended,
                     '415000': BadRequest,  # {"code":"415000","msg":"Unsupported Media Type"}
                     '500000': ExchangeError,
