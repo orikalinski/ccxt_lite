@@ -1286,7 +1286,7 @@ class bybit(Exchange):
         base = None
         if marketId in self.markets_by_id:
             market = self.markets_by_id[marketId]
-        timestamp = self.parse8601(self.safe_string(order, 'created_at'))
+        timestamp = self.parse8601(self.safe_string_2(order, 'created_at', 'created_time'))
         id = self.safe_string_2(order, 'order_id', 'stop_order_id')
         price = self.safe_float(order, 'price')
         average = self.safe_float(order, 'average_price')
