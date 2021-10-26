@@ -599,7 +599,7 @@ class binance(Exchange):
         for symbol_leverage_limit in symbol_leverage_limits:
             max_leverage = self.safe_float(symbol_leverage_limit, "initialLeverage")
             result = {"position": {"max": self.safe_float(symbol_leverage_limit, "notionalCap"),
-                                   "maxQuantity": self.safe_float(symbol_leverage_limit, "qtyCap")},
+                                   "max_quantity": self.safe_float(symbol_leverage_limit, "qtyCap")},
                       "leverage": {"min": last_max + 1,
                                    "max": max_leverage}}
             results.append(result)
