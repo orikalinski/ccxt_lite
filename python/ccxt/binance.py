@@ -28,7 +28,7 @@ from ccxt.base.errors import InvalidNonce
 from ccxt.base.decimal_to_precision import ROUND
 from ccxt.base.decimal_to_precision import TRUNCATE
 
-
+LOGIN_REQUIRED_ENDPOINTS = {'private', 'sapi', 'dapiPrivate', 'dapiPrivateV2', 'fapiPrivate', 'fapiPrivateV2'}
 
 STATUSES_MAPPING = {
     'NEW': 'open',
@@ -118,6 +118,7 @@ class binance(Exchange):
                     'dapiPublic': 'https://dapi.binance.com/dapi/v1',
                     'dapiPrivate': 'https://dapi.binance.com/dapi/v1',
                     'dapiData': 'https://dapi.binance.com/futures/data',
+                    'dapiPrivateV2': 'https://dapi.binance.com/dapi/v2',
                     'fapiPublic': 'https://fapi.binance.com/fapi/v1',
                     'fapiPrivate': 'https://fapi.binance.com/fapi/v1',
                     'fapiData': 'https://fapi.binance.com/futures/data',
@@ -358,6 +359,11 @@ class binance(Exchange):
                         'listenKey',
                     ],
                 },
+                'dapiPrivateV2': {
+                    'get': [
+                        'leverageBracket'
+                    ],
+                },
                 'fapiPublic': {
                     'get': [
                         'ping',
@@ -592,7 +598,7 @@ class binance(Exchange):
         symbol_leverage_limits = sorted(symbol_leverage_limits, key=lambda x: x.get("initialLeverage"))
         for symbol_leverage_limit in symbol_leverage_limits:
             max_leverage = self.safe_float(symbol_leverage_limit, "initialLeverage")
-            result = {"position": {"max": self.safe_float(symbol_leverage_limit, "notionalCap")},
+            result = {"position": {"max": self.safe_float_2(symbol_leverage_limit, "notionalCap", "qtyCap")},
                       "leverage": {"min": last_max + 1,
                                    "max": max_leverage}}
             results.append(result)
@@ -606,7 +612,7 @@ class binance(Exchange):
         if _type == "future":
             response = self.fapiPrivateGetLeverageBracket()
         elif _type == "delivery":
-            response = self.dapiPrivateGetLeverageBracket()
+            response = self.dapiPrivateV2GetLeverageBracket()
         else:
             raise NotSupported()
         results = dict()
@@ -2516,7 +2522,7 @@ class binance(Exchange):
                 }
             else:
                 raise AuthenticationError(self.id + ' userDataStream endpoint requires `apiKey` credential')
-        if (api == 'private') or (api == 'sapi') or (api == 'wapi' and path != 'systemStatus') or (api == 'dapiPrivate') or (api == 'fapiPrivate') or (api == 'fapiPrivateV2'):
+        if (api in LOGIN_REQUIRED_ENDPOINTS) or (api == 'wapi' and path != 'systemStatus'):
             self.check_required_credentials()
             query = None
             recvWindow = self.safe_integer(self.options, 'recvWindow', 5000)
