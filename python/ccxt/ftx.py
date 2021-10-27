@@ -325,7 +325,8 @@ class ftx(Exchange):
                     'Try again': ExchangeNotAvailable,  # {"error":"Try again","success":false}
                     'Only have permissions for subaccount': PermissionDenied,  # {"success":false,"error":"Only have permissions for subaccount *sub_name*"}
                     'identity verification': PermissionDenied,
-                    'complete KYC': PermissionDenied
+                    'complete KYC': PermissionDenied,
+                    'you cannot trade futures': PermissionDenied
                 },
             },
             'precisionMode': TICK_SIZE,
@@ -475,7 +476,7 @@ class ftx(Exchange):
                 'limits': {
                     'amount': {
                         'min': sizeIncrement,
-                        'max': None,
+                        'max': 100000000,  # FTX currently have an hardcoded maximum quantity
                     },
                     'price': {
                         'min': priceIncrement,
