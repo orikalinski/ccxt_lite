@@ -608,6 +608,8 @@ class binance(Exchange):
         return results
 
     def get_leverage_limits(self):
+        assert self.apiKey and self.secret
+
         self.load_markets()
         _type = self.safe_string(self.options, 'defaultType')
         if _type == "future":
@@ -709,7 +711,8 @@ class binance(Exchange):
     def fetch_markets(self, params={}):
         defaultType = self.safe_string_2(self.options, 'fetchMarkets', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
-        query = self.omit(params, 'type')
+        load_leverage = self.safe_string(params, 'load_leverage')
+        query = self.omit(params, 'type', 'load_leverage')
         if (type != 'spot') and (type != 'future') and (type != 'margin') and (type != 'delivery'):
             raise ExchangeError(self.id + " does not support '" + type + "' type, set exchange.options['defaultType'] to 'spot', 'margin', 'delivery' or 'future'")  # eslint-disable-line quotes
         method = 'publicGetExchangeInfo'
@@ -719,6 +722,9 @@ class binance(Exchange):
             method = 'dapiPublicGetExchangeInfo'
         response = getattr(self, method)(query)
 
+        leverage_limits = None
+        if load_leverage and type in {'future', 'devlivery'}:
+            leverage_limits = self.get_leverage_limits()
         #
         # spot / margin
         #
@@ -960,6 +966,12 @@ class binance(Exchange):
                 if not min_notional:
                     min_notional = self.safe_float(filter, 'notional')
                 entry['limits']['cost']['min'] = min_notional
+
+            if leverage_limits:
+                symbol_leverage_limits = self.safe_value(leverage_limits, symbol)
+                market["leverage_limits"] = symbol_leverage_limits
+                max_leverage = max([leverage_limit["leverage"]["max"] for leverage_limit in symbol_leverage_limits])
+                entry['max_leverage'] = max_leverage
             result.append(entry)
         return result
 
