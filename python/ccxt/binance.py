@@ -973,7 +973,7 @@ class binance(Exchange):
                 symbol_position_limits = self.safe_value(leverage_limits, symbol)
                 market["position_limits"] = symbol_position_limits
                 max_leverage = max([leverage_limit["leverage"]["max"] for leverage_limit in symbol_position_limits])
-                entry['limits']['leverage']['max'] = max_leverage
+                entry['limits']['leverage'] = {'max': max_leverage}
             result.append(entry)
         return result
 
