@@ -597,10 +597,13 @@ class binance(Exchange):
         symbol_leverage_limits = sorted(symbol_leverage_limits, key=lambda x: x.get("initialLeverage"))
         for symbol_leverage_limit in symbol_leverage_limits:
             max_leverage = self.safe_float(symbol_leverage_limit, "initialLeverage")
-            result = {"position_cost": {"max": self.safe_float(symbol_leverage_limit, "notionalCap")},
-                      "position_amount": {"max": self.safe_float(symbol_leverage_limit, "qtyCap")},
-                      "leverage": {"min": last_max + 1,
-                                   "max": max_leverage}}
+            max_position_cost = self.safe_float(symbol_leverage_limit, "notionalCap")
+            max_position_amount = self.safe_float(symbol_leverage_limit, "qtyCap")
+            result = {"leverage": {"min": last_max + 1, "max": max_leverage}}
+            if max_position_cost:
+                result["position_cost"] = {"max": max_position_cost}
+            if max_position_amount:
+                result["position_amount"] = {"max": max_position_amount}
             results.append(result)
             last_max = max_leverage
 
