@@ -725,7 +725,7 @@ class binance(Exchange):
         response = getattr(self, method)(query)
 
         leverage_limits = None
-        if load_leverage and type in {'future', 'devlivery'}:
+        if load_leverage and type in {'future', 'delivery'}:
             leverage_limits = self.get_leverage_limits()
         #
         # spot / margin
