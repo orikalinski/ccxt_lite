@@ -28,7 +28,6 @@ from ccxt.base.errors import InvalidNonce
 from ccxt.base.decimal_to_precision import ROUND
 from ccxt.base.decimal_to_precision import TRUNCATE
 
-LOGIN_REQUIRED_ENDPOINTS = {'private', 'sapi', 'dapiPrivate', 'dapiPrivateV2', 'fapiPrivate', 'fapiPrivateV2'}
 
 STATUSES_MAPPING = {
     'NEW': 'open',
@@ -968,10 +967,10 @@ class binance(Exchange):
                 entry['limits']['cost']['min'] = min_notional
 
             if leverage_limits:
-                symbol_leverage_limits = self.safe_value(leverage_limits, symbol)
-                market["leverage_limits"] = symbol_leverage_limits
-                max_leverage = max([leverage_limit["leverage"]["max"] for leverage_limit in symbol_leverage_limits])
-                entry['max_leverage'] = max_leverage
+                symbol_position_limits = self.safe_value(leverage_limits, symbol)
+                market["position_limits"] = symbol_position_limits
+                max_leverage = max([leverage_limit["leverage"]["max"] for leverage_limit in symbol_position_limits])
+                entry['limits']['leverage']['max'] = max_leverage
             result.append(entry)
         return result
 
@@ -2535,7 +2534,7 @@ class binance(Exchange):
                 }
             else:
                 raise AuthenticationError(self.id + ' userDataStream endpoint requires `apiKey` credential')
-        if (api in LOGIN_REQUIRED_ENDPOINTS) or (api == 'wapi' and path != 'systemStatus'):
+        if (api == 'private') or (api == 'sapi') or (api == 'wapi' and path != 'systemStatus') or (api == 'dapiPrivate') or (api == 'fapiPrivate') or (api == 'fapiPrivateV2') or (api == 'dapiPrivateV2'):
             self.check_required_credentials()
             query = None
             recvWindow = self.safe_integer(self.options, 'recvWindow', 5000)
