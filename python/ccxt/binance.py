@@ -39,6 +39,9 @@ STATUSES_MAPPING = {
     'EXPIRED': 'canceled',
 }
 
+PERMISSION_TO_VALUE = {"spot": ["enableSpotAndMarginTrading"], "futures": ["enableFutures"],
+                       "withdrawal": ["enableWithdrawals"]}
+
 
 class binance(Exchange):
 
@@ -147,6 +150,7 @@ class binance(Exchange):
                         'margin/allPairs',
                         'margin/priceIndex',
                         # these endpoints require self.apiKey + self.secret
+                        'account/apiRestrictions',
                         'asset/assetDividend',
                         'margin/loan',
                         'margin/repay',
@@ -2511,6 +2515,16 @@ class binance(Exchange):
             symbol = fee['symbol']
             result[symbol] = fee
         return result
+
+    def get_api_account_details(self):
+        response = self.sapi_get_account_apirestrictions()
+        permissions = self.extract_trading_permissions(PERMISSION_TO_VALUE, response=response)
+        return {
+            "creation": self.safe_integer(response, "createTime"),
+            "expiration": self.safe_integer(response, "tradingAuthorityExpirationTime"),
+            "permissions": permissions,
+            "ip_restrict": self.safe_value(response, "ipRestrict")
+        }
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         if not (api in self.urls['api']):
