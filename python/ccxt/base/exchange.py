@@ -1303,7 +1303,7 @@ class Exchange(object):
             for required_permission in required_permissions:
                 if response and not self.safe_value(response, required_permission):
                     has_permissions = False
-                if required_permission not in permissions_list:
+                if permissions_list and required_permission not in permissions_list:
                     has_permissions = False
             if has_permissions:
                 permissions.append(trading_permission)
