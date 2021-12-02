@@ -520,9 +520,10 @@ class Exchange(object):
 
     def find_broadly_matched_key(self, broad, string):
         """A helper method for matching error strings exactly vs broadly"""
+        string = string.lower()
         keys = list(broad.keys())
         for i in range(0, len(keys)):
-            key = keys[i]
+            key = keys[i].lower()
             if string.find(key) >= 0:
                 return key
         return None
