@@ -325,6 +325,7 @@ class ftx(Exchange):
                     'Try again': ExchangeNotAvailable,  # {"error":"Try again","success":false}
                     'Only have permissions for subaccount': PermissionDenied,  # {"success":false,"error":"Only have permissions for subaccount *sub_name*"}
                     'identity verification': PermissionDenied,
+                    'Identity Verification': PermissionDenied,
                     'complete KYC': PermissionDenied,
                     'you cannot trade futures': PermissionDenied
                 },
