@@ -1390,6 +1390,7 @@ class Exchange(object):
                 return self.accounts
             else:
                 self.accounts = self.fetch_accounts(params)
+        self.accountsById = self.index_by(self.accounts, 'id')
         self.accountsByType = self.index_by(self.accounts, 'type')
         return self.accounts
 
