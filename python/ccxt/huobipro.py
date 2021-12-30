@@ -811,7 +811,7 @@ class huobipro(Exchange):
         self.load_accounts()
         method = self.options['fetchBalanceMethod']
         request = {
-            'id': self.accounts[0]['id'],
+            'id': self.accountsByType['spot']['id'],
         }
         response = getattr(self, method)(self.extend(request, params))
         balances = self.safe_value(response['data'], 'list', [])
