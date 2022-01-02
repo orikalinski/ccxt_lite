@@ -2239,12 +2239,16 @@ class bybit(Exchange):
         result = result[0] if result and type(result) == list else result
         ips = self.safe_value(result, "ips")
         exchange_permissions = self.safe_value(result, "permissions")
-        permissions = self.extract_trading_permissions(PERMISSION_TO_VALUE, permissions_list=exchange_permissions)
+        read_only = self.safe_value(result, "read_only", default_value=False)
+        permissions = list()
+        allow_all = type(ips) == list and "*" in ips
+        if read_only is False:
+            permissions = self.extract_trading_permissions(PERMISSION_TO_VALUE, permissions_list=exchange_permissions)
         return {
             "creation": self.parse8601(self.safe_string(result, "created_at")),
             "expiration": self.parse8601(self.safe_string(result, "expired_at")),
             "permissions": permissions,
-            "ip_restrict": type(ips) == list and "*" in ips
+            "ip_restrict": not allow_all
         }
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
