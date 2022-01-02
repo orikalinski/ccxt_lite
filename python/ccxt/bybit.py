@@ -18,6 +18,10 @@ from ccxt.base.errors import InvalidNonce
 from ccxt.base.decimal_to_precision import TICK_SIZE
 
 
+PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
+                       "withdrawal": ["Withdrawal"]}
+
+
 class bybit(Exchange):
 
     def describe(self):
@@ -105,6 +109,7 @@ class bybit(Exchange):
                         'execution/list',
                         'wallet/fund/records',
                         'wallet/withdraw/list',
+                        'account/api-key'
                     ],
                     'post': [
                         'order/create',
@@ -2227,6 +2232,24 @@ class bybit(Exchange):
             'ExchangeOrderDeposit': 'transaction',
         }
         return self.safe_string(types, type, type)
+
+    def get_api_account_details(self):
+        response = self.privateGetAccountApiKey()
+        result = self.safe_value(response, 'result')
+        result = result[0] if result and type(result) == list else result
+        ips = self.safe_value(result, "ips")
+        exchange_permissions = self.safe_value(result, "permissions")
+        read_only = self.safe_value(result, "read_only", default_value=False)
+        permissions = list()
+        allow_all = type(ips) == list and "*" in ips
+        if read_only is False:
+            permissions = self.extract_trading_permissions(PERMISSION_TO_VALUE, permissions_list=exchange_permissions)
+        return {
+            "creation": self.parse8601(self.safe_string(result, "created_at")),
+            "expiration": self.parse8601(self.safe_string(result, "expired_at")),
+            "permissions": permissions,
+            "ip_restrict": not allow_all
+        }
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         url = self.urls['api']

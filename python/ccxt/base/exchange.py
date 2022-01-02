@@ -1292,6 +1292,24 @@ class Exchange(object):
             'total': None,
         }
 
+    def get_api_account_details(self):
+        raise NotSupported('get_api_account_details() is not supported yet')
+
+    def extract_trading_permissions(self, permission_mapping, response=None, permissions_list=None):
+        assert response or permissions_list
+
+        permissions = list()
+        for trading_permission, required_permissions in permission_mapping.items():
+            has_permissions = True
+            for required_permission in required_permissions:
+                if response and not self.safe_value(response, required_permission):
+                    has_permissions = False
+                if permissions_list and required_permission not in permissions_list:
+                    has_permissions = False
+            if has_permissions:
+                permissions.append(trading_permission)
+        return permissions
+
     def common_currency_code(self, currency):
         if not self.substituteCommonCurrencyCodes:
             return currency
