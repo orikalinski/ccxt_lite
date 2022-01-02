@@ -211,6 +211,7 @@ class huobipro(Exchange):
                 },
             },
             'options': {
+                'defaultType': 'spot',  # 'spot', 'future'
                 # https://github.com/ccxt/ccxt/issues/5376
                 'fetchOrdersByStatesMethod': 'private_get_order_orders',  # 'private_get_order_history'  # https://github.com/ccxt/ccxt/pull/5392
                 'fetchOpenOrdersMethod': 'fetch_open_orders_v2',  # 'fetch_open_orders_v2'  # https://github.com/ccxt/ccxt/issues/5388
@@ -810,8 +811,9 @@ class huobipro(Exchange):
         self.load_markets()
         self.load_accounts()
         method = self.options['fetchBalanceMethod']
+        _type = self.safe_string(self.options, 'defaultType')
         request = {
-            'id': self.accountsByType['spot']['id'],
+            'id': self.accountsByType[_type]['id'],
         }
         response = getattr(self, method)(self.extend(request, params))
         balances = self.safe_value(response['data'], 'list', [])
