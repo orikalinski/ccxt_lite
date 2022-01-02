@@ -351,7 +351,7 @@ class Exchange(object):
         self.ohlcvs = dict() if self.ohlcvs is None else self.ohlcvs
         self.currencies = dict() if self.currencies is None else self.currencies
         self.options = dict() if self.options is None else self.options  # Python does not allow to define properties in run-time with setattr
-        self.accountsByType = dict()
+        self.accounts_by_type = dict()
         self.decimal_to_precision = decimal_to_precision
         self.number_to_string = number_to_string
 
@@ -1391,7 +1391,7 @@ class Exchange(object):
             else:
                 self.accounts = self.fetch_accounts(params)
         self.accountsById = self.index_by(self.accounts, 'id')
-        self.accountsByType = self.index_by(self.accounts, 'type')
+        self.accounts_by_type = self.index_by(self.accounts, 'type')
         return self.accounts
 
     def load_fees(self, reload=False):
