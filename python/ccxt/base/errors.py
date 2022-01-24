@@ -176,6 +176,10 @@ class MaxStopAllowed(BaseError):
     pass
 
 
+class PositionNotFound(BaseError):
+    pass
+
+
 __all__ = [
     'error_hierarchy',
     'ExchangeError',
@@ -210,4 +214,5 @@ __all__ = [
     'RequestTimeout',
     'OrderCancelled',
     'MaxStopAllowed',
+    'PositionNotFound'
 ]
