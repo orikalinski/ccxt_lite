@@ -5,7 +5,7 @@
 import re
 
 from ccxt.base.exchange import Exchange
-from ccxt.base.errors import ExchangeError, SameLeverage, OrderCancelled, MaxStopAllowed
+from ccxt.base.errors import ExchangeError, SameLeverage, OrderCancelled, MaxStopAllowed, PositionNotFound
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import PermissionDenied
 from ccxt.base.errors import ArgumentsRequired
@@ -487,6 +487,8 @@ class bybit(Exchange):
         positions = self.get_positions(symbol)
         long_leverage, short_leverage = self.get_change_margin_input(positions, is_cross, leverage, is_long)
         same_direction_position = self.get_same_direction_position(positions, is_long)
+        if same_direction_position is None:
+            raise PositionNotFound(f"Couldn't find position for symbol: {symbol} is_long: {is_long}")
 
         _is_long = same_direction_position["is_long"]
         _leverage = same_direction_position["leverage"]
