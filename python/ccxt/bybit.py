@@ -576,7 +576,8 @@ class bybit(Exchange):
                         result = {"info": position, "symbol": _symbol,
                                   "quantity": size, "leverage": leverage, "margin_type": margin_type,
                                   "maintenance_margin": maintenance_margin,
-                                  "liquidation_price": max(liq_price, 0), "is_long": side == "buy"}
+                                  "liquidation_price": max(liq_price, 0),
+                                  "is_long": None if side == "none" else side == "buy"}
                         positions_to_return.append(result)
         return positions_to_return
 
