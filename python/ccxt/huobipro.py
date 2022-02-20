@@ -894,12 +894,13 @@ class huobipro(Exchange):
             raise ArgumentsRequired(self.id + ' fetchOpenOrders requires a symbol argument')
         market = self.market(symbol)
         accountId = self.safe_string(params, 'account-id')
+        _type = self.safe_string(self.options, 'defaultType')
         if accountId is None:
             # pick the first account
             self.load_accounts()
             for i in range(0, len(self.accounts)):
                 account = self.accounts[i]
-                if account['type'] == 'spot':
+                if account['type'] == _type:
                     accountId = self.safe_string(account, 'id')
                     if accountId is not None:
                         break
@@ -1046,8 +1047,9 @@ class huobipro(Exchange):
         self.load_markets()
         self.load_accounts()
         market = self.market(symbol)
+        _type = self.safe_string(self.options, 'defaultType')
         request = {
-            'account-id': self.accounts[0]['id'],
+            'account-id': self.accounts_by_type[_type]['id'],
             'symbol': market['id'],
             'type': side + '-' + type,
         }
