@@ -1723,8 +1723,8 @@ class kucoin(Exchange):
         #
         errorCode = self.safe_string(response, 'code')
         if errorCode != '200000':
-            message = self.safe_string(response, 'msg')
-            self.throw_exactly_matched_exception(self.exceptions['exact'], message, message)
-            self.throw_exactly_matched_exception(self.exceptions['exact'], errorCode, message)
             feedback = self.id + ' ' + body
+            message = self.safe_string(response, 'msg')
+            self.throw_exactly_matched_exception(self.exceptions['exact'], message, feedback)
+            self.throw_exactly_matched_exception(self.exceptions['exact'], errorCode, feedback)
             raise ExchangeError(feedback)
