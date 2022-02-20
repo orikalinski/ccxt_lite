@@ -214,6 +214,7 @@ class kucoin(Exchange):
                     '400330': InvalidOrder,  # {'code': '400330', 'msg': "Order price can't deviate from NAV by 50%"}
                     '411100': AccountSuspended,
                     '415000': BadRequest,  # {"code":"415000","msg":"Unsupported Media Type"}
+                    '400760': InvalidOrder, # {'code': '400760', 'msg': 'The order funds should more then 0.1 USDT.'}
                     '500000': ExchangeError,
                 },
                 'broad': {
@@ -1724,3 +1725,6 @@ class kucoin(Exchange):
         message = self.safe_string(response, 'msg')
         self.throw_exactly_matched_exception(self.exceptions['exact'], message, message)
         self.throw_exactly_matched_exception(self.exceptions['exact'], errorCode, message)
+        if errorCode != '200000':
+            feedback = self.id + ' ' + body
+            raise ExchangeError(feedback)
