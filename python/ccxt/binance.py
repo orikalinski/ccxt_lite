@@ -1056,6 +1056,7 @@ class binance(Exchange):
 
     def fetch_balance(self, part=None, params={}):
         self.load_markets()
+        margin_type = self.safe_value(params, "margin_type")
         defaultType = self.safe_string_2(self.options, 'fetchBalance', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
         method = 'privateGetAccount'
@@ -1068,7 +1069,10 @@ class binance(Exchange):
             fetchBalanceOptions = self.safe_value(options, 'fetchBalance', {})
             method = self.safe_string(fetchBalanceOptions, 'method', 'dapiPrivateGetAccount')
         elif type == 'margin':
-            method = 'sapiGetMarginAccount'
+            if margin_type == "isolated":
+                method = 'sapiGetMarginIsolatedAccount'
+            else:
+                method = 'sapiGetMarginAccount'
         query = self.omit(params, 'type')
         response = getattr(self, method)(query)
         #
@@ -1216,7 +1220,19 @@ class binance(Exchange):
         #     ]
         #
         result = {'info': response}
-        if (type == 'spot') or (type == 'margin'):
+        if type == 'margin' and margin_type == 'isolated':
+            balances = self.safe_value(response, 'assets', [])
+            if part:
+                balances = [balance for balance in balances if self.find_symbol(balance.get("symbol")) == part]
+            for balance in balances:
+                symbolId = self.safe_string(balance, 'symbol')
+                symbol = self.find_symbol(symbolId)
+                account = self.account()
+                quoteAsset = self.safe_value(balance, 'quoteAsset')
+                account['free'] = self.safe_float(quoteAsset, 'free')
+                account['used'] = self.safe_float(quoteAsset, 'locked')
+                result[symbol] = account
+        elif (type == 'spot') or (type == 'margin'):
             balances = self.safe_value_2(response, 'balances', 'userAssets', [])
             if part:
                 balances = [balance for balance in balances if balance.get("asset") == part]
