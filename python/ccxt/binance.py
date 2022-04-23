@@ -152,6 +152,8 @@ class binance(Exchange):
                         # these endpoints require self.apiKey + self.secret
                         'account/apiRestrictions',
                         'asset/assetDividend',
+                        'margin/isolatedMarginData',
+                        'margin/crossMarginData',
                         'margin/loan',
                         'margin/repay',
                         'margin/account',
@@ -613,17 +615,7 @@ class binance(Exchange):
 
         return results
 
-    def get_leverage_limits(self):
-        assert self.apiKey and self.secret
-
-        self.load_markets()
-        _type = self.safe_string(self.options, 'defaultType')
-        if _type == "future":
-            response = self.fapiPrivateGetLeverageBracket()
-        elif _type == "delivery":
-            response = self.dapiPrivateV2GetLeverageBracket()
-        else:
-            raise NotSupported()
+    def handle_futures_max_leverage(self, response):
         results = dict()
         for symbol_data in response:
             if ("symbol" in symbol_data or "pair" in symbol_data) and "brackets" in symbol_data:
@@ -635,6 +627,47 @@ class binance(Exchange):
                 pair = self.safe_string(symbol_data, "pair")
                 symbol = self.find_symbol("%s_PERP" % pair)
             results[symbol] = self.parse_symbol_leverage_limits(self.safe_value(symbol_data, "brackets"))
+        return results
+
+    def handle_isolated_response(self, results, response):
+        for symbol_data in response:
+            symbol = self.safe_string(symbol_data, "symbol")
+            if symbol:
+                symbol = self.find_symbol(symbol)
+            leverage = int(symbol_data["leverage"])
+            results[symbol]["isolated"] = [{"leverage": {"min": leverage, "max": leverage}}]
+
+    def handle_cross_response(self, results, response):
+        leverage = None
+        for symbol_data in response:
+            for symbol in symbol_data["marginablePairs"]:
+                symbol = self.find_symbol(symbol)
+                results[symbol]["cross"] = [{"leverage": {"min": leverage, "max": leverage}}]
+
+    def handle_margin_max_leverage(self, isolated_response, cross_response):
+        results = defaultdict(dict)
+        self.handle_isolated_response(results, isolated_response)
+        self.handle_cross_response(results, cross_response)
+
+        return results
+
+    def get_leverage_limits(self):
+        assert self.apiKey and self.secret
+
+        self.load_markets()
+        _type = self.safe_string(self.options, 'defaultType')
+        if _type == "future":
+            response = self.fapiPrivateGetLeverageBracket()
+            results = self.handle_futures_max_leverage(response)
+        elif _type == "delivery":
+            response = self.dapiPrivateV2GetLeverageBracket()
+            results = self.handle_futures_max_leverage(response)
+        elif _type == "margin":
+            isolated_response = self.sapiGetMarginIsolatedMarginData()
+            cross_response = self.sapiGetMarginCrossMarginData()
+            results = self.handle_margin_max_leverage(isolated_response, cross_response)
+        else:
+            raise NotSupported()
         return results
 
     def change_margin_type(self, symbol, cross):
@@ -714,6 +747,24 @@ class binance(Exchange):
                     positions_to_return.append(result)
         return positions_to_return
 
+    def handle_leverage_limits(self, entry, leverage_limits, market, symbol):
+        cross, isolated = None, None
+        if leverage_limits:
+            cross, isolated = True, True
+            symbol_position_limits = self.safe_value(leverage_limits, symbol)
+            if symbol_position_limits:
+                if any(margin_type in symbol_position_limits for margin_type in ["isolated", "cross"]):
+                    cross = "cross" in symbol_position_limits
+                    isolated = "isolated" in symbol_position_limits
+                    symbol_position_limits = symbol_position_limits.get("isolated")
+                if symbol_position_limits:
+                    if any(symbol_position_limit.get("position_amount") or symbol_position_limit.get("position_cost")
+                           for symbol_position_limit in symbol_position_limits):
+                        market["position_limits"] = symbol_position_limits
+                    max_leverage = max([leverage_limit["leverage"]["max"] for leverage_limit in symbol_position_limits])
+                    entry['limits']['leverage'] = {'max': max_leverage}
+        return cross, isolated
+
     def fetch_markets(self, params={}):
         defaultType = self.safe_string_2(self.options, 'fetchMarkets', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
@@ -729,7 +780,7 @@ class binance(Exchange):
         response = getattr(self, method)(query)
 
         leverage_limits = None
-        if load_leverage and type in {'future', 'delivery'}:
+        if load_leverage and type in {'future', 'delivery', 'margin'}:
             leverage_limits = self.get_leverage_limits()
         #
         # spot / margin
@@ -973,11 +1024,9 @@ class binance(Exchange):
                     min_notional = self.safe_float(filter, 'notional')
                 entry['limits']['cost']['min'] = min_notional
 
-            if leverage_limits:
-                symbol_position_limits = self.safe_value(leverage_limits, symbol)
-                market["position_limits"] = symbol_position_limits
-                max_leverage = max([leverage_limit["leverage"]["max"] for leverage_limit in symbol_position_limits])
-                entry['limits']['leverage'] = {'max': max_leverage}
+            cross, isolated = self.handle_leverage_limits(entry, leverage_limits, market, symbol)
+            entry["cross"] = cross
+            entry["isolated"] = isolated
             result.append(entry)
         return result
 
