@@ -1837,7 +1837,10 @@ class binance(Exchange):
             method = 'fapiPrivatePostOrder'
         elif orderType == 'delivery':
             method = 'dapiPrivatePostOrder'
-        elif orderType in {'margin_isolated', 'margin_cross'}:
+        elif orderType == 'margin_isolated':
+            method = 'sapiPostMarginOrder'
+            params["isIsolated"] = "TRUE"
+        elif orderType == 'margin_cross':
             method = 'sapiPostMarginOrder'
         # the next 5 lines are added to support for testing orders
         if market['spot']:
@@ -1974,7 +1977,10 @@ class binance(Exchange):
             method = 'fapiPrivateGetOrder'
         elif type == 'delivery':
             method = 'dapiPrivateGetOrder'
-        elif type in {'margin_isolated', 'margin_cross'}:
+        elif type == 'margin_isolated':
+            method = 'sapiGetMarginOrder'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
             method = 'sapiGetMarginOrder'
         request = {
             'symbol': market['id'],
@@ -2005,7 +2011,10 @@ class binance(Exchange):
             method = 'fapiPrivateGetAllOrders'
         elif type == 'delivery':
             method = 'dapiPrivateGetAllOrders'
-        elif type in {'margin_isolated', 'margin_cross'}:
+        elif type == 'margin_isolated':
+            method = 'sapiGetMarginAllOrders'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
             method = 'sapiGetMarginAllOrders'
         request = {
             'symbol': market['id'],
@@ -2073,7 +2082,6 @@ class binance(Exchange):
             request['symbol'] = market['id']
             defaultType = self.safe_string_2(self.options, 'fetchOpenOrders', 'defaultType', market['type'])
             type = self.safe_string(params, 'type', defaultType)
-            query = self.omit(params, 'type')
         elif self.options['warnOnFetchOpenOrdersWithoutSymbol']:
             symbols = self.symbols
             numSymbols = len(symbols)
@@ -2082,14 +2090,17 @@ class binance(Exchange):
         else:
             defaultType = self.safe_string_2(self.options, 'fetchOpenOrders', 'defaultType', 'spot')
             type = self.safe_string(params, 'type', defaultType)
-            query = self.omit(params, 'type')
         method = 'privateGetOpenOrders'
         if type == 'future':
             method = 'fapiPrivateGetOpenOrders'
         elif type == 'delivery':
             method = 'dapiPrivateGetOpenOrders'
-        elif type in {'margin_isolated', 'margin_cross'}:
+        elif type == 'margin_isolated':
             method = 'sapiGetMarginOpenOrders'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
+            method = 'sapiGetMarginOpenOrders'
+        query = self.omit(params, 'type')
         response = getattr(self, method)(self.extend(request, query))
         return self.parse_orders(response, market, since, limit)
 
@@ -2120,7 +2131,10 @@ class binance(Exchange):
             method = 'fapiPrivateDeleteOrder'
         elif type == 'delivery':
             method = 'dapiPrivateDeleteOrder'
-        elif type in {'margin_isolated', 'margin_cross'}:
+        elif type == 'margin_isolated':
+            method = 'sapiDeleteMarginOrder'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
             method = 'sapiDeleteMarginOrder'
         query = self.omit(params, ['type', 'origClientOrderId', 'clientOrderId'])
         response = getattr(self, method)(self.extend(request, query))
