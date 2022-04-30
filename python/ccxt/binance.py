@@ -2175,6 +2175,11 @@ class binance(Exchange):
             method = 'fapiPrivateGetUserTrades'
         elif type == 'delivery':
             method = 'dapiPrivateGetUserTrades'
+        elif type == 'margin_isolated':
+            method = 'sapiGetMarginMyTrades'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
+            method = 'sapiGetMarginMyTrades'
         params = self.omit(params, 'type')
         request = {
             'symbol': market['id'],
