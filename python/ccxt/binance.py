@@ -734,7 +734,7 @@ class binance(Exchange):
                     positions_to_return.append(result)
         return positions_to_return
 
-    def parse_margin_positions(self, positions):
+    def parse_isolated_margin_positions(self, positions):
         positions_to_return = list()
         for position in positions:
             symbolId = position["symbol"]
@@ -758,8 +758,6 @@ class binance(Exchange):
         return positions_to_return
 
     def get_positions(self, symbol=None, params=None):
-        params = params or dict()
-
         self.load_markets()
         _type = self.safe_string(self.options, 'defaultType')
 
@@ -776,7 +774,7 @@ class binance(Exchange):
         elif _type == "margin_isolated":
             response = self.sapiGetMarginIsolatedAccount({"symbols": self.market_id(symbol)} if symbol else {})
             positions = self.safe_value(response, "assets", [])
-            positions_to_return = self.parse_margin_positions(positions)
+            positions_to_return = self.parse_isolated_margin_positions(positions)
         else:
             raise NotSupported()
 
@@ -1271,6 +1269,9 @@ class binance(Exchange):
                 account = self.account()
                 account['free'] = self.safe_float(balance, 'free')
                 account['used'] = self.safe_float(balance, 'locked')
+                borrowed = self.safe_float(balance, 'borrowed')
+                if borrowed is not None:
+                    account['borrowed'] = borrowed
                 result[code] = account
         else:
             balances = response
