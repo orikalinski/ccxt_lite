@@ -741,8 +741,8 @@ class binance(Exchange):
             baseAsset = self.safe_value(position, "baseAsset")
             quoteAsset = self.safe_value(position, "quoteAsset")
             position_size_in_btc = self.safe_float(baseAsset, "netAssetOfBtc")
-            used_ratio = \
-                (position_size_in_btc + self.safe_float(quoteAsset, "netAssetOfBtc")) / position_size_in_btc \
+            quote_borrowed_size = min(0, self.safe_float(quoteAsset, "netAssetOfBtc"))
+            used_ratio = (position_size_in_btc + quote_borrowed_size) / position_size_in_btc \
                 if position_size_in_btc else 0.
             quantity = self.safe_float(baseAsset, "netAsset")
             maintenance_margin = used_ratio * quantity
