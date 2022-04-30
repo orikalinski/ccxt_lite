@@ -742,10 +742,11 @@ class binance(Exchange):
             quoteAsset = self.safe_value(position, "quoteAsset")
             position_size_in_btc = self.safe_float(baseAsset, "netAssetOfBtc")
             used_ratio = \
-                (position_size_in_btc + self.safe_float(quoteAsset, "netAssetOfBtc")) / position_size_in_btc
+                (position_size_in_btc + self.safe_float(quoteAsset, "netAssetOfBtc")) / position_size_in_btc \
+                if position_size_in_btc else 0.
             quantity = self.safe_float(baseAsset, "netAsset")
             maintenance_margin = used_ratio * quantity
-            leverage = quantity / maintenance_margin
+            leverage = quantity / maintenance_margin if maintenance_margin else None
             symbol = self.find_symbol(symbolId)
             margin_type = "isolated"
             liquidation_price = self.safe_float(position, "liquidatePrice")
