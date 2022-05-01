@@ -764,12 +764,15 @@ class binance(Exchange):
         if _type == "margin_isolated":
             params["isolatedSymbol"] = self.market_id(symbol)
             response = self.sapiGetMarginMaxBorrowable(params)
+            quote_asset = self.get_pair(symbol) == asset
+            available_asset_balance = self.fetch_partial_balance(symbol, quote_asset=quote_asset).get("free", 0.)
         elif _type == "margin_cross":
             response = self.sapiGetMarginMaxBorrowable(params)
+            available_asset_balance = self.fetch_partial_balance(asset).get("free", 0.)
         else:
             raise NotSupported
-        free_collateral = self.safe_float(response, 'amount')
-        return {"free_collateral": free_collateral}
+        max_borrowable = self.safe_float(response, 'amount')
+        return {"free_collateral": max_borrowable + available_asset_balance}
 
     def get_positions(self, symbol=None, params=None):
         self.load_markets()
@@ -1091,12 +1094,12 @@ class binance(Exchange):
             'cost': float(cost),
         }
 
-    def fetch_partial_balance(self, part, params={}):
+    def fetch_partial_balance(self, part, quote_asset=True, params={}):
         currency = self.reversed_commonCurrencies.get(part, part)
-        balance = self.fetch_balance(currency, params)
+        balance = self.fetch_balance(currency, quote_asset=quote_asset, params=params)
         return balance[part]
 
-    def fetch_balance(self, part=None, params={}):
+    def fetch_balance(self, part=None, quote_asset=True, params={}):
         self.load_markets()
         defaultType = self.safe_string_2(self.options, 'fetchBalance', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
@@ -1268,7 +1271,8 @@ class binance(Exchange):
                 symbolId = self.safe_string(balance, 'symbol')
                 symbol = self.find_symbol(symbolId)
                 account = self.account()
-                asset_dict = self.safe_value(balance, 'quoteAsset')
+                asset_dict = self.safe_value(balance, 'quoteAsset') if quote_asset \
+                    else self.safe_value(balance, 'baseAsset')
                 account['free'] = self.safe_float(asset_dict, 'free')
                 account['used'] = self.safe_float(asset_dict, 'locked')
                 result[symbol] = account
