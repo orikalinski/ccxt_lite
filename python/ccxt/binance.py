@@ -757,6 +757,20 @@ class binance(Exchange):
 
         return positions_to_return
 
+    def fetch_collateral(self, asset, symbol=None, params={}):
+        self.load_markets()
+        params["asset"] = asset
+        _type = self.safe_string(self.options, 'defaultType')
+        if _type == "margin_isolated":
+            params["isolatedSymbol"] = self.market_id(symbol)
+            response = self.sapiGetMarginMaxBorrowable(params)
+        elif _type == "margin_cross":
+            response = self.sapiGetMarginMaxBorrowable(params)
+        else:
+            raise NotSupported
+        free_collateral = self.safe_float(response, 'amount')
+        return {"free_collateral": free_collateral}
+
     def get_positions(self, symbol=None, params=None):
         self.load_markets()
         _type = self.safe_string(self.options, 'defaultType')
