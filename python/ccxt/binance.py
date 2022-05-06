@@ -1275,6 +1275,8 @@ class binance(Exchange):
                     else self.safe_value(balance, 'baseAsset')
                 account['free'] = self.safe_float(asset_dict, 'free')
                 account['used'] = self.safe_float(asset_dict, 'locked')
+                account['borrowed'] = self.safe_float(asset_dict, 'borrowed')
+
                 result[symbol] = account
         elif (type == 'spot') or (type == 'margin_cross'):
             balances = self.safe_value_2(response, 'balances', 'userAssets', [])
