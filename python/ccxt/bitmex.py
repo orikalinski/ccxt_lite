@@ -208,9 +208,12 @@ class bitmex(Exchange):
         return positions_to_return
 
     def get_symbol_to_unified_symbol_dict(self, markets):
+        chars_to_ignore = {".", "_"}
         symbol_to_unified_symbol_dict = dict()
         for market in markets:
             _id, base, quote = market["symbol"], market['underlying'], market['quoteCurrency']
+            if any(char_to_ignore in _id for char_to_ignore in chars_to_ignore):
+                continue
             if _id.startswith(".") or base == quote:
                 continue
             base_quote = base + quote
