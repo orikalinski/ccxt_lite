@@ -146,6 +146,7 @@ class bittrex(Exchange):
                     'get': [
                         'markets',
                         'markets/summaries',
+                        'markets/tickers',
                         'markets/{marketSymbol}',
                         'markets/{marketSymbol}/summary',
                         'markets/{marketSymbol}/orderbook',
@@ -385,18 +386,17 @@ class bittrex(Exchange):
 
     def fetch_balance(self, params={}):
         self.load_markets()
-        response = self.accountGetBalances(params)
-        balances = self.safe_value(response, 'result')
-        result = {'info': balances}
-        indexed = self.index_by(balances, 'Currency')
+        response = self.v3GetBalances(params)
+        result = {'info': response}
+        indexed = self.index_by(response, 'currencySymbol')
         currencyIds = list(indexed.keys())
         for i in range(0, len(currencyIds)):
             currencyId = currencyIds[i]
             code = self.safe_currency_code(currencyId)
             account = self.account()
             balance = indexed[currencyId]
-            account['free'] = self.safe_float(balance, 'Available')
-            account['total'] = self.safe_float(balance, 'Balance')
+            account['free'] = self.safe_float(balance, 'available')
+            account['total'] = self.safe_float(balance, 'total')
             result[code] = account
         return self.parse_balance(result)
 
@@ -422,7 +422,7 @@ class bittrex(Exchange):
         return self.parse_order_book(orderbook, None, 'buy', 'sell', 'Rate', 'Quantity')
 
     def fetch_currencies(self, params={}):
-        response = self.publicGetCurrencies(params)
+        response = self.v3GetCurrencies(params)
         #
         #     {
         #         "success": True,
@@ -443,23 +443,24 @@ class bittrex(Exchange):
         #         ]
         #     }
         #
-        currencies = self.safe_value(response, 'result', [])
         result = {}
-        for i in range(0, len(currencies)):
-            currency = currencies[i]
-            id = self.safe_string(currency, 'Currency')
+        for i in range(0, len(response)):
+            currency = response[i]
+            id = self.safe_string(currency, 'symbol')
             code = self.safe_currency_code(id)
             precision = 8  # default precision, todo: fix "magic constants"
             address = self.safe_value(currency, 'BaseAddress')
-            fee = self.safe_float(currency, 'TxFee')  # todo: redesign
+            fee = self.safe_float(currency, 'txFee')  # todo: redesign
+            status = self.safe_value(currency, 'status')
+            is_active = True if status and status == "ONLINE" else False
             result[code] = {
                 'id': id,
                 'code': code,
                 'address': address,
                 'info': currency,
-                'type': self.safe_string(currency, 'CoinType'),
-                'name': self.safe_string(currency, 'CurrencyLong'),
-                'active': self.safe_value(currency, 'IsActive'),
+                'type': self.safe_string(currency, 'coinType'),
+                'name': self.safe_string(currency, 'name'),
+                'active': is_active,
                 'fee': fee,
                 'precision': precision,
                 'limits': {
@@ -501,9 +502,9 @@ class bittrex(Exchange):
         #         "Created":"2015-08-14T09:02:24.817"
         #     }
         #
-        timestamp = self.parse8601(self.safe_string(ticker, 'TimeStamp'))
+        timestamp = self.parse8601(self.safe_string(ticker, 'updatedAt'))
         symbol = None
-        marketId = self.safe_string(ticker, 'MarketName')
+        marketId = self.safe_string(ticker, 'symbol')
         if marketId is not None:
             if marketId in self.markets_by_id:
                 market = self.markets_by_id[marketId]
@@ -511,24 +512,22 @@ class bittrex(Exchange):
                 symbol = self.parse_symbol(marketId)
         if (symbol is None) and (market is not None):
             symbol = market['symbol']
-        previous = self.safe_float(ticker, 'PrevDay')
-        last = self.safe_float(ticker, 'Last')
+        percentage = self.safe_float(ticker, 'percentChange')
+        last = self.safe_float(ticker, 'lastTradeRate')
+        previous = None
         change = None
-        percentage = None
-        if last is not None:
-            if previous is not None:
-                change = last - previous
-                if previous > 0:
-                    percentage = (change / previous) * 100
+        if percentage is not None and last is not None:
+            previous = last * ((100 - percentage) / 100)
+            change = last - previous
         return {
             'symbol': symbol,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
-            'high': self.safe_float(ticker, 'High'),
-            'low': self.safe_float(ticker, 'Low'),
-            'bid': self.safe_float(ticker, 'Bid'),
+            'high': self.safe_float(ticker, 'high'),
+            'low': self.safe_float(ticker, 'low'),
+            'bid': self.safe_float(ticker, 'bidRate'),
             'bidVolume': None,
-            'ask': self.safe_float(ticker, 'Ask'),
+            'ask': self.safe_float(ticker, 'askRate'),
             'askVolume': None,
             'vwap': None,
             'open': previous,
@@ -538,28 +537,37 @@ class bittrex(Exchange):
             'change': change,
             'percentage': percentage,
             'average': None,
-            'baseVolume': self.safe_float(ticker, 'Volume'),
-            'quoteVolume': self.safe_float(ticker, 'BaseVolume'),
+            'baseVolume': self.safe_float(ticker, 'volume'),
+            'quoteVolume': self.safe_float(ticker, 'quoteVolume'),
             'info': ticker,
         }
 
     def fetch_tickers(self, symbols=None, params={}):
         self.load_markets()
-        response = self.publicGetMarketsummaries(params)
-        result = self.safe_value(response, 'result')
+        method = "v3publicGetMarketsSummaries"
+        summary_response = getattr(self, method)(params)
+        method2 = "v3publicGetMarketsTickers"
+        tickers_response = getattr(self, method2)(params)
+        indexed_tickers = self.index_by(tickers_response, 'symbol')
         tickers = []
-        for i in range(0, len(result)):
-            ticker = self.parse_ticker(result[i])
+        for i in range(0, len(summary_response)):
+            symbol = self.safe_string(summary_response[i], 'symbol')
+            summary_response[i].update(indexed_tickers[symbol])
+            ticker = self.parse_ticker(summary_response[i])
             tickers.append(ticker)
         return self.filter_by_array(tickers, 'symbol', symbols)
 
     def fetch_ticker(self, symbol, params={}):
         self.load_markets()
         market = self.market(symbol)
-        request = {
-            'market': market['id'],
-        }
-        response = self.publicGetMarketsummary(self.extend(request, params))
+        request = {'marketSymbol': market['info']['symbol']}
+        method = "v3publicGetMarketsMarketSymbolSummary"
+        summary_response = getattr(self, method)(self.extend(request, params))
+        if summary_response:
+            method = "v3publicGetMarketsMarketSymbolTicker"
+            ticker_response = getattr(self, method)(self.extend(request, params))
+            if ticker_response:
+                summary_response.update(ticker_response)
         #
         #     {
         #         "success":true,
@@ -583,23 +591,24 @@ class bittrex(Exchange):
         #         ]
         #     }
         #
-        ticker = response['result'][0]
-        return self.parse_ticker(ticker, market)
+        return self.parse_ticker(summary_response, market)
 
     def parse_trade(self, trade, market=None):
-        timestamp = self.parse8601(trade['TimeStamp'] + '+00:00')
+        timestamp = self.parse8601(trade['executedAt'] + '+00:00')
         side = None
-        if trade['OrderType'] == 'BUY':
+        id = self.safe_string(trade, 'Id', 'ID')
+        trade_side = self.safe_string(trade, 'takerSide')
+        if trade_side == 'BUY':
             side = 'buy'
-        elif trade['OrderType'] == 'SELL':
+        elif trade_side == 'SELL':
             side = 'sell'
         id = self.safe_string_2(trade, 'Id', 'ID')
         symbol = None
         if market is not None:
             symbol = market['symbol']
         cost = None
-        price = self.safe_float(trade, 'Price')
-        amount = self.safe_float(trade, 'Quantity')
+        price = self.safe_float(trade, 'rate')
+        amount = self.safe_float(trade, 'quantity')
         if amount is not None:
             if price is not None:
                 cost = price * amount
@@ -631,13 +640,11 @@ class bittrex(Exchange):
     def fetch_trades(self, symbol, since=None, limit=None, params={}):
         self.load_markets()
         market = self.market(symbol)
-        request = {
-            'market': market['id'],
-        }
-        response = self.publicGetMarkethistory(self.extend(request, params))
-        if 'result' in response:
-            if response['result'] is not None:
-                return self.parse_trades(response['result'], market, since, limit)
+        request = {'marketSymbol': market['info']['symbol']}
+        method = "v3publicGetMarketsMarketSymbolTrades"
+        response = getattr(self, method)(self.extend(request, params))
+        if response:
+            return self.parse_trades(response, market, since, limit)
         raise ExchangeError(self.id + ' fetchTrades() returned None response')
 
     def parse_ohlcv(self, ohlcv, market=None):
@@ -713,19 +720,14 @@ class bittrex(Exchange):
         market = None
         if symbol is not None:
             market = self.market(symbol)
-            request['market'] = market['id']
-        response = self.marketGetOpenorders(self.extend(request, params))
-        result = self.safe_value(response, 'result', [])
-        orders = self.parse_orders(result, market, since, limit)
+            request['marketSymbol'] = market['info']['symbol']
+        response = self.v3GetOrdersOpen(self.extend(request, params))
+        # result = self.safe_value(response, 'result', [])
+        orders = self.parse_orders(response, market, since, limit)
         return self.filter_by_symbol(orders, symbol)
 
     def create_order(self, symbol, type, side, amount, price=None, params={}):
-        uppercaseType = type.upper()
-        isMarket = (uppercaseType == 'MARKET')
-        isCeilingLimit = (uppercaseType == 'CEILING_LIMIT')
-        isCeilingMarket = (uppercaseType == 'CEILING_MARKET')
-        isV3 = isMarket or isCeilingLimit or isCeilingMarket
-        defaultMethod = 'create_order_v3' if isV3 else 'create_order_v1'
+        defaultMethod = 'create_order_v3'
         method = self.safe_value(self.options, 'createOrderMethod', defaultMethod)
         return getattr(self, method)(symbol, type, side, amount, price, params)
 
@@ -809,14 +811,15 @@ class bittrex(Exchange):
         }
 
     def get_order_id_field(self):
-        return 'uuid'
+        return 'orderId'
 
     def cancel_order(self, id, symbol=None, params={}):
         self.load_markets()
         orderIdField = self.get_order_id_field()
         request = {}
         request[orderIdField] = id
-        response = self.marketGetCancel(self.extend(request, params))
+        method = "v3DeleteOrdersOrderId"
+        response = getattr(self, method)(self.extend(request, params))
         #
         #     {
         #         "success": True,
@@ -1224,16 +1227,17 @@ class bittrex(Exchange):
             orderIdField = self.get_order_id_field()
             request = {}
             request[orderIdField] = id
-            response = self.accountGetOrder(self.extend(request, params))
+            method = "v3GetOrdersOrderId"
+            response = getattr(self, method)(self.extend(request, params))
         except Exception as e:
             if self.last_json_response:
                 message = self.safe_string(self.last_json_response, 'message')
                 if message == 'UUID_INVALID':
                     raise OrderNotFound(self.id + ' fetchOrder() error: ' + self.last_http_response)
             raise e
-        if not response['result']:
+        if not response['id']:
             raise OrderNotFound(self.id + ' order ' + id + ' not found')
-        return self.parse_order(response['result'])
+        return self.parse_order(response)
 
     def order_to_trade(self, order):
         # self entire method should be moved to the base class
@@ -1400,9 +1404,7 @@ class bittrex(Exchange):
         }
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
-        url = self.implode_params(self.urls['api'][api], {
-            'hostname': self.hostname,
-        }) + '/'
+        url = self.implode_params(self.urls['api'][api], {'hostname': self.hostname,}) + '/'
         if api != 'v3' and api != 'v3public':
             url += self.version + '/'
         if api == 'public':
@@ -1416,7 +1418,7 @@ class bittrex(Exchange):
             if params:
                 url += '?' + self.urlencode(params)
         elif api == 'v3':
-            url += path
+            url += self.implode_params(path, params)
             hashString = ''
             if method == 'POST':
                 body = self.json(params)
