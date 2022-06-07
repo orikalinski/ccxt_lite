@@ -103,8 +103,6 @@ class bittrex(Exchange):
                         'addresses/{currencySymbol}',
                         'balances',
                         'balances/{currencySymbol}',
-                        'currencies',
-                        'currencies/{symbol}',
                         'deposits/open',
                         'deposits/closed',
                         'deposits/ByTxId/{txId}',
@@ -144,6 +142,8 @@ class bittrex(Exchange):
                 },
                 'v3public': {
                     'get': [
+                        'currencies',
+                        'currencies/{symbol}',
                         'markets',
                         'markets/summaries',
                         'markets/tickers',
@@ -422,7 +422,7 @@ class bittrex(Exchange):
         return self.parse_order_book(orderbook, None, 'buy', 'sell', 'Rate', 'Quantity')
 
     def fetch_currencies(self, params={}):
-        response = self.v3GetCurrencies(params)
+        response = self.v3publicGetCurrencies(params)
         #
         #     {
         #         "success": True,
@@ -722,7 +722,6 @@ class bittrex(Exchange):
             market = self.market(symbol)
             request['marketSymbol'] = market['info']['symbol']
         response = self.v3GetOrdersOpen(self.extend(request, params))
-        # result = self.safe_value(response, 'result', [])
         orders = self.parse_orders(response, market, since, limit)
         return self.filter_by_symbol(orders, symbol)
 
