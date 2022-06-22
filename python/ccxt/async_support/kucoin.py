@@ -1539,6 +1539,17 @@ class kucoin(Exchange):
                 result[code] = account
         return self.parse_balance(result)
 
+    async def get_private_ws_details(self, params={}):
+        response = await self.privatePostBulletPrivate(params)
+        data = self.safe_value(response, 'data', [])
+        token = self.safe_string(data, 'token')
+        servers = self.safe_value(data, 'instanceServers')
+        if servers:
+            server = servers[0]
+            endpoint = self.safe_string(server, 'endpoint')
+            ping_interval = self.safe_string(server, 'pingInterval')
+            return {'token': token, 'endpoint': endpoint, 'ping_interval': ping_interval}
+
     async def fetch_ledger(self, code=None, since=None, limit=None, params={}):
         if code is None:
             raise ArgumentsRequired(self.id + ' fetchLedger requires a code param')
