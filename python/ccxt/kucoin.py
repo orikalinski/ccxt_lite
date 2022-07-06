@@ -983,10 +983,7 @@ class kucoin(Exchange):
         cancelExist = self.safe_value(order, 'cancelExist', False)
         status = 'open' if isActive else 'closed'
         status = 'canceled' if cancelExist else status
-        fee = {
-            'currency': feeCurrency,
-            'cost': feeCost,
-        }
+        fee = {'currency': feeCurrency, 'cost': feeCost} if feeCost and feeCurrency else None
         if type == 'market':
             if price == 0.0:
                 if (cost is not None) and (filled is not None):
@@ -1541,6 +1538,17 @@ class kucoin(Exchange):
                 account['used'] = self.safe_float(balance, 'holds')
                 result[code] = account
         return self.parse_balance(result)
+
+    def get_private_ws_details(self, params={}):
+        response = self.privatePostBulletPrivate(params)
+        data = self.safe_value(response, 'data', [])
+        token = self.safe_string(data, 'token')
+        servers = self.safe_value(data, 'instanceServers')
+        if servers:
+            server = servers[0]
+            endpoint = self.safe_string(server, 'endpoint')
+            ping_interval = self.safe_string(server, 'pingInterval')
+            return {'token': token, 'endpoint': endpoint, 'ping_interval': ping_interval}
 
     def fetch_ledger(self, code=None, since=None, limit=None, params={}):
         if code is None:
