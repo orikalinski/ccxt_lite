@@ -906,8 +906,9 @@ class binance(Exchange):
             }
             status = self.safe_string_2(market, 'status', 'contractStatus')
             permissions = self.safe_value(market, 'permissions')
-            active = (status == 'TRADING') and not (permissions and len(permissions) == 1
-                                                    and permissions[0] == "TRD_GRP_003")
+            has_valid_permissions = not (permissions and len(permissions) == 1
+                                         and permissions[0] == "TRD_GRP_003")
+            active = (status == 'TRADING') and has_valid_permissions
             margin = self.safe_value(market, 'isMarginTradingAllowed', future or delivery)
             entry = {
                 'id': id,
