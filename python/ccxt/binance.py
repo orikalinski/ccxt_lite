@@ -905,7 +905,9 @@ class binance(Exchange):
                 'price': self.safe_integer(market, 'quotePrecision'),
             }
             status = self.safe_string_2(market, 'status', 'contractStatus')
-            active = (status == 'TRADING')
+            permissions = self.safe_value(market, 'permissions')
+            active = (status == 'TRADING') and not (permissions and len(permissions) == 1
+                                                    and permissions[0] == "TRD_GRP_003")
             margin = self.safe_value(market, 'isMarginTradingAllowed', future or delivery)
             entry = {
                 'id': id,
