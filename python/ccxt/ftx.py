@@ -327,7 +327,8 @@ class ftx(Exchange):
                     'identity verification': PermissionDenied,
                     'Identity Verification': PermissionDenied,
                     'complete KYC': PermissionDenied,
-                    'you cannot trade futures': PermissionDenied
+                    'you cannot trade futures': PermissionDenied,
+                    'Cannot trade futures': PermissionDenied
                 },
             },
             'precisionMode': TICK_SIZE,
