@@ -152,6 +152,8 @@ class binance(Exchange):
                         # these endpoints require self.apiKey + self.secret
                         'account/apiRestrictions',
                         'asset/assetDividend',
+                        'margin/isolatedMarginData',
+                        'margin/crossMarginData',
                         'margin/loan',
                         'margin/repay',
                         'margin/account',
@@ -506,7 +508,7 @@ class binance(Exchange):
                 'fetchTradesMethod': 'publicGetAggTrades',  # publicGetTrades, publicGetHistoricalTrades
                 'fetchTickersMethod': 'publicGetTicker24hr',
                 'defaultTimeInForce': 'GTC',  # 'GTC' = Good To Cancel(default), 'IOC' = Immediate Or Cancel
-                'defaultType': 'spot',  # 'spot', 'future', 'margin', 'delivery'
+                'defaultType': 'spot',  # 'spot', 'future', 'margin_cross', 'margin_isolated', 'delivery'
                 'hasAlreadyAuthenticatedSuccessfully': False,
                 'warnOnFetchOpenOrdersWithoutSymbol': True,
                 'recvWindow': 5 * 1000,  # 5 sec, binance default
@@ -613,17 +615,7 @@ class binance(Exchange):
 
         return results
 
-    def get_leverage_limits(self):
-        assert self.apiKey and self.secret
-
-        self.load_markets()
-        _type = self.safe_string(self.options, 'defaultType')
-        if _type == "future":
-            response = self.fapiPrivateGetLeverageBracket()
-        elif _type == "delivery":
-            response = self.dapiPrivateV2GetLeverageBracket()
-        else:
-            raise NotSupported()
+    def handle_futures_max_leverage(self, response):
         results = dict()
         for symbol_data in response:
             if ("symbol" in symbol_data or "pair" in symbol_data) and "brackets" in symbol_data:
@@ -635,6 +627,46 @@ class binance(Exchange):
                 pair = self.safe_string(symbol_data, "pair")
                 symbol = self.find_symbol("%s_PERP" % pair)
             results[symbol] = self.parse_symbol_leverage_limits(self.safe_value(symbol_data, "brackets"))
+        return results
+
+    def handle_isolated_response(self, response):
+        results = dict()
+        for symbol_data in response:
+            symbol = self.safe_string(symbol_data, "symbol")
+            if symbol:
+                symbol = self.find_symbol(symbol)
+            leverage = int(symbol_data["leverage"])
+            results[symbol] = [{"leverage": {"min": leverage, "max": leverage}}]
+        return results
+
+    def handle_cross_response(self, response):
+        results = dict()
+        leverage = None
+        for symbol_data in response:
+            for symbol in symbol_data["marginablePairs"]:
+                symbol = self.find_symbol(symbol)
+                results[symbol] = [{"leverage": {"min": leverage, "max": leverage}}]
+        return results
+
+    def get_leverage_limits(self):
+        assert self.apiKey and self.secret
+
+        self.load_markets()
+        _type = self.safe_string(self.options, 'defaultType')
+        if _type == "future":
+            response = self.fapiPrivateGetLeverageBracket()
+            results = self.handle_futures_max_leverage(response)
+        elif _type == "delivery":
+            response = self.dapiPrivateV2GetLeverageBracket()
+            results = self.handle_futures_max_leverage(response)
+        elif _type == "margin_isolated":
+            isolated_response = self.sapiGetMarginIsolatedMarginData()
+            results = self.handle_isolated_response(isolated_response)
+        elif _type == "margin_cross":
+            cross_response = self.sapiGetMarginCrossMarginData()
+            results = self.handle_cross_response(cross_response)
+        else:
+            raise NotSupported()
         return results
 
     def change_margin_type(self, symbol, cross):
@@ -682,20 +714,8 @@ class binance(Exchange):
         else:
             raise NotSupported()
 
-    def get_positions(self, symbol=None):
-        self.load_markets()
-        _type = self.safe_string(self.options, 'defaultType')
+    def parse_positions(self, account_positions, risk_positions):
         positions_to_return = list()
-        if _type == "future":
-            account_positions = self.fapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in
-                              self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
-        elif _type == "delivery":
-            account_positions = self.dapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in
-                              self.dapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
-        else:
-            raise NotSupported()
 
         for account_position in account_positions:
             symbol = account_position["symbol"]
@@ -714,13 +734,89 @@ class binance(Exchange):
                     positions_to_return.append(result)
         return positions_to_return
 
+    def parse_isolated_margin_positions(self, positions):
+        positions_to_return = list()
+        for position in positions:
+            symbolId = position["symbol"]
+            baseAsset = self.safe_value(position, "baseAsset")
+            quoteAsset = self.safe_value(position, "quoteAsset")
+            position_size_in_btc = self.safe_float(baseAsset, "netAssetOfBtc")
+            quote_borrowed_size = min(0, self.safe_float(quoteAsset, "netAssetOfBtc"))
+            used_ratio = (position_size_in_btc + quote_borrowed_size) / position_size_in_btc \
+                if position_size_in_btc else 0.
+            quantity = self.safe_float(baseAsset, "netAsset")
+            maintenance_margin = used_ratio * quantity
+            leverage = quantity / maintenance_margin if maintenance_margin else None
+            symbol = self.find_symbol(symbolId)
+            margin_type = "isolated"
+            liquidation_price = self.safe_float(position, "liquidatePrice")
+            result = {"info": position, "symbol": symbol, "quantity": quantity, "leverage": leverage,
+                      "maintenance_margin": maintenance_margin, "margin_type": margin_type,
+                      "liquidation_price": liquidation_price}
+            positions_to_return.append(result)
+
+        return positions_to_return
+
+    def fetch_collateral(self, asset, symbol=None, params={}):
+        self.load_markets()
+        params["asset"] = asset
+        _type = self.safe_string(self.options, 'defaultType')
+        if _type == "margin_isolated":
+            params["isolatedSymbol"] = self.market_id(symbol)
+            response = self.sapiGetMarginMaxBorrowable(params)
+            quote_asset = self.get_pair(symbol) == asset
+            available_asset_balance = self.fetch_partial_balance(symbol, quote_asset=quote_asset).get("free", 0.)
+        elif _type == "margin_cross":
+            response = self.sapiGetMarginMaxBorrowable(params)
+            available_asset_balance = self.fetch_partial_balance(asset).get("free", 0.)
+        else:
+            raise NotSupported
+        max_borrowable = self.safe_float(response, 'amount')
+        return {"free_collateral": max_borrowable + available_asset_balance}
+
+    def get_positions(self, symbol=None, params=None):
+        self.load_markets()
+        _type = self.safe_string(self.options, 'defaultType')
+
+        if _type == "future":
+            account_positions = self.fapiPrivateGetAccount().get("positions", list())
+            risk_positions = {position["symbol"]: position for position in
+                              self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
+            positions_to_return = self.parse_positions(account_positions, risk_positions)
+        elif _type == "delivery":
+            account_positions = self.dapiPrivateGetAccount().get("positions", list())
+            risk_positions = {position["symbol"]: position for position in
+                              self.dapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
+            positions_to_return = self.parse_positions(account_positions, risk_positions)
+        elif _type == "margin_isolated":
+            response = self.sapiGetMarginIsolatedAccount({"symbols": self.market_id(symbol)} if symbol else {})
+            positions = self.safe_value(response, "assets", [])
+            positions_to_return = self.parse_isolated_margin_positions(positions)
+        else:
+            raise NotSupported()
+
+        return positions_to_return
+
+    def handle_leverage_limits(self, entry, leverage_limits, market, symbol):
+        if leverage_limits:
+            symbol_position_limits = self.safe_value(leverage_limits, symbol)
+            if symbol_position_limits:
+                if any(symbol_position_limit.get("position_amount") or symbol_position_limit.get("position_cost")
+                       for symbol_position_limit in symbol_position_limits):
+                    market["position_limits"] = symbol_position_limits
+                max_leverage = max([leverage_limit["leverage"]["max"] for leverage_limit in symbol_position_limits])
+                entry['limits']['leverage'] = {'max': max_leverage}
+                return True
+            else:
+                return False
+
     def fetch_markets(self, params={}):
         defaultType = self.safe_string_2(self.options, 'fetchMarkets', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
         load_leverage = self.safe_string(params, 'load_leverage')
         query = self.omit(params, 'type', 'load_leverage')
-        if (type != 'spot') and (type != 'future') and (type != 'margin') and (type != 'delivery'):
-            raise ExchangeError(self.id + " does not support '" + type + "' type, set exchange.options['defaultType'] to 'spot', 'margin', 'delivery' or 'future'")  # eslint-disable-line quotes
+        if (type != 'spot') and (type != 'future') and (type != 'margin_cross') and (type != 'margin_isolated') and (type != 'delivery'):
+            raise ExchangeError(self.id + " does not support '" + type + "' type, set exchange.options['defaultType'] to 'spot', 'margin_cross', 'margin_isolated', 'delivery' or 'future'")  # eslint-disable-line quotes
         method = 'publicGetExchangeInfo'
         if type == 'future':
             method = 'fapiPublicGetExchangeInfo'
@@ -729,7 +825,7 @@ class binance(Exchange):
         response = getattr(self, method)(query)
 
         leverage_limits = None
-        if load_leverage and type in {'future', 'delivery'}:
+        if load_leverage and type in {'future', 'delivery', 'margin_isolated', 'margin_cross'}:
             leverage_limits = self.get_leverage_limits()
         #
         # spot / margin
@@ -973,11 +1069,9 @@ class binance(Exchange):
                     min_notional = self.safe_float(filter, 'notional')
                 entry['limits']['cost']['min'] = min_notional
 
-            if leverage_limits:
-                symbol_position_limits = self.safe_value(leverage_limits, symbol)
-                market["position_limits"] = symbol_position_limits
-                max_leverage = max([leverage_limit["leverage"]["max"] for leverage_limit in symbol_position_limits])
-                entry['limits']['leverage'] = {'max': max_leverage}
+            exists = self.handle_leverage_limits(entry, leverage_limits, market, symbol)
+            if exists is False:
+                continue
             result.append(entry)
         return result
 
@@ -1000,12 +1094,12 @@ class binance(Exchange):
             'cost': float(cost),
         }
 
-    def fetch_partial_balance(self, part, params={}):
+    def fetch_partial_balance(self, part, quote_asset=True, params={}):
         currency = self.reversed_commonCurrencies.get(part, part)
-        balance = self.fetch_balance(currency, params)
+        balance = self.fetch_balance(currency, quote_asset=quote_asset, params=params)
         return balance[part]
 
-    def fetch_balance(self, part=None, params={}):
+    def fetch_balance(self, part=None, quote_asset=True, params={}):
         self.load_markets()
         defaultType = self.safe_string_2(self.options, 'fetchBalance', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
@@ -1018,7 +1112,9 @@ class binance(Exchange):
             options = self.safe_value(self.options, 'delivery', {})
             fetchBalanceOptions = self.safe_value(options, 'fetchBalance', {})
             method = self.safe_string(fetchBalanceOptions, 'method', 'dapiPrivateGetAccount')
-        elif type == 'margin':
+        elif type == 'margin_isolated':
+            method = 'sapiGetMarginIsolatedAccount'
+        elif type == 'margin_cross':
             method = 'sapiGetMarginAccount'
         query = self.omit(params, 'type')
         response = getattr(self, method)(query)
@@ -1167,7 +1263,22 @@ class binance(Exchange):
         #     ]
         #
         result = {'info': response}
-        if (type == 'spot') or (type == 'margin'):
+        if type == 'margin_isolated':
+            balances = self.safe_value(response, 'assets', [])
+            if part:
+                balances = [balance for balance in balances if self.find_symbol(balance.get("symbol")) == part]
+            for balance in balances:
+                symbolId = self.safe_string(balance, 'symbol')
+                symbol = self.find_symbol(symbolId)
+                account = self.account()
+                asset_dict = self.safe_value(balance, 'quoteAsset') if quote_asset \
+                    else self.safe_value(balance, 'baseAsset')
+                account['free'] = self.safe_float(asset_dict, 'free')
+                account['used'] = self.safe_float(asset_dict, 'locked')
+                account['borrowed'] = self.safe_float(asset_dict, 'borrowed')
+
+                result[symbol] = account
+        elif (type == 'spot') or (type == 'margin_cross'):
             balances = self.safe_value_2(response, 'balances', 'userAssets', [])
             if part:
                 balances = [balance for balance in balances if balance.get("asset") == part]
@@ -1178,6 +1289,9 @@ class binance(Exchange):
                 account = self.account()
                 account['free'] = self.safe_float(balance, 'free')
                 account['used'] = self.safe_float(balance, 'locked')
+                borrowed = self.safe_float(balance, 'borrowed')
+                if borrowed is not None:
+                    account['borrowed'] = borrowed
                 result[code] = account
         else:
             balances = response
@@ -1743,7 +1857,10 @@ class binance(Exchange):
             method = 'fapiPrivatePostOrder'
         elif orderType == 'delivery':
             method = 'dapiPrivatePostOrder'
-        elif orderType == 'margin':
+        elif orderType == 'margin_isolated':
+            method = 'sapiPostMarginOrder'
+            params["isIsolated"] = "TRUE"
+        elif orderType == 'margin_cross':
             method = 'sapiPostMarginOrder'
         # the next 5 lines are added to support for testing orders
         if market['spot']:
@@ -1880,7 +1997,10 @@ class binance(Exchange):
             method = 'fapiPrivateGetOrder'
         elif type == 'delivery':
             method = 'dapiPrivateGetOrder'
-        elif type == 'margin':
+        elif type == 'margin_isolated':
+            method = 'sapiGetMarginOrder'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
             method = 'sapiGetMarginOrder'
         request = {
             'symbol': market['id'],
@@ -1911,7 +2031,10 @@ class binance(Exchange):
             method = 'fapiPrivateGetAllOrders'
         elif type == 'delivery':
             method = 'dapiPrivateGetAllOrders'
-        elif type == 'margin':
+        elif type == 'margin_isolated':
+            method = 'sapiGetMarginAllOrders'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
             method = 'sapiGetMarginAllOrders'
         request = {
             'symbol': market['id'],
@@ -1979,7 +2102,6 @@ class binance(Exchange):
             request['symbol'] = market['id']
             defaultType = self.safe_string_2(self.options, 'fetchOpenOrders', 'defaultType', market['type'])
             type = self.safe_string(params, 'type', defaultType)
-            query = self.omit(params, 'type')
         elif self.options['warnOnFetchOpenOrdersWithoutSymbol']:
             symbols = self.symbols
             numSymbols = len(symbols)
@@ -1988,14 +2110,17 @@ class binance(Exchange):
         else:
             defaultType = self.safe_string_2(self.options, 'fetchOpenOrders', 'defaultType', 'spot')
             type = self.safe_string(params, 'type', defaultType)
-            query = self.omit(params, 'type')
         method = 'privateGetOpenOrders'
         if type == 'future':
             method = 'fapiPrivateGetOpenOrders'
         elif type == 'delivery':
             method = 'dapiPrivateGetOpenOrders'
-        elif type == 'margin':
+        elif type == 'margin_isolated':
             method = 'sapiGetMarginOpenOrders'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
+            method = 'sapiGetMarginOpenOrders'
+        query = self.omit(params, 'type')
         response = getattr(self, method)(self.extend(request, query))
         return self.parse_orders(response, market, since, limit)
 
@@ -2026,7 +2151,10 @@ class binance(Exchange):
             method = 'fapiPrivateDeleteOrder'
         elif type == 'delivery':
             method = 'dapiPrivateDeleteOrder'
-        elif type == 'margin':
+        elif type == 'margin_isolated':
+            method = 'sapiDeleteMarginOrder'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
             method = 'sapiDeleteMarginOrder'
         query = self.omit(params, ['type', 'origClientOrderId', 'clientOrderId'])
         response = getattr(self, method)(self.extend(request, query))
@@ -2067,6 +2195,11 @@ class binance(Exchange):
             method = 'fapiPrivateGetUserTrades'
         elif type == 'delivery':
             method = 'dapiPrivateGetUserTrades'
+        elif type == 'margin_isolated':
+            method = 'sapiGetMarginMyTrades'
+            params["isIsolated"] = "TRUE"
+        elif type == 'margin_cross':
+            method = 'sapiGetMarginMyTrades'
         params = self.omit(params, 'type')
         request = {
             'symbol': market['id'],
