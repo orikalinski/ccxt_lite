@@ -165,13 +165,13 @@ class bybit(Exchange):
                         'public/linear/premium-index-kline',
                         'spot/v3/public/time',
                         'spot/v3/public/symbols',
-                        'spot/quote/v3/depth',
-                        'spot/quote/v3/depth/merged',
-                        'spot/quote/v3/trades',
-                        'spot/quote/v3/kline',
-                        'spot/quote/v3/ticker/24hr',
-                        'spot/quote/v3/ticker/price',
-                        'spot/quote/v3/ticker/book_ticker',
+                        'spot/v3/public/quote/depth',
+                        'spot/v3/public/quote/merged',
+                        'spot/v3/public/quote/trades',
+                        'spot/v3/public/quote/kline',
+                        'spot/v3/public/quote/ticker/24hr',
+                        'spot/v3/public/quote/ticker/price',
+                        'spot/v3/public/quote/ticker/book_ticker',
                         'v2/public/time',
                         'v2/public/announcement',
                         'option/usdc/openapi/public/v1/order-book',
@@ -1507,19 +1507,22 @@ class bybit(Exchange):
         #          "theta": "-0.03262827"
         #      }
         #
-        timestamp = self.safe_integer(ticker, 'time')
-        marketId = self.safe_string(ticker, 'symbol')
+        timestamp = self.safe_integer_2(ticker, 'time', 't')
+        marketId = self.safe_string_2(ticker, 'symbol', 's')
         symbol = self.safe_symbol(marketId, market)
-        last = self.safe_string_2(ticker, 'last_price', 'lastPrice')
-        open = self.safe_string_2(ticker, 'prev_price_24h', 'openPrice')
-        percentage = self.safe_string_2(ticker, 'price_24h_pcnt', 'change24h')
+
+        last = self.safe_string_n(ticker, ['last_price', 'lastPrice', 'lp'])
+        if last == '0':
+            return
+        open = self.safe_string_n(ticker, ['prev_price_24h', 'openPrice', 'o'])
+        percentage = self.safe_string_n(ticker, ['price_24h_pcnt', 'change24h'])
         percentage = Precise.string_mul(percentage, '100')
-        quoteVolume = self.safe_string_n(ticker, ['turnover_24h', 'turnover24h', 'quoteVolume'])
-        baseVolume = self.safe_string_n(ticker, ['volume_24h', 'volume24h', 'volume'])
-        bid = self.safe_string_n(ticker, ['bid_price', 'bid', 'bestBidPrice'])
-        ask = self.safe_string_n(ticker, ['ask_price', 'ask', 'bestAskPrice'])
-        high = self.safe_string_n(ticker, ['high_price_24h', 'high24h', 'highPrice'])
-        low = self.safe_string_n(ticker, ['low_price_24h', 'low24h', 'lowPrice'])
+        quoteVolume = self.safe_string_n(ticker, ['turnover_24h', 'turnover24h', 'quoteVolume', 'qv'])
+        baseVolume = self.safe_string_n(ticker, ['volume_24h', 'volume24h', 'volume', 'v'])
+        bid = self.safe_string_n(ticker, ['bid_price', 'bid', 'bestBidPrice', 'bp'])
+        ask = self.safe_string_n(ticker, ['ask_price', 'ask', 'bestAskPrice', 'ap'])
+        high = self.safe_string_n(ticker, ['high_price_24h', 'high24h', 'highPrice', 'h'])
+        low = self.safe_string_n(ticker, ['low_price_24h', 'low24h', 'lowPrice', 'l'])
         return self.safe_ticker({
             'symbol': symbol,
             'timestamp': timestamp,
@@ -1557,7 +1560,7 @@ class bybit(Exchange):
         market = self.market(symbol)
         is_usdc_settled = market['settle'] == 'USDC'
         if market['spot']:
-            method = 'publicGetSpotQuoteV1Ticker24hr'
+            method = 'publicGetSpotV3PublicQuoteTicker24hr'
         elif not is_usdc_settled:
             # inverse perpetual  # usdt linear  # inverse futures
             method = 'publicGetV2PublicTickers'
@@ -1671,9 +1674,8 @@ class bybit(Exchange):
                 defaultSettle = self.safe_string_2(params, 'settle', 'defaultSettle', isUsdcSettled)
                 params = self.omit(params, ['settle', 'defaultSettle'])
                 isUsdcSettled = defaultSettle == 'USDC'
-        method = None
         if type == 'spot':
-            method = 'publicGetSpotQuoteV1Ticker24hr'
+            method = 'publicGetSpotV3PublicQuoteTicker24hr'
         elif not isUsdcSettled:
             # inverse perpetual  # usdt linear  # inverse futures
             method = 'publicGetV2PublicTickers'
@@ -1681,11 +1683,13 @@ class bybit(Exchange):
             raise NotSupported(self.id + ' fetchTickers() is not supported for USDC markets')
         response = getattr(self, method)(params)
         result = self.safe_value(response, 'result', [])
+        result = self.safe_value(result, 'list', result)
         tickers = {}
         for i in range(0, len(result)):
             ticker = self.parse_ticker(result[i])
-            symbol = ticker['symbol']
-            tickers[symbol] = ticker
+            if ticker:
+                symbol = ticker['symbol']
+                tickers[symbol] = ticker
         return self.filter_by_array(tickers, 'symbol', symbols)
 
     def parse_ohlcv(self, ohlcv, market=None):
@@ -1801,7 +1805,7 @@ class bybit(Exchange):
         sinceKey = 'from'
         isUsdcSettled = market['settle'] == 'USDC'
         if market['spot']:
-            method = 'publicGetSpotQuoteV1Kline'
+            method = 'publicGetSpotV3PublicQuoteKline'
         elif market['contract'] and not isUsdcSettled:
             if market['linear']:
                 # linear swaps/futures
@@ -2178,7 +2182,7 @@ class bybit(Exchange):
         }
         isUsdcSettled = market['settle'] == 'USDC'
         if market['type'] == 'spot':
-            method = 'publicGetSpotQuoteV1Trades'
+            method = 'publicGetSpotV3PublicQuoteTrades'
         elif not isUsdcSettled:
             # inverse perpetual  # usdt linear  # inverse futures
             method = 'publicGetPublicLinearRecentTradingRecords' if market[
@@ -2278,7 +2282,7 @@ class bybit(Exchange):
         }
         isUsdcSettled = market['settle'] == 'USDC'
         if market['spot']:
-            method = 'publicGetSpotQuoteV1Depth'
+            method = 'publicGetSpotV3PublicQuoteDepth'
         elif not isUsdcSettled:
             # inverse perpetual  # usdt linear  # inverse futures
             method = 'publicGetV2PublicOrderBookL2'
