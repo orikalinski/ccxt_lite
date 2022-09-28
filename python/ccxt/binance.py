@@ -41,6 +41,7 @@ STATUSES_MAPPING = {
 
 PERMISSION_TO_VALUE = {"spot": ["enableSpotAndMarginTrading"], "futures": ["enableFutures"],
                        "withdrawal": ["enableWithdrawals"]}
+EXTRACT_ERROR_ERRORCODES = {'-4046', '-4059'}
 
 
 class binance(Exchange):
@@ -2659,6 +2660,21 @@ class binance(Exchange):
             "ip_restrict": self.safe_value(response, "ipRestrict")
         }
 
+    def change_position_mode(self, is_hedge_mode):
+        _type = self.safe_string(self.options, 'defaultType')
+        try:
+            if _type == "future":
+                self.fapiPrivatePostPositionsideDual({'dualSidePosition': is_hedge_mode})
+            elif _type == "delivery":
+                self.dapiPrivatePostPositionsideDual({'dualSidePosition': is_hedge_mode})
+            else:
+                raise NotSupported()
+        except ExchangeError as e:
+            args = e.args
+            if args and len(args) > 0 and args[0] == '-4059':
+                return
+            raise e
+
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         if not (api in self.urls['api']):
             raise NotSupported(self.id + ' does not have a testnet/sandbox URL for ' + api + ' endpoints')
@@ -2764,7 +2780,7 @@ class binance(Exchange):
             # a workaround for {"code":-2015,"msg":"Invalid API-key, IP, or permissions for action."}
             # despite that their message is very confusing, it is raised by Binance
             # on a temporary ban, the API key is valid, but disabled for a while
-            if error == '-4046':
+            if error in EXTRACT_ERROR_ERRORCODES:
                 raise ExchangeError(error, body)
             if (error == '-2015') and self.options['hasAlreadyAuthenticatedSuccessfully']:
                 raise DDoSProtection(self.id + ' temporary banned: ' + body)
