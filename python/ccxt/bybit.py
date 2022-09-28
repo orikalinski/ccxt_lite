@@ -5091,7 +5091,7 @@ class bybit(Exchange):
         return tiers
 
     def get_api_account_details(self):
-        response = self.privateGetAccountApiKey()
+        response = self.privateGetV2PrivateAccountApiKey()
         result = self.safe_value(response, 'result')
         result = result[0] if result and type(result) == list else result
         ips = self.safe_value(result, "ips")
