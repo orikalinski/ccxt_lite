@@ -60,7 +60,7 @@ class bybit(Exchange):
                 'fetchBorrowRateHistory': False,
                 'fetchBorrowRates': False,
                 'fetchClosedOrders': True,
-                'fetchCurrencies': True,
+                'fetchCurrencies': False,
                 'fetchDepositAddress': True,
                 'fetchDepositAddresses': False,
                 'fetchDepositAddressesByNetwork': True,
@@ -2542,6 +2542,7 @@ class bybit(Exchange):
             'PARTIALLY_FILLED': 'open',
             'FILLED': 'closed',
             'CANCELED': 'canceled',
+            'ORDER_CANCELED': 'canceled',
             'PENDINGCANCEL': 'canceling',
             'PENDING_CANCEL': 'canceling',
             # conditional orders
@@ -3325,16 +3326,15 @@ class bybit(Exchange):
             # spot orders
             # 'orderId': id
         }
-        order_type = self.safe_string_lower(params, 'orderType')
-        is_stop = self.safe_value(params, 'stop', False)
-        is_conditional = is_stop or (order_type == 'stop') or (order_type == 'conditional')
-        params = self.omit(params, ['orderType', 'stop'])
+        stop_order_id = self.safe_string(params, 'stop_order_id')
+        is_conditional = stop_order_id is not None
+        params = self.omit(params, ['orderType', 'stop', 'stop_order_id'])
         is_usdc_settled = market['settle'] == 'USDC'
         if market['spot']:
             method = 'privatePostSpotV3PrivateCancelOrder'
-            request['orderId'] = id
+            if is_conditional:
+                request['orderCategory'] = 1
         elif is_usdc_settled:
-            request['orderId'] = id
             if market['option']:
                 method = 'privatePostOptionUsdcOpenapiPrivateV1CancelOrder'
             else:
@@ -3350,10 +3350,13 @@ class bybit(Exchange):
             # inverse futures
             method = 'privatePostFuturesPrivateStopOrderCancel' if is_conditional else 'privatePostFuturesPrivateOrderCancel'
         if market['contract'] and not is_usdc_settled:
-            if not is_conditional:
-                request['order_id'] = id
+            if is_conditional:
+                request['stop_order_id'] = stop_order_id
             else:
-                request['stop_order_id'] = id
+                request['order_id'] = id
+        else:
+            request['orderId'] = stop_order_id if stop_order_id else id
+
         response = getattr(self, method)(self.extend(request, params))
         # spot order
         #    {
@@ -5177,13 +5180,13 @@ class bybit(Exchange):
         #         time_now: '1583934106.590436'
         #     }
         #
-        error_code = self.safe_value(response, 'ret_code')
+        error_code = self.safe_value_2(response, 'ret_code', 'retCode')
         if error_code:
             error_code = str(error_code)
-            return_message = self.safe_value(response, "ret_msg")
+            return_message = self.safe_value_2(response, "ret_msg", "retMsg")
             return_message = return_message.lower() if return_message else return_message
             feedback = self.id + ' ' + body
-            if "order not exists" in return_message:
+            if any(error in return_message for error in ["order not exists", "order does not exist"]):
                 raise OrderNotFound(feedback)
             if "unknown order_status" in return_message:
                 if "untriggered" in return_message:
