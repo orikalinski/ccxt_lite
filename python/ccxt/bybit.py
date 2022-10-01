@@ -2825,33 +2825,31 @@ class bybit(Exchange):
         market = None
         if symbol is not None:
             market = self.market(symbol)
-        type, params = self.handle_market_type_and_params('fetchOrder', market, params)
-        if type != 'spot' and symbol is None:
-            raise ArgumentsRequired(self.id + ' fetchOrder() requires a symbol argument for ' + type + ' markets')
+        default_type = self.safe_string(self.options, 'defaultType')
+        if default_type != 'spot' and symbol is None:
+            raise ArgumentsRequired(self.id + ' fetchOrder() requires a symbol argument for ' + default_type +
+                                    ' markets')
 
-        stopOrderId = self.safe_string(params, 'stop_order_id')
-        stop = self.safe_value(params, 'stop', False)
-        orderType = self.safe_string_lower(params, 'orderType')
-        isConditional = stop or (stopOrderId is not None) or (orderType == 'stop' or orderType == 'conditional')
-        if type == 'spot':
+        order_type = self.safe_string_lower(params, 'type')
+        self.omit(params, ["type"])
+        is_conditional = order_type == 'stop'
+        if default_type == 'spot':
             # only spot markets have a dedicated endpoint for fetching a order
             request = {
                 'orderId': id,
             }
-            if isConditional:
+            if is_conditional:
                 request["orderCategory"] = 1
             response = self.privateGetSpotV3PrivateOrder(self.extend(params, request))
             result = self.safe_value(response, 'result', {})
             return self.parse_order(result)
-        isUsdcSettled = (market['settle'] == 'USDC')
-        if stopOrderId is None:
-            orderKey = None
-            if isConditional:
-                orderKey = 'stop_order_id'
-            else:
-                orderKey = 'orderId' if isUsdcSettled else 'order_id'
-            params[orderKey] = id
-        if isUsdcSettled or market['future'] or market['inverse']:
+        is_usdc_settled = (market['settle'] == 'USDC')
+        if is_conditional:
+            order_key = 'stop_order_id'
+        else:
+            order_key = 'orderId' if is_usdc_settled else 'order_id'
+        params[order_key] = id
+        if is_usdc_settled or market['future'] or market['inverse']:
             raise NotSupported(
                 self.id + ' fetchOrder() supports spot markets and linear non-USDC perpetual swap markets only')
         else:
