@@ -2761,7 +2761,7 @@ class bybit(Exchange):
         average = self.safe_float_2(order, 'average_price', 'avgPrice')
         amount = self.safe_float_n(order, ['qty', 'origQty', 'orderQty'])
         cost = self.safe_float_n(order, ['cum_exec_value', 'cumExecValue', 'cummulativeQuoteQty'])
-        filled = self.safe_float_n(order, ['cum_exec_qty', 'executedQty', 'cumExecQty', 'execQty'])
+        filled = self.safe_float_n(order, ['cum_exec_qty', 'executedQty', 'cumExecQty', 'execQty'], default_value=0.)
         remaining = self.safe_float_2(order, 'leaves_qty', 'leavesQty')
         lastTradeTimestamp = self.safe_timestamp(order, 'last_exec_time')
         if lastTradeTimestamp == 0:
