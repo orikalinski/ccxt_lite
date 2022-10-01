@@ -2537,6 +2537,7 @@ class bybit(Exchange):
             'CREATED': 'open',
             'REJECTED': 'rejected',
             'NEW': 'open',
+            'ORDER_NEW': 'open',
             'PENDING_NEW': 'open',
             'PARTIALLYFILLED': 'open',
             'PARTIALLY_FILLED': 'open',
