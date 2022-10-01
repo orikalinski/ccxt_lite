@@ -2828,19 +2828,22 @@ class bybit(Exchange):
         type, params = self.handle_market_type_and_params('fetchOrder', market, params)
         if type != 'spot' and symbol is None:
             raise ArgumentsRequired(self.id + ' fetchOrder() requires a symbol argument for ' + type + ' markets')
+
+        stopOrderId = self.safe_string(params, 'stop_order_id')
+        stop = self.safe_value(params, 'stop', False)
+        orderType = self.safe_string_lower(params, 'orderType')
+        isConditional = stop or (stopOrderId is not None) or (orderType == 'stop' or orderType == 'conditional')
         if type == 'spot':
             # only spot markets have a dedicated endpoint for fetching a order
             request = {
                 'orderId': id,
             }
+            if isConditional:
+                request["orderCategory"] = 1
             response = self.privateGetSpotV3PrivateOrder(self.extend(params, request))
             result = self.safe_value(response, 'result', {})
             return self.parse_order(result)
         isUsdcSettled = (market['settle'] == 'USDC')
-        stopOrderId = self.safe_string(params, 'stop_order_id')
-        stop = self.safe_value(params, 'stop', False)
-        orderType = self.safe_string_lower(params, 'orderType')
-        isConditional = stop or (stopOrderId is not None) or (orderType == 'stop' or orderType == 'conditional')
         if stopOrderId is None:
             orderKey = None
             if isConditional:
