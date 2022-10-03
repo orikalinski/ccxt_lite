@@ -246,7 +246,7 @@ class bybit(Exchange):
                         'spot/v3/private/order',
                         'spot/v3/private/open-orders',
                         'spot/v3/private/history-orders',
-                        'spot/v3/private/myTrades',
+                        'spot/v3/private/my-trades',
                         'spot/v3/private/cross-margin/order',
                         'spot/v3/private/cross-margin/accounts/balance',
                         'spot/v3/private/cross-margin/loan-info',
