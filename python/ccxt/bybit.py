@@ -972,8 +972,8 @@ class bybit(Exchange):
             params = {}
         if self.options['adjustForTimeDifference']:
             self.load_time_difference()
-        _type, params = self.handle_market_type_and_params('fetchMarkets', None, params)
-        if _type == 'spot':
+        default_type = self.safe_string(self.options, 'defaultType')
+        if default_type == 'spot':
             # spot and swap ids are equal
             # so they can't be loaded together
             spotMarkets = self.fetch_spot_markets(params)
@@ -1661,20 +1661,19 @@ class bybit(Exchange):
             params = {}
         self.load_markets()
         symbols = self.market_symbols(symbols)
-        market = None
         isUsdcSettled = None
         if symbols is not None:
             symbol = self.safe_value(symbols, 0)
             market = self.market(symbol)
-            type = market['type']
+            _type = market['type']
             isUsdcSettled = market['settle'] == 'USDC'
         else:
-            type, params = self.handle_market_type_and_params('fetchTickers', market, params)
-            if type != 'spot':
+            _type = self.safe_string(self.options, 'defaultType')
+            if _type != 'spot':
                 defaultSettle = self.safe_string_2(params, 'settle', 'defaultSettle', isUsdcSettled)
                 params = self.omit(params, ['settle', 'defaultSettle'])
                 isUsdcSettled = defaultSettle == 'USDC'
-        if type == 'spot':
+        if _type == 'spot':
             method = 'publicGetSpotV3PublicQuoteTicker24hr'
         elif not isUsdcSettled:
             # inverse perpetual  # usdt linear  # inverse futures
@@ -2470,8 +2469,8 @@ class bybit(Exchange):
         if params is None:
             params = {}
         request = {}
-        type, params = self.handle_market_type_and_params('fetchBalance', None, params)
-        if type == 'spot':
+        default_type = self.safe_string(self.options, 'defaultType')
+        if default_type == 'spot':
             method = 'privateGetSpotV3PrivateAccount'
         else:
             settle = self.safe_string(self.options, 'defaultSettle')
@@ -2832,7 +2831,7 @@ class bybit(Exchange):
                                     ' markets')
 
         order_type = self.safe_string_lower(params, 'type')
-        self.omit(params, ["type"])
+        params = self.omit(params, ["type"])
         is_conditional = order_type == 'stop'
         if default_type == 'spot':
             # only spot markets have a dedicated endpoint for fetching a order
@@ -3417,22 +3416,24 @@ class bybit(Exchange):
             settle = self.safe_string_2(params, 'settle', 'defaultSettle', settle)
             params = self.omit(params, ['settle', 'defaultSettle'])
             is_usdc_settled = (settle == 'USDC')
-        _type, params = self.handle_market_type_and_params('cancelAllOrders', market, params)
+        default_type = self.safe_string(self.options, 'defaultType')
         if not is_usdc_settled and symbol is None:
-            raise ArgumentsRequired(self.id + ' cancelAllOrders() requires a symbol argument for ' + _type + ' markets')
+            raise ArgumentsRequired(self.id + ' cancelAllOrders() requires a symbol argument for ' + default_type + 
+                                    ' markets')
         request = {}
         if not is_usdc_settled:
             request['symbol'] = market['id']
-        order_type = self.safe_string_lower(params, 'orderType')
-        is_stop = self.safe_value(params, 'stop', False)
-        is_conditional = is_stop or (order_type == 'stop') or (order_type == 'conditional')
-        params = self.omit(params, ['stop', 'orderType'])
-        if _type == 'spot':
-            method = 'privateDeleteSpotOrderBatchCancel'
+        order_type = self.safe_string_lower(params, 'type')
+        params = self.omit(params, ["type"])
+        is_conditional = order_type == 'stop'
+        if default_type == 'spot':
+            method = 'privateSpotV3PrivateCancelOrders'
+            if is_conditional:
+                request["orderCategory"] = 1
         elif is_usdc_settled:
             method = 'privatePostOptionUsdcOpenapiPrivateV1CancelAll' if (
-                        _type == 'option') else 'privatePostPerpetualUsdcOpenapiPrivateV1CancelAll'
-        elif _type == 'future':
+                        default_type == 'option') else 'privatePostPerpetualUsdcOpenapiPrivateV1CancelAll'
+        elif default_type == 'future':
             method = 'privatePostFuturesPrivateStopOrderCancelAll' if is_conditional else 'privatePostFuturesPrivateOrderCancelAll'
         elif market['linear']:
             # linear swap
@@ -3666,15 +3667,14 @@ class bybit(Exchange):
             settle = self.safe_string_2(params, 'settle', 'defaultSettle', settle)
             params = self.omit(params, ['settle', 'defaultSettle'])
             is_usdc_settled = settle == 'USDC'
-        _type, params = self.handle_market_type_and_params('fetchClosedOrders', market, params)
-        if (_type == 'swap' or _type == 'future') and not is_usdc_settled:
+        default_type = self.safe_string(self.options, 'defaultType')
+        order_type = self.safe_string_lower(params, 'type')
+        params = self.omit(params, ["type"])
+        is_conditional = order_type == 'stop'
+        if (default_type == 'swap' or default_type == 'future') and not is_usdc_settled:
             if symbol is None:
                 raise ArgumentsRequired(
                     self.id + ' fetchClosedOrders requires a symbol argument for ' + symbol + ' markets')
-            _type = self.safe_string_lower(params, 'orderType')
-            is_stop = self.safe_value(params, 'stop', False)
-            is_conditional = is_stop or (_type == 'stop') or (_type == 'conditional')
-            params = self.omit(params, ['orderType', 'stop'])
             if not is_conditional:
                 default_statuses = [
                     'Rejected',
@@ -3696,12 +3696,14 @@ class bybit(Exchange):
             params['order_status'] = status
             return self.fetch_orders(symbol, since, limit, params)
         request = {}
-        if _type == 'spot':
+        if default_type == 'spot':
             method = 'privateGetSpotV3PrivateHistoryOrders'
+            if is_conditional:
+                request["orderCategory"] = 1
         else:
             # usdc
             method = 'privatePostOptionUsdcOpenapiPrivateV1QueryOrderHistory'
-            request['category'] = 'perpetual' if (_type == 'swap') else 'option'
+            request['category'] = 'perpetual' if (default_type == 'swap') else 'option'
         orders = getattr(self, method)(self.extend(request, params))
         result = self.safe_value(orders, 'result', [])
         if not isinstance(result, list):
@@ -3729,17 +3731,18 @@ class bybit(Exchange):
             settle = self.safe_string_2(params, 'settle', 'defaultSettle', settle)
             params = self.omit(params, ['settle', 'defaultSettle'])
             is_usdc_settled = settle == 'USDC'
-        _type, params = self.handle_market_type_and_params('fetchOpenOrders', market, params)
+
+        default_type = self.safe_string(self.options, 'defaultType')
+        order_type = self.safe_string_lower(params, 'type')
+        params = self.omit(params, ["type"])
+        is_conditional = order_type == 'stop'
+
         request = {}
-        if (_type == 'swap' or _type == 'future') and not is_usdc_settled:
+        if (default_type == 'swap' or default_type == 'future') and not is_usdc_settled:
             if symbol is None:
                 raise ArgumentsRequired(
                     self.id + ' fetchOpenOrders requires a symbol argument for ' + symbol + ' markets')
             request['symbol'] = market['id']
-            _type = self.safe_string_lower(params, 'orderType')
-            is_stop = self.safe_value(params, 'stop', False)
-            is_conditional = is_stop or (_type == 'stop') or (_type == 'conditional')
-            params = self.omit(params, ['stop', 'orderType'])
             if market['future']:
                 method = 'privateGetFuturesPrivateStopOrder' if is_conditional else 'privateGetFuturesPrivateOrder'
             elif market['linear']:
@@ -3747,12 +3750,14 @@ class bybit(Exchange):
             else:
                 # inverse swap
                 method = 'privateGetV2PrivateStopOrder' if is_conditional else 'privateGetV2PrivateOrder'
-        elif _type == 'spot':
+        elif default_type == 'spot':
             method = 'privateGetSpotV3PrivateOpenOrders'
+            if is_conditional:
+                request["orderCategory"] = 1
         else:
             # usdc
             method = 'privatePostOptionUsdcOpenapiPrivateV1QueryActiveOrders'
-            request['category'] = 'perpetual' if (_type == 'swap') else 'option'
+            request['category'] = 'perpetual' if (default_type == 'swap') else 'option'
         orders = getattr(self, method)(self.extend(request, params))
         result = self.safe_value(orders, 'result', [])
         if not isinstance(result, list):
