@@ -108,13 +108,13 @@ class bybit(Exchange):
             'api': {
                 'public': {
                     'get': [
-                        'orderBook/L2',
-                        'kline/list',
-                        'tickers',
-                        'trading-records',
-                        'symbols',
-                        'time',
-                        'announcement',
+                        'v2/public/orderBook/L2',
+                        'v2/public/kline/list',
+                        'v2/public/tickers',
+                        'v2/public/trading-records',
+                        'v2/public/symbols',
+                        'v2/public/time',
+                        'v2/public/announcement',
                         'spot/v3/public/time',
                         'spot/v3/public/symbols',
                         'spot/v3/public/quote/depth',
@@ -124,20 +124,27 @@ class bybit(Exchange):
                         'spot/v3/public/quote/ticker/24hr',
                         'spot/v3/public/quote/ticker/price',
                         'spot/v3/public/quote/ticker/book_ticker',
+                        'public/linear/kline',
+                        'public/linear/recent-trading-records',
+                        'public/linear/risk-limit',
+                        'public/linear/funding/prev-funding-rate',
+                        'public/linear/mark-price-kline',
+                        'public/linear/index-price-kline',
+                        'public/linear/premium-index-kline',
                     ],
                 },
                 'private': {
                     'get': [
-                        'order',
-                        'stop-order',
-                        'order/list',
-                        'stop-order/list',
-                        'position/list',
-                        'wallet/balance',
-                        'execution/list',
-                        'wallet/fund/records',
-                        'wallet/withdraw/list',
-                        'account/api-key',
+                        'v2/private/order',
+                        'v2/private/stop-order',
+                        'v2/private/order/list',
+                        'v2/private/stop-order/list',
+                        'v2/private/position/list',
+                        'v2/private/wallet/balance',
+                        'v2/private/execution/list',
+                        'v2/private/wallet/fund/records',
+                        'v2/private/wallet/withdraw/list',
+                        'v2/private/account/api-key',
                         'spot/v3/private/account',
                         'spot/v3/private/order',
                         'spot/v3/private/open-orders',
@@ -147,6 +154,16 @@ class bybit(Exchange):
                         'spot/v3/private/cross-margin/accounts/balance',
                         'spot/v3/private/cross-margin/loan-info',
                         'spot/v3/private/cross-margin/repay/history',
+                        'private/linear/order/list',
+                        'private/linear/order/search',
+                        'private/linear/stop-order/list',
+                        'private/linear/stop-order/search',
+                        'private/linear/position/list',
+                        'private/linear/trade/execution/list',
+                        'private/linear/trade/closed-pnl/list',
+                        'public/linear/risk-limit',
+                        'private/linear/funding/predicted-funding',
+                        'private/linear/funding/prev-funding',
                     ],
                     'post': [
                         'order/create',
@@ -161,6 +178,24 @@ class bybit(Exchange):
                         'spot/v3/private/cancel-order',
                         'spot/v3/private/cross-margin-loan',
                         'spot/v3/private/cross-margin-repay',
+                        'private/linear/order/create',
+                        'private/linear/order/cancel',
+                        'private/linear/order/cancel-all',
+                        'private/linear/order/replace',
+                        'private/linear/stop-order/create',
+                        'private/linear/stop-order/cancel',
+                        'private/linear/stop-order/cancel-all',
+                        'private/linear/stop-order/replace',
+                        'private/linear/position/set-auto-add-margin',
+                        'private/linear/position/switch-isolated',
+                        'private/linear/position/switch-mode',
+                        'private/linear/tpsl/switch-mode',
+                        'private/linear/position/add-margin',
+                        'private/linear/position/set-leverage',
+                        'private/linear/position/trading-stop',
+                        'private/linear/position/set-risk',
+                        'v2/private/position/change-position-margin',
+                        'v2/private/position/leverage/save',
                     ],
                     'delete': [
                         'spot/v3/private/order',
@@ -181,57 +216,7 @@ class bybit(Exchange):
                     'post': [
                         'position/trading-stop',
                     ],
-                },
-                'publicLinear': {
-                    'get': [
-                        'kline',
-                        'recent-trading-records',
-                        'funding/prev-funding-rate',
-                        'mark-price-kline',
-                    ],
-                },
-                'privateLinear': {
-                    'get': [
-                        'order/list',
-                        'order/search',
-                        'stop-order/list',
-                        'stop-order/search',
-                        'position/list',
-                        'trade/execution/list',
-                        'trade/closed-pnl/list',
-                        'risk-limit',
-                        'funding/prev-funding',
-                        'funding/predicted-funding',
-                    ],
-                    'post': [
-                        'order/create',
-                        'order/cancel',
-                        'order/cancelAll',
-                        'order/replace',
-                        'stop-order/create',
-                        'stop-order/cancel',
-                        'stop-order/cancelAll',
-                        'stop-order/replace',
-                        'position/switch-isolated',
-                        'position/set-auto-add-margin',
-                        'position/set-leverage',
-                        'position/trading-stop',
-                        'position/add-margin',
-                    ],
-                },
-                'position': {
-                    'post': [
-                        'change-position-margin',
-                    ],
-                },
-                'user': {
-                    'get': [
-                        'leverage',
-                    ],
-                    'post': [
-                        'leverage/save',
-                    ],
-                },
+                }
             },
             'httpExceptions': {
                 '403': RateLimitExceeded,  # Forbidden -- You request too many times
@@ -440,7 +425,7 @@ class bybit(Exchange):
                     'code': 'BTC',
                 },
                 'cancelAllOrders': {
-                    'method': 'privatePostOrderCancelAll',  # privatePostStopOrderCancelAll
+                    'method': 'privatePostV2PrivateOrderCancelAll',  # privatePostV2PrivateStopOrderCancelAll
                 },
                 'recvWindow': 5 * 1000,  # 5 sec default
                 'timeDifference': 0,  # the difference between system clock and Binance clock
@@ -472,7 +457,7 @@ class bybit(Exchange):
         return self.options['timeDifference']
 
     def fetch_time(self, params={}):
-        response = self.publicGetTime(params)
+        response = self.publicGetV2PublicTime(params)
         #
         #     {
         #         ret_code: 0,
@@ -499,9 +484,9 @@ class bybit(Exchange):
 
     def _change_margin_type(self, symbol, _id, is_isolated, long_leverage, short_leverage):
         try:
-            return self.privateLinear_post_position_switch_isolated({"symbol": _id, "is_isolated": is_isolated,
-                                                                     "buy_leverage": long_leverage,
-                                                                     "sell_leverage": short_leverage})
+            return self.privatePostPrivateLinearPostPositionSwitchIsolated(
+                {"symbol": _id, "is_isolated": is_isolated, "buy_leverage": long_leverage,
+                 "sell_leverage": short_leverage})
         except Exception as e:
             args = e.args
             if args:
@@ -570,7 +555,8 @@ class bybit(Exchange):
         self.load_markets()
         symbol = self.find_symbol(symbol)
         _id = self.market(symbol)["id"]
-        method = 'privateLinear_post_position_set_leverage' if self.is_linear() else 'user_post_leverage_save'
+        method = 'privatePostPrivateLinearPositionSetLeverage' \
+            if self.is_linear() else 'privatePostV2PrivatePositionLeverageSave'
         params = {"symbol": _id}
         if self.is_linear():
             params["buy_leverage"] = self.is_int_format(long_leverage)
@@ -589,18 +575,18 @@ class bybit(Exchange):
     def get_positions(self, symbol=None):
         self.load_markets()
         if symbol:
-            method = 'privateLinearGetPositionList' if self.is_linear() else 'privateGetPositionList'
+            method = 'privateGetPrivateLinearGetPositionList' if self.is_linear() else 'privateGetV2PrivatePositionList'
             response = getattr(self, method)({"symbol": self.market_id(symbol)})
             positions = self.safe_value(response, 'result')
             positions = positions if type(positions) is list else [positions]
         else:
             positions = list()
             if self.is_linear():
-                response = getattr(self, 'privateLinearGetPositionList')()
+                response = getattr(self, 'privateGetPrivateLinearGetPositionList')()
                 linear_positions = self.safe_value(response, 'result')
                 positions.extend(linear_positions)
             if self.is_inverse():
-                response = getattr(self, 'privateGetPositionList')()
+                response = getattr(self, 'privateGetV2PrivatePositionList')()
                 inverse_positions = self.safe_value(response, 'result')
                 positions.extend(inverse_positions)
 
@@ -726,7 +712,7 @@ class bybit(Exchange):
         return result
 
     def fetch_contract_markets(self, params={}):
-        response = self.publicGetSymbols(params)
+        response = self.publicGetV2PublicSymbols(params)
         #
         #     {
         #         ret_code: 0,
@@ -862,7 +848,7 @@ class bybit(Exchange):
         if self.is_spot():
             response = self.privateGetSpotV3PrivateAccount(self.extend(request, params))
         else:
-            response = self.privateGetWalletBalance(self.extend(request, params))
+            response = self.privateGetV2PrivateWalletBalance(self.extend(request, params))
         return self.parse_balance(response)
 
     def parse_ticker(self, ticker, market=None):
@@ -949,7 +935,7 @@ class bybit(Exchange):
         if self.is_spot():
             response = self.publicGetSpotV3PublicQuoteTicker24hr(self.extend(request, params))
         else:
-            response = self.publicGetTickers(self.extend(request, params))
+            response = self.publicGetV2PublicTickers(self.extend(request, params))
 
         result = self.safe_value(response, 'result', [])
         result = self.safe_value(result, 'list', result)
@@ -965,7 +951,7 @@ class bybit(Exchange):
         if self.is_spot():
             response = self.publicGetSpotV3PublicQuoteTicker24hr(params)
         else:
-            response = self.publicGetTickers(params)
+            response = self.publicGetV2PublicTickers(params)
 
         result = self.safe_value(response, 'result', [])
         result = self.safe_value(result, 'list', result)
@@ -1033,7 +1019,7 @@ class bybit(Exchange):
             request['from'] = int(since / 1000)
         if limit is not None:
             request['limit'] = limit  # max 200, default 200
-        method = 'publicLinearGetKline' if self.is_linear() else 'publicGetKlineList'
+        method = 'publicGetV2PublicpublicLinearGetKline' if self.is_linear() else 'publicGetV2PublicKlineList'
         response = getattr(self, method)(self.extend(request, params))
         #
         # inverse perpetual BTC/USD
@@ -1161,9 +1147,9 @@ class bybit(Exchange):
         if limit is not None:
             request['count'] = limit  # default 500, max 1000
         if self.is_linear():
-            method = 'publicLinearGetRecentTradingRecords'
+            method = 'publicGetPublicLinearGetRecentTradingRecords'
         elif self.is_inverse():
-            method = 'publicGetTradingRecords'
+            method = 'publicGetV2PublicTradingRecords'
         elif self.is_spot():
             method = 'publicGetSpotV3PublicQuoteTrades'
         else:
@@ -1220,7 +1206,7 @@ class bybit(Exchange):
         request = {
             'symbol': market['id'],
         }
-        response = self.publicGetOrderBookL2(self.extend(request, params))
+        response = self.publicGetV2PublicOrderBookL2(self.extend(request, params))
         #
         #     {
         #         ret_code: 0,
@@ -1369,17 +1355,17 @@ class bybit(Exchange):
         if self.is_linear():
             if is_conditional:
                 request['stop_order_id'] = id
-                method = 'privateLinearGetStopOrderSearch'
+                method = 'PrivateGetPrivateLinearGetStopOrderSearch'
             else:
                 request['order_id'] = id
-                method = 'privateLinearGetOrderSearch'
+                method = 'PrivateGetPrivateLinearGetOrderSearch'
         elif self.is_inverse():
             if is_conditional:
                 request['stop_order_id'] = id
-                method = 'privateGetStopOrder'
+                method = 'privateGetV2PrivateStopOrder'
             else:
                 request['order_id'] = id
-                method = 'privateGetOrder'
+                method = 'privateGetV2PrivateOrder'
         elif self.is_spot():
             request['orderId'] = id
             if is_conditional:
@@ -1495,12 +1481,12 @@ class bybit(Exchange):
                 raise ArgumentsRequired(self.id + ' createOrder requires a price argument for a ' + type + ' order')
         stopPx = self.safe_value(params, 'stop_px')
         basePrice = self.safe_value(params, 'base_price')
-        method = 'privateLinearPostOrderCreate' if self.is_linear() else 'privatePostOrderCreate'
+        method = 'privatePostPrivateLinearPostOrderCreate' if self.is_linear() else 'privatePostV2PrivateOrderCreate'
         if stopPx is not None:
             if basePrice is None:
                 raise ArgumentsRequired(self.id + ' createOrder requires both the stop_px and base_price params for a conditional ' + type + ' order')
             else:
-                method = 'privateLinearPostStopOrderCreate' if self.is_linear() else 'privatePostStopOrderCreate'
+                method = 'privatePostPrivateLinearPostStopOrderCreate' if self.is_linear() else 'privatePostV2PrivateStopOrderCreate'
                 request['stop_px'] = self.is_int_format(float(self.price_to_precision(symbol, stopPx)))
                 request['base_price'] = self.is_int_format(float(self.price_to_precision(symbol, basePrice)))
                 params = self.omit(params, ['stop_px', 'base_price'])
@@ -1615,10 +1601,10 @@ class bybit(Exchange):
             # 'stop_order_id': id,  # only for conditional orders
             # 'p_r_trigger_price': 123.45,  # new trigger price also known as stop_px
         }
-        method = 'privateLinearPostOrderReplace' if self.is_linear() else 'privatePostOrderReplace'
+        method = 'privatePostPrivateLinearPostOrderReplace' if self.is_linear() else 'privatePostV2PrivateOrderReplace'
         stopOrderId = self.safe_string(params, 'stop_order_id')
         if stopOrderId is not None:
-            method = 'privateLinearPostStopOrderReplace' if self.is_linear() else 'privatePostStopOrderReplace'
+            method = 'privatePostPrivateLinearPostStopOrderReplace' if self.is_linear() else 'privatePostV2PrivateStopOrderReplace'
             request['stop_order_id'] = stopOrderId
             params = self.omit(params, ['stop_order_id'])
         else:
@@ -1694,17 +1680,17 @@ class bybit(Exchange):
         if self.is_linear():
             if is_conditional:
                 request["stop_order_id"] = stop_order_id
-                method = 'privateLinearPostStopOrderCancel'
+                method = 'privatePostPrivateLinearPostStopOrderCancel'
             else:
                 request['order_id'] = id
-                method = 'privateLinearPostOrderCancel'
+                method = 'privatePostPrivateLinearPostOrderCancel'
         elif self.is_inverse():
             if is_conditional:
                 request["stop_order_id"] = stop_order_id
-                method = 'privatePostStopOrderCancel'
+                method = 'privatePostV2PrivateStopOrderCancel'
             else:
                 request['order_id'] = id
-                method = 'privatePostOrderCancel'
+                method = 'privatePostV2PrivateOrderCancel'
         elif self.is_spot():
             request['orderId'] = id
             if is_conditional:
@@ -1745,9 +1731,9 @@ class bybit(Exchange):
         options = self.safe_value(self.options, 'fetchOrders', {})
 
         if self.is_linear():
-            default_method = 'privateLinearGetOrderList'
+            default_method = 'privateGetPrivateLinearGetOrderList'
         else:
-            default_method = 'privateGetOrderList'
+            default_method = 'privateGetV2PrivateOrderList'
         query = params
         if ('stop_order_id' in params) or ('stop_order_status' in params):
             stopOrderStatus = self.safe_value(params, 'stopOrderStatus')
@@ -1756,7 +1742,7 @@ class bybit(Exchange):
                     stopOrderStatus = ','.join(stopOrderStatus)
                 request['stop_order_status'] = stopOrderStatus
                 query = self.omit(params, 'stop_order_status')
-            default_method = 'privateLinearGetStopOrderList' if self.is_linear() else 'privateGetStopOrderList'
+            default_method = 'privateGetPrivateLinearGetStopOrderList' if self.is_linear() else 'privateGetV2PrivateStopOrderList'
         method = self.safe_string(options, 'method', default_method)
         response = getattr(self, method)(self.extend(request, query))
         #
@@ -1948,9 +1934,9 @@ class bybit(Exchange):
             request['limit'] = limit  # default 20, max 50
 
         if self.is_linear():
-            method = 'privateLinearGetTradeExecutionList'
+            method = 'prviateGetPrivateLinearGetTradeExecutionList'
         elif self.is_inverse():
-            method = 'privateGetExecutionList'
+            method = 'privateGetV2PrivateExecutionList'
         elif self.is_spot():
             method = 'privateGetSpotV3PrivateMyTrades'
         else:
@@ -1972,7 +1958,7 @@ class bybit(Exchange):
         }
         if limit is not None:
             request['count'] = limit
-        response = self.privateGetGetDeposits(self.extend(request, params))
+        response = self.privateGetV2PrivateGetDeposits(self.extend(request, params))
         #
         #     {
         #         "jsonrpc": "2.0",
@@ -2015,7 +2001,7 @@ class bybit(Exchange):
             request['start_date'] = self.iso8601(since)
         if limit is not None:
             request['limit'] = limit
-        response = self.privateGetWalletWithdrawList(self.extend(request, params))
+        response = self.privateGetV2PrivateWalletWithdrawList(self.extend(request, params))
         #
         #     {
         #         "ret_code": 0,
@@ -2131,7 +2117,7 @@ class bybit(Exchange):
             request['start_date'] = self.iso8601(since)
         if limit is not None:
             request['limit'] = limit
-        response = self.privateGetWalletFundRecords(self.extend(request, params))
+        response = self.privateGetV2PrivateWalletFundRecords(self.extend(request, params))
         #
         #     {
         #         "ret_code": 0,
@@ -2226,7 +2212,7 @@ class bybit(Exchange):
         return self.safe_string(types, type, type)
 
     def get_api_account_details(self):
-        response = self.privateGetAccountApiKey()
+        response = self.privateGetV2PrivateAccountApiKey()
         result = self.safe_value(response, 'result')
         result = result[0] if result and type(result) == list else result
         ips = self.safe_value(result, "ips")
