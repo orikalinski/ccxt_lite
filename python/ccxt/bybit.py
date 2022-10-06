@@ -137,7 +137,7 @@ class bybit(Exchange):
                         'execution/list',
                         'wallet/fund/records',
                         'wallet/withdraw/list',
-                        'account/api-key'
+                        'account/api-key',
                         'spot/v3/private/account',
                         'spot/v3/private/order',
                         'spot/v3/private/open-orders',
@@ -819,6 +819,43 @@ class bybit(Exchange):
         else:
             raise NotImplementedError
 
+    def parse_balance(self, response):
+        result = {
+            'info': response,
+        }
+        data = self.safe_value(response, 'result', {})
+        balances = self.safe_value(data, 'balances')
+        if self.is_spot():
+            for i in range(0, len(balances)):
+                balance = balances[i]
+                currencyId = self.safe_string(balance, 'coin')
+                code = self.safe_currency_code(currencyId)
+                account = self.account()
+                account['free'] = self.safe_string(balance, 'availableBalance')
+                account['used'] = self.safe_string(balance, 'locked')
+                account['total'] = self.safe_string(balance, 'total')
+                result[code] = account
+        elif self.is_linear() or self.is_inverse():
+            currencyIds = list(data.keys())
+            linearQuoteCurrencies = self.safe_value(self.options, 'linear', {'USDT': True})
+            is_linear_client = self.is_linear()
+            is_inverse_client = self.is_inverse()
+            for i in range(0, len(currencyIds)):
+                currencyId = currencyIds[i]
+                balance = data[currencyId]
+                code = self.safe_currency_code(currencyId)
+                linear = (code in linearQuoteCurrencies)
+                inverse = not linear
+                if (is_inverse_client and linear) or (is_linear_client and inverse):
+                    continue
+                account = self.account()
+                account['free'] = self.safe_string(balance, 'available_balance')
+                account['total'] = self.safe_string(balance, 'wallet_balance')
+                result[code] = account
+        else:
+            raise NotImplementedError
+        return self.safe_balance(result)
+
     def fetch_balance(self, params={}):
         self.load_markets()
         request = {}
@@ -826,29 +863,7 @@ class bybit(Exchange):
             response = self.privateGetSpotV3PrivateAccount(self.extend(request, params))
         else:
             response = self.privateGetWalletBalance(self.extend(request, params))
-
-        result = {
-            'info': response,
-        }
-        balances = self.safe_value(response, 'result', {})
-        currencyIds = list(balances.keys())
-        linearQuoteCurrencies = self.safe_value(self.options, 'linear', {'USDT': True})
-        is_linear_client = self.is_linear()
-        is_inverse_client = self.is_inverse()
-        for i in range(0, len(currencyIds)):
-            currencyId = currencyIds[i]
-            balance = balances[currencyId]
-            code = self.safe_currency_code(currencyId)
-            linear = (code in linearQuoteCurrencies)
-            inverse = not linear
-            if (is_inverse_client and linear) or (is_linear_client and inverse):
-                continue
-            account = self.account()
-            account['free'] = self.safe_float(balance, 'available_balance')
-            account['used'] = self.safe_float(balance, 'used_margin')
-            account['total'] = self.safe_float(balance, 'equity')
-            result[code] = account
-        return self.parse_balance(result)
+        return self.parse_balance(response)
 
     def parse_ticker(self, ticker, market=None):
         #
