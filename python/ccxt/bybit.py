@@ -166,14 +166,6 @@ class bybit(Exchange):
                         'private/linear/funding/prev-funding',
                     ],
                     'post': [
-                        'order/create',
-                        'order/cancel',
-                        'order/cancelAll',
-                        'order/replace',
-                        'stop-order/create',
-                        'stop-order/cancel',
-                        'stop-order/replace',
-                        'stop-order/cancelAll',
                         'spot/v3/private/order',
                         'spot/v3/private/cancel-order',
                         'spot/v3/private/cross-margin-loan',
@@ -484,7 +476,7 @@ class bybit(Exchange):
 
     def _change_margin_type(self, symbol, _id, is_isolated, long_leverage, short_leverage):
         try:
-            return self.privatePostPrivateLinearPostPositionSwitchIsolated(
+            return self.privatePostPrivateLinearPositionSwitchIsolated(
                 {"symbol": _id, "is_isolated": is_isolated, "buy_leverage": long_leverage,
                  "sell_leverage": short_leverage})
         except Exception as e:
@@ -575,14 +567,14 @@ class bybit(Exchange):
     def get_positions(self, symbol=None):
         self.load_markets()
         if symbol:
-            method = 'privateGetPrivateLinearGetPositionList' if self.is_linear() else 'privateGetV2PrivatePositionList'
+            method = 'privateGetPrivateLinearPositionList' if self.is_linear() else 'privateGetV2PrivatePositionList'
             response = getattr(self, method)({"symbol": self.market_id(symbol)})
             positions = self.safe_value(response, 'result')
             positions = positions if type(positions) is list else [positions]
         else:
             positions = list()
             if self.is_linear():
-                response = getattr(self, 'privateGetPrivateLinearGetPositionList')()
+                response = getattr(self, 'privateGetPrivateLinearPositionList')()
                 linear_positions = self.safe_value(response, 'result')
                 positions.extend(linear_positions)
             if self.is_inverse():
@@ -1355,10 +1347,10 @@ class bybit(Exchange):
         if self.is_linear():
             if is_conditional:
                 request['stop_order_id'] = id
-                method = 'PrivateGetPrivateLinearGetStopOrderSearch'
+                method = 'privateGetPrivateLinearStopOrderSearch'
             else:
                 request['order_id'] = id
-                method = 'PrivateGetPrivateLinearGetOrderSearch'
+                method = 'privateGetPrivateLinearOrderSearch'
         elif self.is_inverse():
             if is_conditional:
                 request['stop_order_id'] = id
@@ -1481,12 +1473,12 @@ class bybit(Exchange):
                 raise ArgumentsRequired(self.id + ' createOrder requires a price argument for a ' + type + ' order')
         stopPx = self.safe_value(params, 'stop_px')
         basePrice = self.safe_value(params, 'base_price')
-        method = 'privatePostPrivateLinearPostOrderCreate' if self.is_linear() else 'privatePostV2PrivateOrderCreate'
+        method = 'privatePostPrivateLinearOrderCreate' if self.is_linear() else 'privatePostV2PrivateOrderCreate'
         if stopPx is not None:
             if basePrice is None:
                 raise ArgumentsRequired(self.id + ' createOrder requires both the stop_px and base_price params for a conditional ' + type + ' order')
             else:
-                method = 'privatePostPrivateLinearPostStopOrderCreate' if self.is_linear() else 'privatePostV2PrivateStopOrderCreate'
+                method = 'privatePostPrivateLinearStopOrderCreate' if self.is_linear() else 'privatePostV2PrivateStopOrderCreate'
                 request['stop_px'] = self.is_int_format(float(self.price_to_precision(symbol, stopPx)))
                 request['base_price'] = self.is_int_format(float(self.price_to_precision(symbol, basePrice)))
                 params = self.omit(params, ['stop_px', 'base_price'])
@@ -1601,10 +1593,10 @@ class bybit(Exchange):
             # 'stop_order_id': id,  # only for conditional orders
             # 'p_r_trigger_price': 123.45,  # new trigger price also known as stop_px
         }
-        method = 'privatePostPrivateLinearPostOrderReplace' if self.is_linear() else 'privatePostV2PrivateOrderReplace'
+        method = 'privatePostPrivateLinearOrderReplace' if self.is_linear() else 'privatePostV2PrivateOrderReplace'
         stopOrderId = self.safe_string(params, 'stop_order_id')
         if stopOrderId is not None:
-            method = 'privatePostPrivateLinearPostStopOrderReplace' if self.is_linear() else 'privatePostV2PrivateStopOrderReplace'
+            method = 'privatePostPrivateLinearStopOrderReplace' if self.is_linear() else 'privatePostV2PrivateStopOrderReplace'
             request['stop_order_id'] = stopOrderId
             params = self.omit(params, ['stop_order_id'])
         else:
@@ -1680,10 +1672,10 @@ class bybit(Exchange):
         if self.is_linear():
             if is_conditional:
                 request["stop_order_id"] = stop_order_id
-                method = 'privatePostPrivateLinearPostStopOrderCancel'
+                method = 'privatePostPrivateLinearStopOrderCancel'
             else:
                 request['order_id'] = id
-                method = 'privatePostPrivateLinearPostOrderCancel'
+                method = 'privatePostPrivateLinearOrderCancel'
         elif self.is_inverse():
             if is_conditional:
                 request["stop_order_id"] = stop_order_id
@@ -1731,7 +1723,7 @@ class bybit(Exchange):
         options = self.safe_value(self.options, 'fetchOrders', {})
 
         if self.is_linear():
-            default_method = 'privateGetPrivateLinearGetOrderList'
+            default_method = 'privateGetPrivateLinearOrderList'
         else:
             default_method = 'privateGetV2PrivateOrderList'
         query = params
@@ -1742,7 +1734,7 @@ class bybit(Exchange):
                     stopOrderStatus = ','.join(stopOrderStatus)
                 request['stop_order_status'] = stopOrderStatus
                 query = self.omit(params, 'stop_order_status')
-            default_method = 'privateGetPrivateLinearGetStopOrderList' if self.is_linear() else 'privateGetV2PrivateStopOrderList'
+            default_method = 'privateGetPrivateLinearStopOrderList' if self.is_linear() else 'privateGetV2PrivateStopOrderList'
         method = self.safe_string(options, 'method', default_method)
         response = getattr(self, method)(self.extend(request, query))
         #
@@ -1934,7 +1926,7 @@ class bybit(Exchange):
             request['limit'] = limit  # default 20, max 50
 
         if self.is_linear():
-            method = 'prviateGetPrivateLinearGetTradeExecutionList'
+            method = 'privateGetPrivateLinearTradeExecutionList'
         elif self.is_inverse():
             method = 'privateGetV2PrivateExecutionList'
         elif self.is_spot():
