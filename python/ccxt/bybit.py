@@ -1011,7 +1011,7 @@ class bybit(Exchange):
             request['from'] = int(since / 1000)
         if limit is not None:
             request['limit'] = limit  # max 200, default 200
-        method = 'publicGetV2PublicpublicLinearGetKline' if self.is_linear() else 'publicGetV2PublicKlineList'
+        method = 'publicGetV2PublicPublicLinearKline' if self.is_linear() else 'publicGetV2PublicKlineList'
         response = getattr(self, method)(self.extend(request, params))
         #
         # inverse perpetual BTC/USD
@@ -1139,7 +1139,7 @@ class bybit(Exchange):
         if limit is not None:
             request['count'] = limit  # default 500, max 1000
         if self.is_linear():
-            method = 'publicGetPublicLinearGetRecentTradingRecords'
+            method = 'publicGetPublicLinearRecentTradingRecords'
         elif self.is_inverse():
             method = 'publicGetV2PublicTradingRecords'
         elif self.is_spot():
