@@ -2262,7 +2262,7 @@ class bybit(Exchange):
             "ip_restrict": not allow_all
         }
 
-    def change_position_mode(self, symbol, is_hedge_mode):
+    def change_position_mode(self, is_hedge_mode, symbol):
         _type = self.safe_string(self.options, 'defaultType')
         try:
             if _type == "linear":
