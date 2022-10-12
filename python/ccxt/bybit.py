@@ -670,8 +670,8 @@ class bybit(Exchange):
                 'contract': False,
                 'linear': None,
                 'inverse': None,
-                'taker': self.parse_number('0.001'),
-                'maker': self.parse_number('0.001'),
+                'taker': 0.001,
+                'maker': 0.001,
                 'contractSize': None,
                 'expiry': None,
                 'expiryDatetime': None,
@@ -683,7 +683,7 @@ class bybit(Exchange):
                 },
                 'limits': {
                     'leverage': {
-                        'min': self.parse_number('1'),
+                        'min': 1,
                         'max': None,
                     },
                     'amount': {
@@ -1068,13 +1068,9 @@ class bybit(Exchange):
         symbol = None
         base = None
         marketId = self.safe_string(trade, 'symbol')
-        amount = self.safe_float_2(trade, 'qty', 'exec_qty')
-        if amount is None:
-            amount = self.safe_float(trade, 'orderQty')
+        amount = self.safe_float_n(trade, ['qty', 'exec_qty', 'orderQty'])
         cost = self.safe_float(trade, 'exec_value')
-        price = self.safe_float_2(trade, 'exec_price', 'price')
-        if price is None:
-            price = self.safe_float(trade, 'orderPrice')
+        price = self.safe_float_n(trade, ['exec_price', 'price', 'orderPrice'])
         if marketId in self.markets_by_id:
             market = self.markets_by_id[marketId]
             symbol = market['symbol']
@@ -1294,12 +1290,13 @@ class bybit(Exchange):
         status = self.parse_order_status(raw_status)
         side = self.safe_string_lower(order, 'side')
         fee = None
-        feeCostString = self.safe_string_2(order, 'cum_exec_fee', 'cumExecFee')
-        if feeCostString is not None:
-            feeCurrency = market['quote'] if market['linear'] else market['base']
+        fee_cost = self.safe_float_2(order, 'cum_exec_fee', 'cumExecFee')
+        if fee_cost is not None:
+            fee_cost = abs(fee_cost)
+            fee_currency = market['quote'] if market['linear'] else market['base']
             fee = {
-                'cost': feeCostString,
-                'currency': feeCurrency,
+                'cost': fee_cost,
+                'currency': fee_currency,
             }
         type = self.safe_string_lower_n(order, ['order_type', 'type', 'orderType'])
         clientOrderId = self.safe_string_2(order, 'order_link_id', 'orderLinkId')
