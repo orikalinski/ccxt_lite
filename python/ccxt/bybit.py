@@ -2270,7 +2270,7 @@ class bybit(Exchange):
                 symbol = self.find_symbol(symbol)
                 _id = self.market(symbol)["id"]
                 mode = "BothSide" if is_hedge_mode else "MergedSingle"
-                self.git({'symbol': _id, 'mode': mode})
+                self.privateLinearPostPositionSwitchMode({'symbol': _id, 'mode': mode})
             else:
                 raise NotSupported()
         except NotChanged:
