@@ -180,6 +180,10 @@ class PositionNotFound(BaseError):
     pass
 
 
+class NotChanged(BaseError):
+    pass
+
+
 __all__ = [
     'error_hierarchy',
     'ExchangeError',
@@ -214,5 +218,6 @@ __all__ = [
     'RequestTimeout',
     'OrderCancelled',
     'MaxStopAllowed',
-    'PositionNotFound'
+    'PositionNotFound',
+    'NotChanged'
 ]

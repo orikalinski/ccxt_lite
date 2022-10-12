@@ -25,6 +25,7 @@ from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import RateLimitExceeded
 from ccxt.base.errors import ExchangeNotAvailable
 from ccxt.base.errors import InvalidNonce
+from ccxt.base.errors import NotChanged
 from ccxt.base.decimal_to_precision import ROUND
 from ccxt.base.decimal_to_precision import TRUNCATE
 
@@ -41,7 +42,7 @@ STATUSES_MAPPING = {
 
 PERMISSION_TO_VALUE = {"spot": ["enableSpotAndMarginTrading"], "futures": ["enableFutures"],
                        "withdrawal": ["enableWithdrawals"]}
-EXTRACT_ERROR_ERRORCODES = {'-4046', '-4059'}
+NOT_CHANGED_ERROR_CODES = {'-4046', '-4059'}
 
 
 class binance(Exchange):
@@ -682,11 +683,8 @@ class binance(Exchange):
                 return self.dapiPrivatePostMarginType({"symbol": _id, "marginType": margin_type})
             else:
                 raise NotSupported()
-        except ExchangeError as e:
-            args = e.args
-            if args and len(args) > 0 and args[0] == '-4046':
-                return
-            raise e
+        except NotChanged:
+            pass
 
     def get_pnl_history(self):
         _type = self.safe_string(self.options, 'defaultType')
@@ -2669,11 +2667,8 @@ class binance(Exchange):
                 self.dapiPrivatePostPositionsideDual({'dualSidePosition': is_hedge_mode})
             else:
                 raise NotSupported()
-        except ExchangeError as e:
-            args = e.args
-            if args and len(args) > 0 and args[0] == '-4059':
-                return
-            raise e
+        except NotChanged:
+            pass
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         if not (api in self.urls['api']):
@@ -2780,11 +2775,11 @@ class binance(Exchange):
             # a workaround for {"code":-2015,"msg":"Invalid API-key, IP, or permissions for action."}
             # despite that their message is very confusing, it is raised by Binance
             # on a temporary ban, the API key is valid, but disabled for a while
-            if error in EXTRACT_ERROR_ERRORCODES:
-                raise ExchangeError(error, body)
             if (error == '-2015') and self.options['hasAlreadyAuthenticatedSuccessfully']:
                 raise DDoSProtection(self.id + ' temporary banned: ' + body)
             feedback = self.id + ' ' + body
+            if error in NOT_CHANGED_ERROR_CODES:
+                raise NotChanged(feedback)
             self.throw_exactly_matched_exception(self.exceptions, error, feedback)
             raise ExchangeError(feedback)
         if not success:

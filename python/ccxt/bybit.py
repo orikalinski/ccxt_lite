@@ -16,11 +16,14 @@ from ccxt.base.errors import InvalidOrder
 from ccxt.base.errors import OrderNotFound
 from ccxt.base.errors import RateLimitExceeded
 from ccxt.base.errors import InvalidNonce
+from ccxt.base.errors import NotChanged
+
 from ccxt.base.decimal_to_precision import TICK_SIZE
 
 
 PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
                        "withdrawal": ["Withdrawal"]}
+NOT_CHANGED_ERROR_CODES = {'30083'}
 
 
 class bybit(Exchange):
@@ -167,6 +170,7 @@ class bybit(Exchange):
                         'stop-order/cancelAll',
                         'stop-order/replace',
                         'position/switch-isolated',
+                        'position/switch-mode',
                         'position/set-auto-add-margin',
                         'position/set-leverage',
                         'position/trading-stop',
@@ -2258,6 +2262,20 @@ class bybit(Exchange):
             "ip_restrict": not allow_all
         }
 
+    def change_position_mode(self, symbol, is_hedge_mode):
+        _type = self.safe_string(self.options, 'defaultType')
+        try:
+            if _type == "linear":
+                self.load_markets()
+                symbol = self.find_symbol(symbol)
+                _id = self.market(symbol)["id"]
+                mode = "BothSide" if is_hedge_mode else "MergedSingle"
+                self.git({'symbol': _id, 'mode': mode})
+            else:
+                raise NotSupported()
+        except NotChanged:
+            pass
+
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         url = self.urls['api']
         request = path
@@ -2328,6 +2346,8 @@ class bybit(Exchange):
             return_message = self.safe_value(response, "ret_msg")
             return_message = return_message.lower() if return_message else return_message
             feedback = self.id + ' ' + body
+            if errorCode in NOT_CHANGED_ERROR_CODES:
+                raise NotChanged(feedback)
             if "order not exists" in return_message:
                 raise OrderNotFound(feedback)
             if "unknown order_status" in return_message:
