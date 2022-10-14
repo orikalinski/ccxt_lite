@@ -1243,6 +1243,7 @@ class bybit(Exchange):
             'PENDING_NEW': 'open',
             'PARTIALLYFILLED': 'open',
             'PARTIALLY_FILLED': 'open',
+            'ORDER_FILLED': 'closed',  # means that the conditional order was triggered but not necessarily filled
             'FILLED': 'closed',
             'CANCELED': 'canceled',
             'ORDER_CANCELED': 'canceled',
@@ -1333,6 +1334,17 @@ class bybit(Exchange):
             'trades': None,
         }
 
+    def handle_stop_execution_order(self, func, result, symbol, is_conditional):
+        if self.is_spot() and is_conditional and self.safe_string(result, "status") == "ORDER_FILLED":
+            order_link_id = self.safe_string(result, "orderLinkId")
+            order_execution_id = self.safe_string(result, "executedOrderId")
+            if order_link_id:
+                return func(None, symbol=symbol, params={"order_link_id": order_link_id})
+            elif order_execution_id:
+                return func(order_execution_id, symbol=symbol)
+            else:
+                raise Exception("Missing executedOrderId / orderLinkId")
+
     def fetch_order(self, id, symbol=None, params={}):
         if symbol is None:
             raise ArgumentsRequired(self.id + ' fetchOrder requires a symbol argument')
@@ -1364,7 +1376,12 @@ class bybit(Exchange):
                 request['order_id'] = id
                 method = 'privateGetV2PrivateOrder'
         elif self.is_spot():
-            request['orderId'] = id
+            order_link_id = self.safe_string_lower(params, 'order_link_id')
+            if order_link_id:
+                request['orderLinkId'] = order_link_id
+                params = self.omit(params, "order_link_id")
+            else:
+                request['orderId'] = id
             if is_conditional:
                 request["orderCategory"] = 1
             method = 'privateGetSpotV3PrivateOrder'
@@ -1373,6 +1390,9 @@ class bybit(Exchange):
 
         response = getattr(self, method)(self.extend(request, params))
         result = self.safe_value(response, 'result', {})
+        parsed_order = self.handle_stop_execution_order(self.fetch_order, result, symbol, is_conditional)
+        if parsed_order:
+            return parsed_order
         return self.parse_order(result, market)
 
     def create_spot_order(self, symbol, type, side, amount, price=None, params=None):
@@ -1390,26 +1410,26 @@ class bybit(Exchange):
                         self.id + " createOrder() requires the price argument with market buy orders to calculate total order cost(amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = False to supply the cost in the amount argument(the exchange-specific behaviour)")
                 else:
                     amount = cost if (cost is not None) else amount * price
-        upperCaseType = type.upper()
+        upper_case_type = type.upper()
         request = {
             'symbol': market['id'],
             'side': self.capitalize(side),
-            'orderType': upperCaseType,  # limit, market or limit_maker
+            'orderType': upper_case_type,  # limit, market or limit_maker
             'timeInForce': 'GTC',  # FOK, IOC
             'orderQty': self.amount_to_precision(symbol, amount),
             # 'orderLinkId': 'string',  # unique client order id, max 36 characters
         }
-        if (upperCaseType == 'LIMIT') or (upperCaseType == 'LIMIT_MAKER'):
+        if (upper_case_type == 'LIMIT') or (upper_case_type == 'LIMIT_MAKER'):
             if price is None:
                 raise InvalidOrder(self.id + ' createOrder requires a price argument for a ' + type + ' order')
             request['orderPrice'] = float(self.price_to_precision(symbol, price))
-        isPostOnly = self.is_post_only(upperCaseType == 'MARKET', type == 'LIMIT_MAKER', params)
-        if isPostOnly:
+        is_post_only = self.is_post_only(upper_case_type == 'MARKET', type == 'LIMIT_MAKER', params)
+        if is_post_only:
             request['orderType'] = 'LIMIT_MAKER'
-        clientOrderId = self.safe_string_2(params, 'clientOrderId', 'orderLinkId')
-        if clientOrderId is not None:
-            request['orderLinkId'] = clientOrderId
-        params = self.omit(params, ['clientOrderId', 'orderLinkId', 'postOnly'])
+        client_order_id = self.safe_string(params, 'order_link_id')
+        if client_order_id is not None:
+            request['orderLinkId'] = client_order_id
+        params = self.omit(params, ['order_link_id', 'post_only'])
         response = self.privatePostSpotV3PrivateOrder(self.extend(request, params))
         #    {
         #        "ret_code":0,
@@ -1689,7 +1709,12 @@ class bybit(Exchange):
                 request['order_id'] = id
                 method = 'privatePostV2PrivateOrderCancel'
         elif self.is_spot():
-            request['orderId'] = id
+            order_link_id = self.safe_string_lower(params, 'order_link_id')
+            if order_link_id:
+                request['orderLinkId'] = order_link_id
+                params = self.omit(params, "order_link_id")
+            else:
+                request['orderId'] = id
             if is_conditional:
                 request['orderCategory'] = 1
             method = 'privatePostSpotV3PrivateCancelOrder'
@@ -1697,6 +1722,9 @@ class bybit(Exchange):
             raise NotImplementedError
         response = getattr(self, method)(self.extend(request, params))
         result = self.safe_value(response, 'result', {})
+        parsed_order = self.handle_stop_execution_order(self.cancel_order, result, symbol, is_conditional)
+        if parsed_order:
+            return parsed_order
         return self.parse_order(result, market)
 
     def cancel_all_orders(self, symbol=None, params={}):
