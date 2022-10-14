@@ -4,10 +4,11 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 import hashlib
 import re
+from collections import defaultdict
 
 from ccxt.base.exchange import Exchange
 from ccxt.base.errors import ExchangeError, SameLeverage, OrderCancelled, MaxStopAllowed, PositionNotFound, \
-    ExchangeNotAvailable, NotSupported
+    ExchangeNotAvailable, NotSupported, TradesNotFound
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import PermissionDenied
 from ccxt.base.errors import ArgumentsRequired
@@ -1093,23 +1094,23 @@ class bybit(Exchange):
                     cost = amount * price
         timestamp = self.parse8601(self.safe_string(trade, 'time'))
         if timestamp is None:
-            timestamp = self.safe_integer_2(trade, 'trade_time_ms', 'time')
+            timestamp = self.safe_integer_n(trade, ['trade_time_ms', 'time', 'creatTime', 'createTime'])
         side = self.safe_string_lower(trade, 'side')
         if side is None:
             is_buyer = self.safe_value(trade, 'isBuyer')
             if is_buyer is not None:
                 side = 'buy' if is_buyer else 'sell'
-        is_maker = self.safe_value(trade, 'isMaker')
+        is_maker = self.safe_float(trade, 'isMaker')
         if is_maker is not None:
             taker_or_maker = 'maker' if is_maker else 'taker'
         else:
             last_liquidity_ind = self.safe_string(trade, 'last_liquidity_ind')
             taker_or_maker = 'maker' if (last_liquidity_ind == 'AddedLiquidity') else 'taker'
-        fee_cost = self.safe_float_2(trade, 'exec_fee', 'commission')
+        fee_cost = self.safe_float_n(trade, ['exec_fee', 'commission', 'execFee'])
         fee = None
         if fee_cost is not None:
             if market['spot']:
-                fee_currency_code = self.safe_string(trade, 'commissionAsset')
+                fee_currency_code = self.safe_string_2(trade, 'commissionAsset', 'feeTokenId')
             else:
                 fee_currency_code = market['base'] if market['inverse'] else market['quote']
             fee = {
@@ -1345,7 +1346,35 @@ class bybit(Exchange):
             else:
                 raise Exception("Missing executedOrderId / orderLinkId")
 
-    def fetch_order(self, id, symbol=None, params={}):
+    def parse_trades_cost_fee(self, symbol, trades):
+        cost, fees, fee = 0., defaultdict(lambda: {'cost': 0.}), None
+        for trade in trades:
+            trade_cost = self.safe_float(trade, 'cost')
+            if trade_cost:
+                cost += trade_cost
+            trade_fee = trade['fee']
+            _fee_cost = self.safe_float(trade_fee, 'cost')
+            if _fee_cost is not None:
+                _fee_currency = trade_fee['currency']
+                fees[_fee_currency]['currency'] = _fee_currency
+                fees[_fee_currency]['cost'] += _fee_cost
+
+        if fees:
+            base_currency = self.get_currency(symbol)
+            pair = self.get_pair(symbol)
+            fee = fees.get(base_currency) or fees.get(pair)
+            if fee is None:
+                fee = list(fees.values())[0]
+        return cost, fee
+
+    def fetch_order_fee(self, _id, symbol, validate_filled=True):
+        order_trades = self.fetch_my_trades(params={"order_id": _id})
+        if validate_filled and not order_trades:
+            raise TradesNotFound("Couldn't get order's trades for external_order_id: %s" % _id)
+        _, fee = self.parse_trades_cost_fee(symbol, order_trades)
+        return fee
+
+    def fetch_order(self, _id, symbol=None, params={}):
         if symbol is None:
             raise ArgumentsRequired(self.id + ' fetchOrder requires a symbol argument')
         self.load_markets()
@@ -1363,25 +1392,25 @@ class bybit(Exchange):
         is_conditional = order_type == 'stop'
         if self.is_linear():
             if is_conditional:
-                request['stop_order_id'] = id
+                request['stop_order_id'] = _id
                 method = 'privateGetPrivateLinearStopOrderSearch'
             else:
-                request['order_id'] = id
+                request['order_id'] = _id
                 method = 'privateGetPrivateLinearOrderSearch'
         elif self.is_inverse():
             if is_conditional:
-                request['stop_order_id'] = id
+                request['stop_order_id'] = _id
                 method = 'privateGetV2PrivateStopOrder'
             else:
-                request['order_id'] = id
+                request['order_id'] = _id
                 method = 'privateGetV2PrivateOrder'
         elif self.is_spot():
-            order_link_id = self.safe_string_lower(params, 'order_link_id')
+            order_link_id = self.safe_string(params, 'order_link_id')
             if order_link_id:
                 request['orderLinkId'] = order_link_id
                 params = self.omit(params, "order_link_id")
             else:
-                request['orderId'] = id
+                request['orderId'] = _id
             if is_conditional:
                 request["orderCategory"] = 1
             method = 'privateGetSpotV3PrivateOrder'
@@ -1393,7 +1422,10 @@ class bybit(Exchange):
         parsed_order = self.handle_stop_execution_order(self.fetch_order, result, symbol, is_conditional)
         if parsed_order:
             return parsed_order
-        return self.parse_order(result, market)
+        parsed_order = self.parse_order(result, market)
+        if self.is_spot() and parsed_order['fee'] is None and parsed_order['filled'] > 0:
+            parsed_order['fee'] = self.fetch_order_fee(parsed_order["id"], symbol, validate_filled=True)
+        return parsed_order
 
     def create_spot_order(self, symbol, type, side, amount, price=None, params=None):
         if params is None:
@@ -1709,7 +1741,7 @@ class bybit(Exchange):
                 request['order_id'] = id
                 method = 'privatePostV2PrivateOrderCancel'
         elif self.is_spot():
-            order_link_id = self.safe_string_lower(params, 'order_link_id')
+            order_link_id = self.safe_string(params, 'order_link_id')
             if order_link_id:
                 request['orderLinkId'] = order_link_id
                 params = self.omit(params, "order_link_id")
@@ -1970,7 +2002,7 @@ class bybit(Exchange):
 
         result = self.safe_value(response, 'result', {})
         if not isinstance(result, list):
-            result = self.safe_value_2(result, 'trade_list', 'data', [])
+            result = self.safe_value_n(result, ['trade_list', 'data', 'list'], [])
         return self.parse_trades(result, market, since, limit)
 
     def fetch_deposits(self, code=None, since=None, limit=None, params={}):
