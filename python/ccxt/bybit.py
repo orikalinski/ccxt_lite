@@ -417,7 +417,7 @@ class bybit(Exchange):
             },
             'precisionMode': TICK_SIZE,
             'options': {
-                'defaultType': None,  # 'inverse', 'linear', None
+                'defaultType': None,  # 'inverse', 'linear', 'spot', None
                 'marketTypes': {
                     'BTC/USDT': 'linear',
                 },
