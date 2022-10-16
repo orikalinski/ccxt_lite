@@ -165,6 +165,16 @@ class bybit(Exchange):
                         'public/linear/risk-limit',
                         'private/linear/funding/predicted-funding',
                         'private/linear/funding/prev-funding',
+                        'unified/v3/private/order/unfilled-orders',
+                        'unified/v3/private/order/list',
+                        'unified/v3/private/position/list',
+                        'unified/v3/private/execution/list',
+                        'unified/v3/private/delivery-record',
+                        'unified/v3/private/settlement-record',
+                        'unified/v3/private/account/wallet/balance',
+                        'unified/v3/private/account/transaction-log',
+                        'unified/v3/private/account/borrow-history',
+                        'unified/v3/private/account/borrow-rate'
                     ],
                     'post': [
                         'spot/v3/private/order',
@@ -197,6 +207,18 @@ class bybit(Exchange):
                         'v2/private/stop-order/cancelAll',
                         'v2/private/position/change-position-margin',
                         'v2/private/position/leverage/save',
+                        'unified/v3/private/order/create',
+                        'unified/v3/private/order/replace',
+                        'unified/v3/private/order/cancel',
+                        'unified/v3/private/order/create-batch',
+                        'unified/v3/private/order/replace-batch',
+                        'unified/v3/private/order/cancel-batch',
+                        'unified/v3/private/order/cancel-all',
+                        'unified/v3/private/position/set-leverage',
+                        'unified/v3/private/position/tpsl/switch-mode',
+                        'unified/v3/private/position/set-risk-limit',
+                        'unified/v3/private/position/trading-stop',
+                        'unified/v3/private/account/upgrade-unified-account'
                     ],
                     'delete': [
                         'spot/v3/private/order',
@@ -417,7 +439,7 @@ class bybit(Exchange):
             },
             'precisionMode': TICK_SIZE,
             'options': {
-                'defaultType': None,  # 'inverse', 'linear', 'spot', None
+                'defaultType': None,  # 'inverse', 'linear', 'spot', 'unified', None
                 'marketTypes': {
                     'BTC/USDT': 'linear',
                 },
@@ -482,6 +504,10 @@ class bybit(Exchange):
     def is_spot(self):
         default_type = self.safe_string(self.options, 'defaultType')
         return default_type == "spot"
+
+    def is_unified(self):
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type == "unified"
 
     def _change_margin_type(self, symbol, _id, is_isolated, long_leverage, short_leverage):
         try:
@@ -1500,10 +1526,8 @@ class bybit(Exchange):
             # orders ---------------------------------------------------------
             'side': self.capitalize(side),
             'symbol': market['id'],
-            'order_type': self.capitalize(type),
             'qty': qty,  # order quantity in USD, integer only
             # 'price': float(self.price_to_precision(symbol, price)),  # required for limit orders
-            'time_in_force': 'GoodTillCancel',  # ImmediateOrCancel, FillOrKill, PostOnly
             # 'take_profit': 123.45,  # take profit price, only take effect upon opening the position
             # 'stop_loss': 123.45,  # stop loss price, only take effect upon opening the position
             # 'reduce_only': False,  # reduce only
@@ -1530,14 +1554,34 @@ class bybit(Exchange):
                 raise ArgumentsRequired(self.id + ' createOrder requires a price argument for a ' + type + ' order')
         stopPx = self.safe_value(params, 'stop_px')
         basePrice = self.safe_value(params, 'base_price')
-        method = 'privatePostPrivateLinearOrderCreate' if self.is_linear() else 'privatePostV2PrivateOrderCreate'
+        if self.is_linear():
+            method = 'privatePostPrivateLinearOrderCreate'
+            request['order_type'] = self.capitalize(type)
+            request['time_in_force'] = 'GoodTillCancel',  # ImmediateOrCancel, FillOrKill, PostOnly
+        elif self.is_inverse():
+            method = 'privatePostV2PrivateOrderCreate'
+            request['order_type'] = self.capitalize(type)
+            request['time_in_force'] = 'GoodTillCancel',  # ImmediateOrCancel, FillOrKill, PostOnly
+        else:
+            method = 'privatePostUnifiedV3PrivateOrderCreate'
+            request['orderType'] = self.capitalize(type)
+            request['timeInForce'] = 'GoodTillCancel',  # ImmediateOrCancel, FillOrKill, PostOnly
+            request['category'] = 'linear'
+            client_order_id = self.safe_string(params, 'order_link_id')
+            if client_order_id is not None:
+                request['orderLinkId'] = client_order_id
+            params = self.omit(params, ['order_link_id'])
         if stopPx is not None:
             if basePrice is None:
                 raise ArgumentsRequired(self.id + ' createOrder requires both the stop_px and base_price params for a conditional ' + type + ' order')
             else:
-                method = 'privatePostPrivateLinearStopOrderCreate' if self.is_linear() else 'privatePostV2PrivateStopOrderCreate'
-                request['stop_px'] = self.is_int_format(float(self.price_to_precision(symbol, stopPx)))
-                request['base_price'] = self.is_int_format(float(self.price_to_precision(symbol, basePrice)))
+                if self.is_unified():
+                    request['triggerPrice'] = self.is_int_format(float(self.price_to_precision(symbol, stopPx)))
+                    request['basePrice'] = self.is_int_format(float(self.price_to_precision(symbol, basePrice)))
+                else:
+                    method = 'privatePostPrivateLinearStopOrderCreate' if self.is_linear() else 'privatePostV2PrivateStopOrderCreate'
+                    request['stop_px'] = self.is_int_format(float(self.price_to_precision(symbol, stopPx)))
+                    request['base_price'] = self.is_int_format(float(self.price_to_precision(symbol, basePrice)))
                 params = self.omit(params, ['stop_px', 'base_price'])
         elif basePrice is not None:
             raise ArgumentsRequired(self.id + ' createOrder requires both the stop_px and base_price params for a conditional ' + type + ' order')
@@ -1630,7 +1674,7 @@ class bybit(Exchange):
         symbol = market['symbol']
         if self.is_spot():
             return self.create_spot_order(symbol, type, side, amount, price, params)
-        elif self.is_linear() or self.is_inverse():
+        elif self.is_linear() or self.is_inverse() or self.is_unified():
             return self.create_contract_order(symbol, type, side, amount, price, params)
         else:
             raise NotImplementedError
@@ -1740,16 +1784,22 @@ class bybit(Exchange):
             else:
                 request['order_id'] = id
                 method = 'privatePostV2PrivateOrderCancel'
-        elif self.is_spot():
+        elif self.is_spot() or self.is_unified():
             order_link_id = self.safe_string(params, 'order_link_id')
             if order_link_id:
                 request['orderLinkId'] = order_link_id
                 params = self.omit(params, "order_link_id")
             else:
                 request['orderId'] = id
-            if is_conditional:
-                request['orderCategory'] = 1
-            method = 'privatePostSpotV3PrivateCancelOrder'
+            if self.is_spot():
+                if is_conditional:
+                    request['orderCategory'] = 1
+                method = 'privatePostSpotV3PrivateCancelOrder'
+            else:
+                request["category"] = "linear"
+                if is_conditional:
+                    request['orderFilter'] = "StopOrder"
+                method = 'privatePostUnifiedV3PrivateOrderCancel'
         else:
             raise NotImplementedError
         response = getattr(self, method)(self.extend(request, params))
@@ -1785,22 +1835,26 @@ class bybit(Exchange):
             request['symbol'] = market['id']
         if limit is not None:
             request['limit'] = limit
-        options = self.safe_value(self.options, 'fetchOrders', {})
+        is_conditional = 'stop_order_id' in params or 'stop_order_status' in params
 
         if self.is_linear():
-            default_method = 'privateGetPrivateLinearOrderList'
+            if is_conditional:
+                method = 'privateGetPrivateLinearStopOrderList'
+            else:
+                method = 'privateGetPrivateLinearOrderList'
+        elif self.is_inverse():
+            if is_conditional:
+                method = 'privateGetV2PrivateStopOrderList'
+            else:
+                method = 'privateGetV2PrivateOrderList'
+        elif self.is_unified():
+            method = 'privateGetUnifiedV3PrivateOrderList'
+            request['category'] = 'linear'
+            if is_conditional:
+                request['orderFilter'] = 'StopOrder'
         else:
-            default_method = 'privateGetV2PrivateOrderList'
+            raise NotImplementedError
         query = params
-        if ('stop_order_id' in params) or ('stop_order_status' in params):
-            stopOrderStatus = self.safe_value(params, 'stopOrderStatus')
-            if stopOrderStatus is not None:
-                if isinstance(stopOrderStatus, list):
-                    stopOrderStatus = ','.join(stopOrderStatus)
-                request['stop_order_status'] = stopOrderStatus
-                query = self.omit(params, 'stop_order_status')
-            default_method = 'privateGetPrivateLinearStopOrderList' if self.is_linear() else 'privateGetV2PrivateStopOrderList'
-        method = self.safe_string(options, 'method', default_method)
         response = getattr(self, method)(self.extend(request, query))
         #
         #     {
@@ -1888,26 +1942,27 @@ class bybit(Exchange):
         #         "rate_limit": 600
         #     }
         #
-        result = self.safe_value(response, 'result', {})
-        data = self.safe_value(result, 'data', [])
-        return self.parse_orders(data, market, since, limit)
+        result = self.safe_value(response, 'result', [])
+        if not isinstance(result, list):
+            result = self.safe_value_n(result, ['data', 'dataList', 'list'], [])
+        return self.parse_orders(result, market, since, limit)
 
     def fetch_closed_orders(self, symbol=None, since=None, limit=None, params={}):
         order_type = self.safe_string_lower(params, 'type')
         params = self.omit(params, ["type"])
         is_conditional = order_type == 'stop'
+        statuses = [
+            'Rejected',
+            'Filled',
+            'Cancelled',
+            # conditional orders
+            # 'Active',
+            # 'Triggered',
+            # 'Cancelled',
+            # 'Rejected',
+            # 'Deactivated',
+        ]
         if self.is_linear() or self.is_inverse():
-            statuses = [
-                'Rejected',
-                'Filled',
-                'Cancelled',
-                # conditional orders
-                # 'Active',
-                # 'Triggered',
-                # 'Cancelled',
-                # 'Rejected',
-                # 'Deactivated',
-            ]
             request = {}
             if is_conditional:
                 statuses.append('Deactivated')
@@ -1916,6 +1971,13 @@ class bybit(Exchange):
             else:
                 status = ','.join(statuses)
                 request['order_status'] = status
+            return self.fetch_orders(symbol, since, limit, self.extend(request, params))
+        elif self.is_unified():
+            request = {"category": "linear"}
+            if is_conditional:
+                statuses.append('Deactivated')
+            status = ','.join(statuses)
+            request['orderStatus'] = status
             return self.fetch_orders(symbol, since, limit, self.extend(request, params))
         elif self.is_spot():
             request = {}
@@ -1936,15 +1998,15 @@ class bybit(Exchange):
         order_type = self.safe_string_lower(params, 'type')
         params = self.omit(params, ["type"])
         is_conditional = order_type == 'stop'
+        statuses = [
+            'Created',
+            'New',
+            'PartiallyFilled',
+            'PendingCancel',
+            # conditional orders
+            # 'Untriggered',
+        ]
         if self.is_linear() or self.is_inverse():
-            statuses = [
-                'Created',
-                'New',
-                'PartiallyFilled',
-                'PendingCancel',
-                # conditional orders
-                # 'Untriggered',
-            ]
             request = {}
             if is_conditional:
                 statuses.append('Untriggered')
@@ -1953,6 +2015,13 @@ class bybit(Exchange):
             else:
                 status = ','.join(statuses)
                 request['order_status'] = status
+            return self.fetch_orders(symbol, since, limit, self.extend(request, params))
+        elif self.is_unified():
+            request = {"category": "linear"}
+            if is_conditional:
+                statuses.append('Untriggered')
+            status = ','.join(statuses)
+            request['orderStatus'] = status
             return self.fetch_orders(symbol, since, limit, self.extend(request, params))
         elif self.is_spot():
             request = {}
