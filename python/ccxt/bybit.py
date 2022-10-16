@@ -1990,13 +1990,19 @@ class bybit(Exchange):
             if orderId is None:
                 raise ArgumentsRequired(self.id + ' fetchMyTrades requires a symbol argument or an order_id param')
             else:
-                request['order_id'] = orderId
+                if self.is_linear() or self.is_inverse():
+                    request['order_id'] = orderId
+                else:
+                    request['orderId'] = orderId
                 params = self.omit(params, 'order_id')
         else:
             market = self.market(symbol)
             request['symbol'] = market['id']
         if since is not None:
-            request['start_time'] = since
+            if self.is_linear() or self.is_inverse():
+                request['start_time'] = since
+            else:
+                request['startTime'] = since
         if limit is not None:
             request['limit'] = limit  # default 20, max 50
 
