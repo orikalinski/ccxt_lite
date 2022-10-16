@@ -1920,7 +1920,7 @@ class bybit(Exchange):
         elif self.is_spot():
             request = {}
             if is_conditional:
-                request = {"orderCategory": 1}
+                request["orderCategory"] = 1
             if symbol is not None:
                 market = self.market(symbol)
                 request['symbol'] = market['id']
@@ -1957,7 +1957,7 @@ class bybit(Exchange):
         elif self.is_spot():
             request = {}
             if is_conditional:
-                request = {"orderCategory": 1}
+                request["orderCategory"] = 1
             if symbol is not None:
                 market = self.market(symbol)
                 request['symbol'] = market['id']
