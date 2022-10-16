@@ -1312,7 +1312,9 @@ class bybit(Exchange):
         clientOrderId = self.safe_string_2(order, 'order_link_id', 'orderLinkId')
         if (clientOrderId is not None) and (len(clientOrderId) < 1):
             clientOrderId = None
-        stopPrice = self.safe_float_n(order, ['trigger_price', 'stop_px', 'stopPrice', 'triggerPrice'])
+        stop_price = self.safe_float_n(order, ['trigger_price', 'stop_px', 'stopPrice'])
+        if not stop_price:
+            stop_price = self.safe_float(order, 'triggerPrice')
         return {
             'info': order,
             'id': _id,
@@ -1324,7 +1326,7 @@ class bybit(Exchange):
             'type': type,
             'side': side,
             'price': price,
-            'stopPrice': stopPrice,
+            'stopPrice': stop_price,
             'amount': amount,
             'cost': cost,
             'average': average,
