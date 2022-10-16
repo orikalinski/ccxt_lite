@@ -1921,6 +1921,9 @@ class bybit(Exchange):
             request = {}
             if is_conditional:
                 request = {"orderCategory": 1}
+            if symbol is not None:
+                market = self.market(symbol)
+                request['symbol'] = market['id']
             orders = self.privateGetSpotV3PrivateHistoryOrders(self.extend(request, params))
             result = self.safe_value(orders, 'result', [])
             if not isinstance(result, list):
@@ -1955,6 +1958,9 @@ class bybit(Exchange):
             request = {}
             if is_conditional:
                 request = {"orderCategory": 1}
+            if symbol is not None:
+                market = self.market(symbol)
+                request['symbol'] = market['id']
             orders = self.privateGetSpotV3PrivateOpenOrders(self.extend(request, params))
             result = self.safe_value(orders, 'result', [])
             if not isinstance(result, list):
