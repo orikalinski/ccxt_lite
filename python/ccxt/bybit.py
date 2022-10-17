@@ -1245,6 +1245,7 @@ class bybit(Exchange):
             'PENDING_NEW': 'open',
             'PARTIALLYFILLED': 'open',
             'PARTIALLY_FILLED': 'open',
+            'PARTIALLY_FILLED_CANCELED': 'closed',
             'ORDER_FILLED': 'closed',  # means that the conditional order was triggered but not necessarily filled
             'FILLED': 'closed',
             'CANCELED': 'canceled',
@@ -1271,11 +1272,16 @@ class bybit(Exchange):
         if timestamp is None:
             timestamp = self.safe_number_n(order, ['time', 'transactTime', 'createTime'])
         _id = self.safe_string_n(order, ['order_id', 'stop_order_id', 'orderId'])
+        side = self.safe_string_lower(order, 'side')
+        _type = self.safe_string_lower_n(order, ['order_type', 'type', 'orderType'])
         price = self.safe_float_2(order, 'price', 'orderPrice')
         average = self.safe_float_2(order, 'average_price', 'avgPrice')
-        amount = self.safe_float_n(order, ['qty', 'origQty', 'orderQty'])
         cost = self.safe_float_n(order, ['cum_exec_value', 'cumExecValue', 'cummulativeQuoteQty'])
         filled = self.safe_float_n(order, ['cum_exec_qty', 'executedQty', 'cumExecQty', 'execQty'], default_value=0.)
+        if (market['spot'] and _type == 'market') and (side == 'buy'):
+            amount = filled
+        else:
+            amount = self.safe_float_n(order, ['qty', 'origQty', 'orderQty'])
         remaining = self.safe_float_2(order, 'leaves_qty', 'leavesQty')
         lastTradeTimestamp = self.safe_timestamp(order, 'last_exec_time')
         if lastTradeTimestamp == 0:
@@ -1299,7 +1305,6 @@ class bybit(Exchange):
             average = float(self.price_to_precision(symbol, average))
         raw_status = self.safe_string_n(order, ['order_status', 'stop_order_status', 'status', 'orderStatus'])
         status = self.parse_order_status(raw_status)
-        side = self.safe_string_lower(order, 'side')
         fee = None
         fee_cost = self.safe_float_2(order, 'cum_exec_fee', 'cumExecFee')
         if fee_cost is not None:
@@ -1309,7 +1314,6 @@ class bybit(Exchange):
                 'cost': fee_cost,
                 'currency': fee_currency,
             }
-        type = self.safe_string_lower_n(order, ['order_type', 'type', 'orderType'])
         clientOrderId = self.safe_string_2(order, 'order_link_id', 'orderLinkId')
         if (clientOrderId is not None) and (len(clientOrderId) < 1):
             clientOrderId = None
@@ -1324,7 +1328,7 @@ class bybit(Exchange):
             'datetime': self.iso8601(timestamp),
             'lastTradeTimestamp': lastTradeTimestamp,
             'symbol': symbol,
-            'type': type,
+            'type': _type,
             'side': side,
             'price': price,
             'stopPrice': stop_price,
