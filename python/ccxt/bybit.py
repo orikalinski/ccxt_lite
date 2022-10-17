@@ -428,6 +428,7 @@ class bybit(Exchange):
                 'cancelAllOrders': {
                     'method': 'privatePostV2PrivateOrderCancelAll',  # privatePostV2PrivateStopOrderCancelAll
                 },
+                'createMarketBuyOrderRequiresPrice': True,
                 'recvWindow': 5 * 1000,  # 5 sec default
                 'timeDifference': 0,  # the difference between system clock and Binance clock
                 'adjustForTimeDifference': False,  # controls the adjustment logic upon instantiation
@@ -1434,18 +1435,26 @@ class bybit(Exchange):
             params = {}
         self.load_markets()
         market = self.market(symbol)
-        if type == 'market' and side == 'buy':
-            # for market buy it requires the amount of quote currency to spend
-            amount *= price
         upper_case_type = type.upper()
         request = {
             'symbol': market['id'],
             'side': self.capitalize(side),
             'orderType': upper_case_type,  # limit, market or limit_maker
             'timeInForce': 'GTC',  # FOK, IOC
-            'orderQty': self.amount_to_precision(symbol, amount),
             # 'orderLinkId': 'string',  # unique client order id, max 36 characters
         }
+        if (type == 'market') and (side == 'buy'):
+            if self.options['createMarketBuyOrderRequiresPrice']:
+                if price is None:
+                    raise InvalidOrder(self.id + " market buy order requires price argument to calculate cost(total amount of quote currency to spend for buying, amount * price). To switch off self warning exception and specify cost in the amount argument, set .options['createMarketBuyOrderRequiresPrice'] = False. Make sure you know what you're doing.")
+                else:
+                    # for market buy it requires the amount of quote currency to spend
+                    request['orderQty'] = self.cost_to_precision(symbol, float(amount) * float(price))
+            else:
+                request['orderQty'] = self.cost_to_precision(symbol, amount)
+        else:
+            request['orderQty'] = self.amount_to_precision(symbol, amount)
+
         if (upper_case_type == 'LIMIT') or (upper_case_type == 'LIMIT_MAKER'):
             if price is None:
                 raise InvalidOrder(self.id + ' createOrder requires a price argument for a ' + type + ' order')
@@ -1624,9 +1633,9 @@ class bybit(Exchange):
         market = self.market(symbol)
         symbol = market['symbol']
         if self.is_spot():
-            return self.create_spot_order(symbol, type, side, amount, price, params)
+            return self.create_spot_order(symbol, type, side, amount, price=price, params=params)
         elif self.is_linear() or self.is_inverse():
-            return self.create_contract_order(symbol, type, side, amount, price, params)
+            return self.create_contract_order(symbol, type, side, amount, price=price, params=params)
         else:
             raise NotImplementedError
 
