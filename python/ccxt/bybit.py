@@ -428,7 +428,6 @@ class bybit(Exchange):
                 'cancelAllOrders': {
                     'method': 'privatePostV2PrivateOrderCancelAll',  # privatePostV2PrivateStopOrderCancelAll
                 },
-                'createMarketBuyOrderRequiresPrice': True,
                 'recvWindow': 5 * 1000,  # 5 sec default
                 'timeDifference': 0,  # the difference between system clock and Binance clock
                 'adjustForTimeDifference': False,  # controls the adjustment logic upon instantiation
@@ -693,7 +692,7 @@ class bybit(Exchange):
                 },
                 'limits': {
                     'leverage': {
-                        'min': 1,
+                        'min': 1.,
                         'max': None,
                     },
                     'amount': {
@@ -1448,14 +1447,11 @@ class bybit(Exchange):
             # 'orderLinkId': 'string',  # unique client order id, max 36 characters
         }
         if (type == 'market') and (side == 'buy'):
-            if self.options['createMarketBuyOrderRequiresPrice']:
-                if price is None:
-                    raise InvalidOrder(self.id + " market buy order requires price argument to calculate cost(total amount of quote currency to spend for buying, amount * price). To switch off self warning exception and specify cost in the amount argument, set .options['createMarketBuyOrderRequiresPrice'] = False. Make sure you know what you're doing.")
-                else:
-                    # for market buy it requires the amount of quote currency to spend
-                    request['orderQty'] = self.cost_to_precision(symbol, float(amount) * float(price))
+            if price is None:
+                raise InvalidOrder(self.id + " market buy order requires price argument to calculate cost(total amount of quote currency to spend for buying, amount * price). To switch off self warning exception and specify cost in the amount argument, set .options['createMarketBuyOrderRequiresPrice'] = False. Make sure you know what you're doing.")
             else:
-                request['orderQty'] = self.cost_to_precision(symbol, amount)
+                # for market buy it requires the amount of quote currency to spend
+                request['orderQty'] = self.cost_to_precision(symbol, float(amount) * float(price))
         else:
             request['orderQty'] = self.amount_to_precision(symbol, amount)
 
