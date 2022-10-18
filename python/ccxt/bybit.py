@@ -1901,6 +1901,8 @@ class bybit(Exchange):
         return self.parse_orders(data, market, since, limit)
 
     def fetch_closed_orders(self, symbol=None, since=None, limit=None, params={}):
+        self.load_markets()
+
         order_type = self.safe_string_lower(params, 'type')
         params = self.omit(params, ["type"])
         is_conditional = order_type == 'stop'
@@ -1941,6 +1943,8 @@ class bybit(Exchange):
             raise NotImplementedError
 
     def fetch_open_orders(self, symbol=None, since=None, limit=None, params={}):
+        self.load_markets()
+
         order_type = self.safe_string_lower(params, 'type')
         params = self.omit(params, ["type"])
         is_conditional = order_type == 'stop'
