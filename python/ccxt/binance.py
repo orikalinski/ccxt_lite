@@ -1978,7 +1978,7 @@ class binance(Exchange):
         return order_trades
 
     def fetch_order_fee(self, _id, symbol, validate_filled=True):
-        trades = self.fetch_my_trades(symbol)
+        trades = self.fetch_my_trades(symbol, params={"order_id": _id})
         order_trades = self.filter_order_trades(trades, _id)
         if validate_filled and not order_trades:
             raise TradesNotFound("Couldn't get order's trades for external_order_id: %s" % _id)
@@ -2188,22 +2188,27 @@ class binance(Exchange):
         self.load_markets()
         market = self.market(symbol)
         type = self.safe_value(params, 'type', market['type'])
+        request = {
+            'symbol': market['id'],
+        }
         method = None
+        order_id = self.safe_string(params, 'order_id')
+        params = self.omit(params, 'order_id')
         if type == 'spot':
             method = 'privateGetMyTrades'
+            request['orderId'] = order_id
         elif type == 'future':
             method = 'fapiPrivateGetUserTrades'
         elif type == 'delivery':
             method = 'dapiPrivateGetUserTrades'
         elif type == 'margin_isolated':
             method = 'sapiGetMarginMyTrades'
-            params["isIsolated"] = "TRUE"
+            request['orderId'] = order_id
+            request["isIsolated"] = "TRUE"
         elif type == 'margin_cross':
             method = 'sapiGetMarginMyTrades'
+            request['orderId'] = order_id
         params = self.omit(params, 'type')
-        request = {
-            'symbol': market['id'],
-        }
         if since is not None:
             request['startTime'] = since
         if limit is not None:
@@ -2250,6 +2255,8 @@ class binance(Exchange):
         #         }
         #     ]
         #
+        if order_id:
+            response = [trade for trade in response if self.safe_string(trade, 'orderId') == order_id]
         return self.parse_trades(response, market, since, limit)
 
     def fetch_my_dust_trades(self, symbol=None, since=None, limit=None, params={}):
