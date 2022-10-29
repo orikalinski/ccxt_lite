@@ -899,11 +899,19 @@ class bybit(Exchange):
         if (last is not None) and (open is not None):
             change = last - open
             average = self.sum(open, last) / 2
-        quoteVolume = self.safe_float_2(ticker, 'volume_24h', 'qv')
-        baseVolume = self.safe_float_2(ticker, 'turnover_24h', 'v')
+        base_volume = quote_volume = 0.
+        if self.is_inverse():
+            base_volume = self.safe_float(ticker, "turnover_24h")
+            quote_volume = self.safe_float(ticker, "volume_24h")
+        elif self.is_linear():
+            base_volume = self.safe_float(ticker, "volume_24h")
+            quote_volume = self.safe_float(ticker, "turnover_24h")
+        elif self.is_spot():
+            base_volume = self.safe_float(ticker, 'v')
+            quote_volume = self.safe_float(ticker, 'qv')
         vwap = None
-        if quoteVolume is not None and baseVolume is not None:
-            vwap = quoteVolume / baseVolume
+        if quote_volume is not None and base_volume is not None:
+            vwap = quote_volume / base_volume if base_volume else 0.
         return {
             'symbol': symbol,
             'timestamp': timestamp,
@@ -922,8 +930,8 @@ class bybit(Exchange):
             'change': change,
             'percentage': percentage,
             'average': average,
-            'baseVolume': baseVolume,
-            'quoteVolume': quoteVolume,
+            'baseVolume': base_volume,
+            'quoteVolume': quote_volume,
             'info': ticker,
         }
 
