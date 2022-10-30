@@ -1978,7 +1978,7 @@ class binance(Exchange):
         return order_trades
 
     def fetch_order_fee(self, _id, symbol, validate_filled=True):
-        trades = self.fetch_my_trades(symbol, params={"order_id": int(_id)})
+        trades = self.fetch_my_trades(symbol)
         order_trades = self.filter_order_trades(trades, _id)
         if validate_filled and not order_trades:
             raise TradesNotFound("Couldn't get order's trades for external_order_id: %s" % _id)
