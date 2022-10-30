@@ -2255,8 +2255,8 @@ class binance(Exchange):
         #         }
         #     ]
         #
-        if order_id:
-            response = [trade for trade in response if self.safe_string(trade, 'orderId') == order_id]
+        # if order_id:
+        #     response = [trade for trade in response if self.safe_string(trade, 'orderId') == order_id]
         return self.parse_trades(response, market, since, limit)
 
     def fetch_my_dust_trades(self, symbol=None, since=None, limit=None, params={}):
