@@ -89,6 +89,20 @@ class Precise:
         result = self.integer ** other.integer
         return Precise(result, self.decimals * other.integer)
 
+    def gt(self, other):
+        add = self.sub(other)
+        return add.integer > 0
+
+    def ge(self, other):
+        add = self.sub(other)
+        return add.integer >= 0
+
+    def lt(self, other):
+        return other.gt(self)
+
+    def le(self, other):
+        return other.ge(self)
+
     def reduce(self):
         if self.integer == 0:
             self.decimals = 0
@@ -99,6 +113,11 @@ class Precise:
             self.decimals -= 1
             div, mod = divmod(self.integer, self.base)
         return self
+
+    def equals(self, other):
+        self.reduce()
+        other.reduce()
+        return self.decimals == other.decimals and self.integer == other.integer
 
     def __str__(self):
         sign = '-' if self.integer < 0 else ''
@@ -156,6 +175,18 @@ class Precise:
         return str(Precise(string).neg())
 
     @staticmethod
+    def string_equals(string1, string2):
+        if string1 is None or string2 is None:
+            return None
+        return Precise(string1).equals(Precise(string2))
+
+    @staticmethod
+    def string_eq(string1, string2):
+        if string1 is None or string2 is None:
+            return None
+        return Precise(string1).equals(Precise(string2))
+
+    @staticmethod
     def string_mod(string1, string2):
         if string1 is None or string2 is None:
             return None
@@ -166,3 +197,27 @@ class Precise:
         if string1 is None or string2 is None:
             return None
         return str(Precise(string1).pow(Precise(string2)))
+
+    @staticmethod
+    def string_gt(string1, string2):
+        if string1 is None or string2 is None:
+            return None
+        return Precise(string1).gt(Precise(string2))
+
+    @staticmethod
+    def string_ge(string1, string2):
+        if string1 is None or string2 is None:
+            return None
+        return Precise(string1).ge(Precise(string2))
+
+    @staticmethod
+    def string_lt(string1, string2):
+        if string1 is None or string2 is None:
+            return None
+        return Precise(string1).lt(Precise(string2))
+
+    @staticmethod
+    def string_le(string1, string2):
+        if string1 is None or string2 is None:
+            return None
+        return Precise(string1).le(Precise(string2))
