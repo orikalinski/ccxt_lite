@@ -1978,7 +1978,7 @@ class binance(Exchange):
         return order_trades
 
     def fetch_order_fee(self, _id, symbol, validate_filled=True):
-        trades = self.fetch_my_trades(symbol)
+        trades = self.fetch_my_trades(symbol, params={"order_id": _id})
         order_trades = self.filter_order_trades(trades, _id)
         if validate_filled and not order_trades:
             raise TradesNotFound("Couldn't get order's trades for external_order_id: %s" % _id)
@@ -2192,7 +2192,7 @@ class binance(Exchange):
             'symbol': market['id'],
         }
         method = None
-        order_id = self.safe_string(params, 'order_id')
+        order_id = self.safe_integer(params, 'order_id')
         params = self.omit(params, 'order_id')
         if type == 'spot':
             method = 'privateGetMyTrades'
