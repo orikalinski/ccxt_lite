@@ -1971,15 +1971,8 @@ class binance(Exchange):
         response = getattr(self, method)(self.extend(request, params))
         return self.parse_order(response, market)
 
-    @staticmethod
-    def filter_order_trades(trades, _id):
-        _id_str = str(_id)
-        order_trades = [trade for trade in trades if trade["order"] == _id_str]
-        return order_trades
-
     def fetch_order_fee(self, _id, symbol, validate_filled=True):
-        trades = self.fetch_my_trades(symbol, params={"order_id": _id})
-        order_trades = self.filter_order_trades(trades, _id)
+        order_trades = self.fetch_my_trades(symbol, params={"order_id": _id})
         if validate_filled and not order_trades:
             raise TradesNotFound("Couldn't get order's trades for external_order_id: %s" % _id)
         _, fee = self.parse_trades_cost_fee(symbol, order_trades)
@@ -2196,18 +2189,18 @@ class binance(Exchange):
         params = self.omit(params, 'order_id')
         if type == 'spot':
             method = 'privateGetMyTrades'
-            # request['orderId'] = order_id
+            request['orderId'] = order_id
         elif type == 'future':
             method = 'fapiPrivateGetUserTrades'
         elif type == 'delivery':
             method = 'dapiPrivateGetUserTrades'
         elif type == 'margin_isolated':
             method = 'sapiGetMarginMyTrades'
-            # request['orderId'] = order_id
+            request['orderId'] = order_id
             request["isIsolated"] = "TRUE"
         elif type == 'margin_cross':
             method = 'sapiGetMarginMyTrades'
-            # request['orderId'] = order_id
+            request['orderId'] = order_id
         params = self.omit(params, 'type')
         if since is not None:
             request['startTime'] = since
@@ -2255,8 +2248,8 @@ class binance(Exchange):
         #         }
         #     ]
         #
-        # if order_id:
-        #     response = [trade for trade in response if self.safe_string(trade, 'orderId') == order_id]
+        if order_id:
+            response = [trade for trade in response if self.safe_integer(trade, 'orderId') == order_id]
         return self.parse_trades(response, market, since, limit)
 
     def fetch_my_dust_trades(self, symbol=None, since=None, limit=None, params={}):
