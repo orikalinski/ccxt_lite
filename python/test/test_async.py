@@ -142,8 +142,8 @@ async def test_order_book(exchange, symbol):
 async def test_ohlcvs(exchange, symbol):
     ignored_exchanges = [
         'cex',  # CEX can return historical candles for a certain date only
-        'okex',  # okex fetchOHLCV counts "limit" candles from current time backwards
-        'okcoinusd',  # okex base class
+        'okx',  # okx fetchOHLCV counts "limit" candles from current time backwards
+        'okcoinusd',  # okx base class
     ]
     if exchange.id in ignored_exchanges:
         return

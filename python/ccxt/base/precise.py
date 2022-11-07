@@ -15,6 +15,10 @@ class Precise:
     def __init__(self, number, decimals=0):
         is_string = isinstance(number, str)
         is_int = isinstance(number, int)
+        is_float = isinstance(number, float)
+        if is_float and number.is_integer():
+            number = int(number)
+            is_int = True
         if not (is_string or is_int):
             raise RuntimeError('Precise class initiated with something other than a string or int')
         if is_int:
@@ -31,7 +35,7 @@ class Precise:
             decimal_index = number.find('.')
             self.decimals = len(number) - decimal_index - 1 if decimal_index > -1 else 0
             integer_string = number.replace('.', '')
-            self.integer = int(integer_string)
+            self.integer = int(integer_string) if integer_string != "" else 0.
             self.decimals = self.decimals - modifier
         self.base = 10
         self.reduce()
@@ -84,6 +88,12 @@ class Precise:
         denominator = other.integer * (self.base ** rationizerDenominator)
         result = numerator % denominator
         return Precise(result, rationizerDenominator + other.decimals)
+
+    def min(self, other):
+        return self if self.lt(other) else other
+
+    def max(self, other):
+        return self if self.gt(other) else other
 
     def pow(self, other):
         result = self.integer ** other.integer
@@ -185,6 +195,18 @@ class Precise:
         if string1 is None or string2 is None:
             return None
         return Precise(string1).equals(Precise(string2))
+
+    @staticmethod
+    def string_min(string1, string2):
+        if string1 is None or string2 is None:
+            return None
+        return str(Precise(string1).min(Precise(string2)))
+
+    @staticmethod
+    def string_max(string1, string2):
+        if string1 is None or string2 is None:
+            return None
+        return str(Precise(string1).max(Precise(string2)))
 
     @staticmethod
     def string_mod(string1, string2):

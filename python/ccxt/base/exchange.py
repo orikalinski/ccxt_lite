@@ -737,6 +737,19 @@ class Exchange(object):
     def safe_timestamp_n(dictionary, key_list, default_value=None):
         return Exchange.safe_integer_product_n(dictionary, key_list, 1000, default_value)
 
+    def safe_currency(self, currencyId, currency=None):
+        if (currencyId is None) and (currency is not None):
+            return currency
+        if (self.currencies_by_id is not None) and (currencyId in self.currencies_by_id):
+            return self.currencies_by_id[currencyId]
+        code = currencyId
+        if currencyId is not None:
+            code = self.common_currency_code(currencyId.upper())
+        return {
+            'id': currencyId,
+            'code': code,
+        }
+
     @staticmethod
     def safe_value_n(dictionary, key_list, default_value=None):
         value = Exchange.get_object_value_from_key_list(dictionary, key_list)
@@ -2889,10 +2902,10 @@ class Exchange(object):
         return self.options['timeDifference']
 
     def omit_zero(self, string_number):
-        if string_number is None:
-            return None
+        if string_number is None or string_number == '':
+            return
         if float(string_number) == 0:
-            return None
+            return
         return string_number
 
     def handle_margin_mode_and_params(self, methodName, params={}):
