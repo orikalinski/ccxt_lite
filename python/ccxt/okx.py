@@ -732,7 +732,7 @@ class okx(Exchange):
                     'FUTURES': 'FUTURES',
                     'OPTION': 'OPTION',
                 },
-                'brokerId': 'e847386590ce4dBC',
+                'brokerId': None,
             },
             'commonCurrencies': {
                 # the exchange refers to ERC20 version of Aeternity(AEToken)
@@ -1975,12 +1975,16 @@ class okx(Exchange):
         conditional = (stopLossPrice is not None) or (takeProfitPrice is not None) or (type == 'conditional')
         marketIOC = (isMarketOrder and ioc) or (type == 'optimal_limit_ioc')
         defaultMethod = self.safe_string(self.options, 'createOrder', 'privatePostTradeBatchOrders')
-        defaultTgtCcy = self.safe_string(self.options, 'tgtCcy', 'base_ccy')
-        tgtCcy = self.safe_string(params, 'tgtCcy', defaultTgtCcy)
-        if (not contract) and (not margin):
-            request['tgtCcy'] = tgtCcy
         method = defaultMethod
         if isMarketOrder or marketIOC:
+            defaultTgtCcy = self.safe_string(self.options, 'tgtCcy', 'base_ccy')
+            tgtCcy = self.safe_string(params, 'tgtCcy', defaultTgtCcy)
+            params = self.omit(params, "tgtCcy")
+            if (not contract) and (not margin):
+                if side == 'buy' and tgtCcy == 'base_ccy':
+                    request['tgtCcy'] = tgtCcy
+                elif side == 'sell' and tgtCcy == 'quote_ccy':
+                    request['tgtCcy'] = tgtCcy
             request['ordType'] = 'market'
             if spot and (side == 'buy'):
                 # spot market buy: "sz" can refer either to base currency units or to quote currency units
