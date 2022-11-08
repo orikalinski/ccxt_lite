@@ -2075,11 +2075,12 @@ class okx(Exchange):
         :returns dict: An `order structure <https://docs.ccxt.com/en/latest/manual.html#order-structure>`
         """
         stop_order_id = self.safe_string(params, 'stop_order_id')
-        params = self.omit(params, 'stop_order_id')
         is_conditional = stop_order_id is not None
         if is_conditional:
             order = self.cancel_orders([id], symbol, params)
             return self.safe_value(order, 0)
+        else:
+            params = self.omit(params, 'stop_order_id')
         if symbol is None:
             raise ArgumentsRequired(self.id + ' cancelOrder() requires a symbol argument')
         self.load_markets()
@@ -2131,8 +2132,10 @@ class okx(Exchange):
         method = self.safe_string(params, 'method', defaultMethod)
         clientOrderIds = self.parse_ids(self.safe_value_2(params, 'clOrdId', 'clientOrderId'))
         algoIds = self.parse_ids(self.safe_value(params, 'algoId'))
-        stop = self.safe_value(params, 'stop')
-        if stop:
+        stop_order_id = self.safe_string(params, 'stop_order_id')
+        params = self.omit(params, 'stop_order_id')
+        is_conditional = stop_order_id is not None
+        if is_conditional:
             method = 'privatePostTradeCancelAlgos'
         if clientOrderIds is None:
             ids = self.parse_ids(ids)
@@ -2143,7 +2146,7 @@ class okx(Exchange):
                         'instId': market['id'],
                     })
             for i in range(0, len(ids)):
-                if stop:
+                if is_conditional:
                     request.append({
                         'algoId': ids[i],
                         'instId': market['id'],
