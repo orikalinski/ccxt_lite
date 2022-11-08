@@ -749,12 +749,8 @@ class okx(Exchange):
         })
 
     def handle_market_type_and_params(self, methodName, market=None, params={}):
-        instType = self.safe_string(params, 'instType')
-        params = self.omit(params, 'instType')
-        type = self.safe_string(params, 'type')
-        if (type is None) and (instType is not None):
-            params['type'] = instType
-        return super(okx, self).handle_market_type_and_params(methodName, market, params)
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type, params
 
     def convert_to_instrument_type(self, type):
         exchangeTypes = self.safe_value(self.options, 'exchangeType', {})
@@ -2078,8 +2074,10 @@ class okx(Exchange):
         :param dict params: extra parameters specific to the okx api endpoint
         :returns dict: An `order structure <https://docs.ccxt.com/en/latest/manual.html#order-structure>`
         """
-        stop = self.safe_value(params, 'stop')
-        if stop:
+        stop_order_id = self.safe_string(params, 'stop_order_id')
+        params = self.omit(params, 'stop_order_id')
+        is_conditional = stop_order_id is not None
+        if is_conditional:
             order = self.cancel_orders([id], symbol, params)
             return self.safe_value(order, 0)
         if symbol is None:
@@ -2377,6 +2375,13 @@ class okx(Exchange):
             'reduceOnly': reduceOnly,
         }, market)
 
+    def handle_conditional_order_fetch_order(self, id, symbol):
+        try:
+            orders = self.fetch_open_orders(symbol, params={"type": "stop", "algoId": id})
+        except OrderNotFound:
+            orders = self.fetch_closed_orders(symbol, params={"type": "stop", "algoId": id})
+        return orders[0]
+
     def fetch_order(self, id, symbol=None, params={}):
         """
         fetch an order by the id
@@ -2399,9 +2404,11 @@ class okx(Exchange):
         options = self.safe_value(self.options, 'fetchOrder', {})
         defaultMethod = self.safe_string(options, 'method', 'privateGetTradeOrder')
         method = self.safe_string(params, 'method', defaultMethod)
-        stop = self.safe_value(params, 'stop')
-        if stop:
-            raise NotSupported(self.id + ' fetchOrder() does not support stop orders, use fetchOpenOrders() fetchCanceledOrders() or fetchClosedOrders()')
+        order_type = self.safe_string_lower(params, 'type')
+        params = self.omit(params, ["type"])
+        is_conditional = order_type == 'stop'
+        if is_conditional:
+            return self.handle_conditional_order_fetch_order(id, symbol)
         else:
             if clientOrderId is not None:
                 request['clOrdId'] = clientOrderId
@@ -2489,16 +2496,15 @@ class okx(Exchange):
         if limit is not None:
             request['limit'] = limit  # default 100, max 100
         options = self.safe_value(self.options, 'fetchOpenOrders', {})
-        algoOrderTypes = self.safe_value(self.options, 'algoOrderTypes', {})
         defaultMethod = self.safe_string(options, 'method', 'privateGetTradeOrdersPending')
         method = self.safe_string(params, 'method', defaultMethod)
-        ordType = self.safe_string(params, 'ordType')
-        stop = self.safe_value(params, 'stop')
-        if stop or (ordType in algoOrderTypes):
+
+        order_type = self.safe_string_lower(params, 'type')
+        params = self.omit(params, ["type"])
+        is_conditional = order_type == 'stop'
+        if is_conditional:
             method = 'privateGetTradeOrdersAlgoPending'
-            if stop:
-                if ordType is None:
-                    raise ArgumentsRequired(self.id + ' fetchOpenOrders() requires an "ordType" string parameter, "conditional", "oco", "trigger", "move_order_stop", "iceberg", or "twap"')
+            request["ordType"] = "conditional"
         query = self.omit(params, ['method', 'stop'])
         response = getattr(self, method)(self.extend(request, query))
         #
@@ -2627,28 +2633,21 @@ class okx(Exchange):
         if symbol is not None:
             market = self.market(symbol)
             request['instId'] = market['id']
-        type, query = self.handle_market_type_and_params('fetchCanceledOrders', market, params)
+        type, params = self.handle_market_type_and_params('fetchCanceledOrders', market, params)
         request['instType'] = self.convert_to_instrument_type(type)
         if limit is not None:
             request['limit'] = limit  # default 100, max 100
         request['state'] = 'canceled'
         options = self.safe_value(self.options, 'fetchCanceledOrders', {})
-        algoOrderTypes = self.safe_value(self.options, 'algoOrderTypes', {})
         defaultMethod = self.safe_string(options, 'method', 'privateGetTradeOrdersHistory')
         method = self.safe_string(params, 'method', defaultMethod)
-        ordType = self.safe_string(params, 'ordType')
-        stop = self.safe_value(params, 'stop')
-        if stop or (ordType in algoOrderTypes):
+        order_type = self.safe_string_lower(params, 'type')
+        params = self.omit(params, ["type"])
+        is_conditional = order_type == 'stop'
+        if is_conditional:
             method = 'privateGetTradeOrdersAlgoHistory'
-            algoId = self.safe_string(params, 'algoId')
-            if algoId is not None:
-                request['algoId'] = algoId
-                params = self.omit(params, 'algoId')
-            if stop:
-                if ordType is None:
-                    raise ArgumentsRequired(self.id + ' fetchCanceledOrders() requires an "ordType" string parameter, "conditional", "oco", "trigger", "move_order_stop", "iceberg", or "twap"')
-                request['ordType'] = ordType
-        send = self.omit(query, ['method', 'stop', 'ordType'])
+            request["ordType"] = "conditional"
+        send = self.omit(params, ['method', 'stop', 'ordType'])
         response = getattr(self, method)(self.extend(request, send))
         #
         #     {
@@ -2785,21 +2784,28 @@ class okx(Exchange):
         if limit is not None:
             request['limit'] = limit  # default 100, max 100
         options = self.safe_value(self.options, 'fetchClosedOrders', {})
-        algoOrderTypes = self.safe_value(self.options, 'algoOrderTypes', {})
         defaultMethod = self.safe_string(options, 'method', 'privateGetTradeOrdersHistory')
         method = self.safe_string(params, 'method', defaultMethod)
-        ordType = self.safe_string(params, 'ordType')
-        stop = self.safe_value(params, 'stop')
-        if stop or (ordType in algoOrderTypes):
+        order_type = self.safe_string_lower(params, 'type')
+        is_conditional = order_type == 'stop'
+        if is_conditional:
             method = 'privateGetTradeOrdersAlgoHistory'
-            if stop:
-                if ordType is None:
-                    raise ArgumentsRequired(self.id + ' fetchClosedOrders() requires an "ordType" string parameter, "conditional", "oco", "trigger", "move_order_stop", "iceberg", or "twap"')
-            request['state'] = 'effective'
+            request["ordType"] = "conditional"
+            state = 'effective'
         else:
-            request['state'] = 'filled'
+            state = 'filled'
         send = self.omit(query, ['method', 'stop'])
-        response = getattr(self, method)(self.extend(request, send))
+        if 'algoId' in params:
+            response = getattr(self, method)(self.extend(request, send))
+            data = self.safe_value(response, 'data', [])
+            orders = self.parse_orders(data, market, since, limit)
+        else:
+            request['state'] = state
+            response = getattr(self, method)(self.extend(request, send))
+            data = self.safe_value(response, 'data', [])
+            orders = self.parse_orders(data, market, since, limit)
+            orders += self.fetch_canceled_orders(symbol, params=params)
+        return orders
         #
         #     {
         #         "code": "0",
@@ -2895,8 +2901,6 @@ class okx(Exchange):
         #         "msg": ""
         #     }
         #
-        data = self.safe_value(response, 'data', [])
-        return self.parse_orders(data, market, since, limit)
 
     def fetch_my_trades(self, symbol=None, since=None, limit=None, params={}):
         """
