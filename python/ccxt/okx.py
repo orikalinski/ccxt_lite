@@ -2319,13 +2319,15 @@ class okx(Exchange):
             type = 'limit'
         marketId = self.safe_string(order, 'instId')
         symbol = self.safe_symbol(marketId, market, '-')
-        filled = self.safe_string(order, 'accFillSz')
-        price = self.safe_string_2(order, 'px', 'ordPx')
-        average = self.safe_string(order, 'avgPx')
+        filled = self.safe_float(order, 'accFillSz', default_value=0.)
+        price = self.safe_float_2(order, 'px', 'ordPx')
+        average = self.safe_float(order, 'avgPx')
         status = self.parse_order_status(self.safe_string(order, 'state'))
-        feeCostString = self.safe_string(order, 'fee')
+        fee_cost = self.safe_float(order, 'fee')
         amount = None
         cost = None
+        remaining = None
+
         # spot market buy: "sz" can refer either to base currency units or to quote currency units
         # see documentation: https://www.okx.com/docs-v5/en/#rest-api-trade-place-order
         defaultTgtCcy = self.safe_string(self.options, 'tgtCcy', 'base_ccy')
@@ -2333,26 +2335,33 @@ class okx(Exchange):
         instType = self.safe_string(order, 'instType')
         if (side == 'buy') and (type == 'market') and (instType == 'SPOT') and (tgtCcy == 'quote_ccy'):
             # "sz" refers to the cost
-            cost = self.safe_string(order, 'sz')
+            cost = self.safe_float(order, 'sz')
         else:
             # "sz" refers to the trade currency amount
-            amount = self.safe_string(order, 'sz')
+            amount = self.safe_float(order, 'sz')
         fee = None
-        if feeCostString is not None:
-            feeCostSigned = Precise.string_neg(feeCostString)
+        if fee_cost is not None:
             feeCurrencyId = self.safe_string(order, 'feeCcy')
             feeCurrencyCode = self.safe_currency_code(feeCurrencyId)
             fee = {
-                'cost': self.parse_number(feeCostSigned),
+                'cost': fee_cost,
                 'currency': feeCurrencyCode,
             }
         clientOrderId = self.safe_string(order, 'clOrdId')
         if (clientOrderId is not None) and (len(clientOrderId) < 1):
             clientOrderId = None  # fix empty clientOrderId string
-        stopPrice = self.safe_number_n(order, ['triggerPx', 'slTriggerPx', 'tpTriggerPx'])
         reduceOnly = self.safe_string(order, 'reduceOnly')
         if reduceOnly is not None:
             reduceOnly = (reduceOnly == 'true')
+        if (filled is None) and (amount is not None) and (remaining is not None):
+            filled = amount - remaining
+        if filled is not None:
+            if (remaining is None) and (amount is not None):
+                remaining = amount - filled
+            if cost is None:
+                if price is not None:
+                    cost = price * filled
+        stop_price = self.safe_float(order, 'slTriggerPx')
         return self.safe_order({
             'info': order,
             'id': id,
@@ -2366,12 +2375,12 @@ class okx(Exchange):
             'postOnly': postOnly,
             'side': side,
             'price': price,
-            'stopPrice': stopPrice,
+            'stopPrice': stop_price,
             'average': average,
             'cost': cost,
             'amount': amount,
             'filled': filled,
-            'remaining': None,
+            'remaining': remaining,
             'status': status,
             'fee': fee,
             'trades': None,
