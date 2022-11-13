@@ -718,19 +718,26 @@ class binance(Exchange):
 
         for account_position in account_positions:
             symbol = account_position["symbol"]
-            position = risk_positions.get(symbol)
-            if position:
-                margin = self.safe_float(account_position, "initialMargin", 0.) + \
-                         self.safe_float(account_position, "unrealizedProfit", 0.) - \
-                         self.safe_float(account_position, "openOrderInitialMargin", 0.)
-                market = self.find_market(position["symbol"])
-                if type(market) is dict:
-                    liq_price = self.safe_float(position, "liquidationPrice", 0)
-                    result = {"info": position, "symbol": market["symbol"],
-                              "quantity": self.safe_float(position, "positionAmt", 0.),
-                              "leverage": self.safe_float(position, "leverage", None), "maintenance_margin": margin,
-                              "margin_type": position["marginType"], "liquidation_price": max(liq_price, 0)}
-                    positions_to_return.append(result)
+            positions = risk_positions.get(symbol)
+            account_position_side = account_position.get("positionSide")
+            if positions is None:
+                continue
+            for position in positions:
+                position_side = position.get("positionSide")
+                if position and position_side == account_position_side:
+                    margin = self.safe_float(account_position, "initialMargin", 0.) + \
+                             self.safe_float(account_position, "unrealizedProfit", 0.) - \
+                             self.safe_float(account_position, "openOrderInitialMargin", 0.)
+                    market = self.find_market(position["symbol"])
+                    side = position.get("positionSide")
+                    if type(market) is dict:
+                        liq_price = self.safe_float(position, "liquidationPrice", 0)
+                        result = {"info": position, "symbol": market["symbol"],
+                                  "quantity": self.safe_float(position, "positionAmt", 0.),
+                                  "leverage": self.safe_float(position, "leverage", None), "maintenance_margin": margin,
+                                  "margin_type": position["marginType"], "liquidation_price": max(liq_price, 0),
+                                  "is_long": None if side == "BOTH" else side == "LONG"}
+                        positions_to_return.append(result)
         return positions_to_return
 
     def parse_isolated_margin_positions(self, positions):
@@ -779,13 +786,17 @@ class binance(Exchange):
 
         if _type == "future":
             account_positions = self.fapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in
-                              self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
+            risk_positions = defaultdict(list)
+            raw_risk_positions = self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})
+            for raw_risk_position in raw_risk_positions:
+                risk_positions[raw_risk_position["symbol"]].append(raw_risk_position)
             positions_to_return = self.parse_positions(account_positions, risk_positions)
         elif _type == "delivery":
             account_positions = self.dapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in
-                              self.dapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
+            risk_positions = defaultdict(list)
+            raw_risk_positions = self.dapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})
+            for raw_risk_position in raw_risk_positions:
+                risk_positions[raw_risk_position["symbol"]].append(raw_risk_position)
             positions_to_return = self.parse_positions(account_positions, risk_positions)
         elif _type == "margin_isolated":
             response = self.sapiGetMarginIsolatedAccount({"symbols": self.market_id(symbol)} if symbol else {})
