@@ -167,7 +167,7 @@ from ccxt.mercado import mercado                            # noqa: F401
 from ccxt.mixcoins import mixcoins                          # noqa: F401
 from ccxt.oceanex import oceanex                            # noqa: F401
 from ccxt.okcoin import okcoin                              # noqa: F401
-from ccxt.okex import okex                                  # noqa: F401
+from ccxt.okx import okx                                  # noqa: F401
 from ccxt.paymium import paymium                            # noqa: F401
 from ccxt.phemex import phemex                              # noqa: F401
 from ccxt.poloniex import poloniex                          # noqa: F401
@@ -291,7 +291,7 @@ exchanges = [
     'mixcoins',
     'oceanex',
     'okcoin',
-    'okex',
+    'okx',
     'paymium',
     'phemex',
     'poloniex',

@@ -34,12 +34,12 @@ from ccxt.base.decimal_to_precision import TRUNCATE
 from ccxt.base.decimal_to_precision import TICK_SIZE
 
 
-class okex(Exchange):
+class okx(Exchange):
 
     def describe(self):
-        return self.deep_extend(super(okex, self).describe(), {
-            'id': 'okex',
-            'name': 'OKEX',
+        return self.deep_extend(super(okx, self).describe(), {
+            'id': 'okx',
+            'name': 'OKX',
             'countries': ['CN', 'US'],
             'version': 'v3',
             'rateLimit': 1000,  # up to 3000 requests per 5 minutes ≈ 600 requests per minute ≈ 10 requests per second ≈ 100 ms
@@ -85,18 +85,18 @@ class okex(Exchange):
                 '1d': '86400',
                 '1w': '604800',
             },
-            'hostname': 'okex.com',
+            'hostname': 'okx.com',
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/1294454/32552768-0d6dd3c6-c4a6-11e7-90f8-c043b64756a7.jpg',
                 'api': {
                     'rest': 'https://www.{hostname}',
                 },
-                'www': 'https://www.okex.com',
-                'doc': 'https://www.okex.com/docs/en/',
-                'fees': 'https://www.okex.com/pages/products/fees.html',
-                'referral': 'https://www.okex.com/join/1888677',
+                'www': 'https://www.okx.com',
+                'doc': 'https://www.okx.com/docs/en/',
+                'fees': 'https://www.okx.com/pages/products/fees.html',
+                'referral': 'https://www.okx.com/join/1888677',
                 'test': {
-                    'rest': 'https://testnet.okex.com',
+                    'rest': 'https://testnet.okx.com',
                 },
             },
             'api': {
@@ -954,8 +954,8 @@ class okex(Exchange):
     async def fetch_currencies(self, params={}):
         # has['fetchCurrencies'] is currently set to False
         # despite that their docs say these endpoints are public:
-        #     https://www.okex.com/api/account/v3/withdrawal/fee
-        #     https://www.okex.com/api/account/v3/currencies
+        #     https://www.okx.com/api/account/v3/withdrawal/fee
+        #     https://www.okx.com/api/account/v3/currencies
         # it will still reply with {"code":30001, "message": "OK-ACCESS-KEY header is required"}
         # if you attempt to access it without authentication
         response = await self.accountGetCurrencies(params)
@@ -1335,7 +1335,7 @@ class okex(Exchange):
                 self.safe_float(ohlcv, 4),            # Close
                 # self.safe_float(ohlcv, 5),         # Quote Volume
                 # self.safe_float(ohlcv, 6),         # Base Volume
-                self.safe_float(ohlcv, volumeIndex),  # Volume, okex will return base volume in the 7th element for future markets
+                self.safe_float(ohlcv, volumeIndex),  # Volume, okx will return base volume in the 7th element for future markets
             ]
         else:
             return [
