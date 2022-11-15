@@ -2,7 +2,9 @@ error_hierarchy = {
     'BaseError': {
         'ExchangeError': {
             'AuthenticationError': {
-                'PermissionDenied': {},
+                'PermissionDenied': {
+                    'AccountNotEnabled': {},
+                },
                 'AccountSuspended': {},
                 'AccountNotVerified': {},
             },
@@ -55,6 +57,10 @@ class AuthenticationError(ExchangeError):
 
 
 class PermissionDenied(AuthenticationError):
+    pass
+
+
+class AccountNotEnabled(PermissionDenied):
     pass
 
 
@@ -190,6 +196,7 @@ __all__ = [
     'SameLeverage',
     'AuthenticationError',
     'PermissionDenied',
+    'AccountNotEnabled',
     'AccountSuspended',
     'AccountNotVerified',
     'ArgumentsRequired',
