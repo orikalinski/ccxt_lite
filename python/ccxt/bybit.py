@@ -25,7 +25,7 @@ from ccxt.base.decimal_to_precision import TICK_SIZE
 
 PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
                        "withdrawal": ["Withdrawal"]}
-NOT_CHANGED_ERROR_CODES = {'30083'}
+NOT_CHANGED_ERROR_CODES = {'30083', '34026'}
 
 
 class bybit(Exchange):
@@ -119,6 +119,7 @@ class bybit(Exchange):
                         'v2/public/symbols',
                         'v2/public/time',
                         'v2/public/announcement',
+                        'v2/public/risk-limit/list',
                         'spot/v3/public/time',
                         'spot/v3/public/symbols',
                         'spot/v3/public/quote/depth',
@@ -200,6 +201,7 @@ class bybit(Exchange):
                         'v2/private/stop-order/cancelAll',
                         'v2/private/position/change-position-margin',
                         'v2/private/position/leverage/save',
+                        'v2/private/position/risk-limit',
                     ],
                     'delete': [
                         'spot/v3/private/order',
@@ -2334,6 +2336,48 @@ class bybit(Exchange):
                 raise NotSupported()
         except NotChanged:
             pass
+
+    def get_risk_limits(self, symbol):
+        self.load_markets()
+        request = {"symbol": self.market_id(symbol)}
+        if self.is_linear():
+            response = self.publicGetPublicLinearRiskLimit(request)
+        elif self.is_inverse():
+            response = self.publicGetV2PublicRiskLimitList(request)
+        else:
+            raise NotSupported()
+
+        result = self.safe_value(response, 'result')
+        return result
+
+    @staticmethod
+    def _get_best_risk_id(risk_limits, desired_limit):
+        sorted_limits = sorted(risk_limits, key=lambda x: x["limit"])
+        for risk_limit in sorted_limits:
+            if desired_limit <= risk_limit["limit"]:
+                return risk_limit["id"]
+
+    def set_risk_limit(self, symbol, is_long=None, limit=None, risk_id=None):
+        self.load_markets()
+        assert limit or risk_id
+        if risk_id is None:
+            risk_limits = self.get_risk_limits(symbol)
+            risk_id = self._get_best_risk_id(risk_limits, limit)
+
+        request = {"symbol": self.market_id(symbol), "risk_id": risk_id}
+        try:
+            if self.is_linear():
+                request["side"] = "Buy" if is_long else "Sell"
+                response = self.privatePostPrivateLinearPositionSetRisk(request)
+            elif self.is_inverse():
+                response = self.privatePostV2PrivatePositionRiskLimit(request)
+            else:
+                raise NotSupported()
+        except NotChanged:
+            return risk_id
+
+        result = self.safe_value(response, 'result')
+        return self.safe_integer(result, 'risk_id')
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         url = self.implode_hostname(self.urls['api'][api]) + '/' + path
