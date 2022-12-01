@@ -547,12 +547,11 @@ class bybit(Exchange):
     def get_same_direction_position(positions, is_long):
         for position in positions:
             _is_long = position["is_long"]
-            if is_long == _is_long:
+            if is_long == _is_long or _is_long is None:
                 return position
 
     def classify_change_margin(self, symbol, _id, is_long, is_cross, leverage):
         positions = self.get_positions(symbol)
-        long_leverage, short_leverage = self.get_change_margin_input(positions, is_cross, leverage, is_long)
         same_direction_position = self.get_same_direction_position(positions, is_long)
         if same_direction_position is None:
             raise PositionNotFound(f"Couldn't find position for symbol: {symbol} is_long: {is_long}")
@@ -560,6 +559,8 @@ class bybit(Exchange):
         _is_long = same_direction_position["is_long"]
         _leverage = same_direction_position["leverage"]
         _is_cross = same_direction_position["margin_type"] == "cross"
+        long_leverage, short_leverage = self.get_change_margin_input(positions, is_cross, leverage, _is_long)
+
         if is_cross == _is_cross and (leverage == _leverage):
             return
         elif is_cross != _is_cross:
