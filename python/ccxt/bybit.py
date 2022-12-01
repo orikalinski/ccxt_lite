@@ -520,6 +520,29 @@ class bybit(Exchange):
         long_leverage, short_leverage = self.is_int_format(long_leverage), self.is_int_format(short_leverage)
         return long_leverage, short_leverage
 
+    def change_position_mode(self, is_hedge_mode, symbol=None, pair=None):
+        _type = self.safe_string(self.options, 'defaultType')
+        try:
+            if _type == "linear":
+                self.load_markets()
+                mode = "BothSide" if is_hedge_mode else "MergedSingle"
+                data = {'mode': mode}
+                if symbol:
+                    symbol = self.find_symbol(symbol)
+                    _id = self.market(symbol)["id"]
+                    data["symbol"] = _id
+                elif pair:
+                    data["coin"] = pair
+                response = self.privatePostPrivateLinearPositionSwitchMode(data)
+                return_message = self.safe_string(response, "ret_msg")
+                if return_message and return_message.lower().startswith("partial symbols switched"):
+                    feedback = self.id + ' ' + json.dumps(response)
+                    raise ExchangeError(feedback)
+            else:
+                raise NotSupported()
+        except NotChanged:
+            pass
+
     @staticmethod
     def get_same_direction_position(positions, is_long):
         for position in positions:
