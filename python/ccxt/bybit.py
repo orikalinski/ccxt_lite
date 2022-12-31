@@ -24,7 +24,7 @@ from ccxt.base.exchange import Exchange
 
 PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
                        "withdrawal": ["Withdrawal"]}
-NOT_CHANGED_ERROR_CODES = {'30083', '34026'}
+NOT_CHANGED_ERROR_CODES = {'30083', '34026', '134026'}
 
 
 class bybit(Exchange):
