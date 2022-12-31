@@ -717,6 +717,24 @@ class bybit(Exchange):
             })
         return result
 
+    def get_symbol_id_to_risk_limits(self):
+        risk_limits = self.get_risk_limits()
+        symbol_id_to_risk_limits = defaultdict(list)
+        for risk_limit in risk_limits:
+            symbol_id = self.safe_string(risk_limit, "symbol")
+            symbol_id_to_risk_limits[symbol_id].append(risk_limit)
+        return symbol_id_to_risk_limits
+
+    def get_unified_risk_limits_for_symbol(self, symbol_id_to_risk_limits, _id):
+        risk_limits = self.safe_value(symbol_id_to_risk_limits, _id, list())
+        unified_risk_limits = list()
+        for risk_limit in risk_limits:
+            limit = self.safe_float(risk_limit, "limit")
+            max_leverage = self.safe_float(risk_limit, "max_leverage")
+            risk_id = self.safe_integer(risk_limit, "id")
+            unified_risk_limits.append({"id": risk_id, "limit": limit, "max_leverage": max_leverage})
+        return sorted(unified_risk_limits, key=lambda risk_limit_dict: risk_limit_dict["limit"])
+
     def fetch_contract_markets(self, params={}):
         response = self.publicGetV2PublicSymbols(params)
         #
@@ -743,6 +761,7 @@ class bybit(Exchange):
         #
         is_linear_client = self.is_linear()
         is_inverse_client = self.is_inverse()
+        symbol_id_to_risk_limits = self.get_symbol_id_to_risk_limits()
         markets = self.safe_value(response, 'result', [])
         options = self.safe_value(self.options, 'fetchMarkets', {})
         linearQuoteCurrencies = self.safe_value(options, 'linear', {'USDT': True})
@@ -768,6 +787,8 @@ class bybit(Exchange):
                 'amount': self.safe_float(lotSizeFilter, 'qty_step'),
                 'price': self.safe_float(priceFilter, 'tick_size'),
             }
+            risk_limits = self.get_unified_risk_limits_for_symbol(symbol_id_to_risk_limits, id)
+
             result.append({
                 'id': id,
                 'symbol': symbol,
@@ -796,6 +817,7 @@ class bybit(Exchange):
                         'min': None,
                         'max': None,
                     },
+                    'risk': risk_limits
                 },
                 'info': market,
             })
@@ -2337,9 +2359,12 @@ class bybit(Exchange):
         except NotChanged:
             pass
 
-    def get_risk_limits(self, symbol):
-        self.load_markets()
-        request = {"symbol": self.market_id(symbol)}
+    def get_risk_limits(self, symbol=None):
+        if symbol:
+            self.load_markets()
+            request = {"symbol": self.market_id(symbol)}
+        else:
+            request = dict()
         if self.is_linear():
             response = self.publicGetPublicLinearRiskLimit(request)
         elif self.is_inverse():
