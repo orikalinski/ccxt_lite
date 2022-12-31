@@ -641,11 +641,13 @@ class bybit(Exchange):
                         if not self.is_linear() and is_isolated is False:
                             leverage = 0
                         margin_type = "isolated" if is_isolated else "cross"
+                        risk_id = self.safe_integer(position, "risk_id")
                         result = {"info": position, "symbol": _symbol,
                                   "quantity": size, "leverage": leverage, "margin_type": margin_type,
                                   "maintenance_margin": maintenance_margin,
                                   "liquidation_price": max(liq_price, 0),
-                                  "is_long": None if side == "none" else side == "buy"}
+                                  "is_long": None if side == "none" else side == "buy",
+                                  "risk_id": risk_id}
                         positions_to_return.append(result)
         return positions_to_return
 
