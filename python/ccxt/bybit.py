@@ -547,12 +547,11 @@ class bybit(Exchange):
     def get_same_direction_position(positions, is_long):
         for position in positions:
             _is_long = position["is_long"]
-            if is_long == _is_long:
+            if is_long == _is_long or _is_long is None:
                 return position
 
     def classify_change_margin(self, symbol, _id, is_long, is_cross, leverage):
         positions = self.get_positions(symbol)
-        long_leverage, short_leverage = self.get_change_margin_input(positions, is_cross, leverage, is_long)
         same_direction_position = self.get_same_direction_position(positions, is_long)
         if same_direction_position is None:
             raise PositionNotFound(f"Couldn't find position for symbol: {symbol} is_long: {is_long}")
@@ -560,6 +559,8 @@ class bybit(Exchange):
         _is_long = same_direction_position["is_long"]
         _leverage = same_direction_position["leverage"]
         _is_cross = same_direction_position["margin_type"] == "cross"
+        long_leverage, short_leverage = self.get_change_margin_input(positions, is_cross, leverage, _is_long)
+
         if is_cross == _is_cross and (leverage == _leverage):
             return
         elif is_cross != _is_cross:
@@ -2367,15 +2368,24 @@ class bybit(Exchange):
             "ip_restrict": not allow_all
         }
 
-    def change_position_mode(self, is_hedge_mode, symbol):
+    def change_position_mode(self, is_hedge_mode, symbol=None, pair=None):
         _type = self.safe_string(self.options, 'defaultType')
         try:
             if _type == "linear":
                 self.load_markets()
-                symbol = self.find_symbol(symbol)
-                _id = self.market(symbol)["id"]
                 mode = "BothSide" if is_hedge_mode else "MergedSingle"
-                self.privateLinearPostPositionSwitchMode({'symbol': _id, 'mode': mode})
+                data = {'mode': mode}
+                if symbol:
+                    symbol = self.find_symbol(symbol)
+                    _id = self.market(symbol)["id"]
+                    data["symbol"] = _id
+                elif pair:
+                    data["coin"] = pair
+                response = self.privatePostPrivateLinearPositionSwitchMode(data)
+                return_message = self.safe_string(response, "ret_msg")
+                if return_message and return_message.lower().startswith("partial symbols switched"):
+                    feedback = self.id + ' ' + json.dumps(response)
+                    raise ExchangeError(feedback)
             else:
                 raise NotSupported()
         except NotChanged:
