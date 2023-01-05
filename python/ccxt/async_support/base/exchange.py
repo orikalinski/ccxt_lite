@@ -113,11 +113,12 @@ class Exchange(BaseExchange):
         http_status_text = None
         json_response = None
         try:
+            proxy = "http://%s" % self.proxies.get("https") if self.proxies else None
             async with session_method(yarl.URL(url, encoded=True),
                                       data=encoded_body,
                                       headers=request_headers,
                                       timeout=(self.timeout / 1000),
-                                      proxy=self.aiohttp_proxy) as response:
+                                      proxy=proxy) as response:
                 http_response = await response.text()
                 http_status_code = response.status
                 http_status_text = response.reason
