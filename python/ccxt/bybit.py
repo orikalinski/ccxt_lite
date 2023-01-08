@@ -509,9 +509,6 @@ class bybit(Exchange):
                 _is_cross = position["margin_type"] == "cross"
                 _maintenance_margin = position["maintenance_margin"]
                 if is_long != _is_long:
-                    if is_cross != _is_cross and _maintenance_margin > 0:
-                        raise ExchangeError("cannot change margin type when you got an open opposite position with "
-                                            "different margin type")
                     if _is_long:
                         long_leverage = _leverage
                     else:
