@@ -723,21 +723,22 @@ class binance(Exchange):
             if positions is None:
                 continue
             for position in positions:
-                position_side = position.get("positionSide")
-                if position and position_side == account_position_side:
-                    margin = self.safe_float(account_position, "initialMargin", 0.) + \
-                             self.safe_float(account_position, "unrealizedProfit", 0.) - \
-                             self.safe_float(account_position, "openOrderInitialMargin", 0.)
-                    market = self.find_market(position["symbol"])
-                    side = position.get("positionSide")
-                    if type(market) is dict:
-                        liq_price = self.safe_float(position, "liquidationPrice", 0)
-                        result = {"info": position, "symbol": market["symbol"],
-                                  "quantity": self.safe_float(position, "positionAmt", 0.),
-                                  "leverage": self.safe_float(position, "leverage", None), "maintenance_margin": margin,
-                                  "margin_type": position["marginType"], "liquidation_price": max(liq_price, 0),
-                                  "is_long": None if side == "BOTH" else side == "LONG"}
-                        positions_to_return.append(result)
+                if position:
+                    position_side = self.safe_string(position, "positionSide")
+                    if position_side == account_position_side:
+                        margin = self.safe_float(account_position, "initialMargin", 0.) + \
+                                 self.safe_float(account_position, "unrealizedProfit", 0.) - \
+                                 self.safe_float(account_position, "openOrderInitialMargin", 0.)
+                        market = self.find_market(position["symbol"])
+                        if type(market) is dict:
+                            liq_price = self.safe_float(position, "liquidationPrice", 0)
+                            result = {"info": position, "symbol": market["symbol"],
+                                      "quantity": self.safe_float(position, "positionAmt", 0.),
+                                      "leverage": self.safe_float(position, "leverage", None),
+                                      "maintenance_margin": margin, "margin_type": position["marginType"],
+                                      "liquidation_price": max(liq_price, 0),
+                                      "is_long": None if position_side == "BOTH" else position_side == "LONG"}
+                            positions_to_return.append(result)
         return positions_to_return
 
     def parse_isolated_margin_positions(self, positions):
