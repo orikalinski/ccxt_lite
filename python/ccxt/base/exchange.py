@@ -540,7 +540,7 @@ class Exchange(object):
         keys = list(broad.keys())
         for i in range(0, len(keys)):
             key = keys[i]
-            if string.find(key) >= 0:
+            if string and string.find(key) >= 0:
                 return key
         return None
 
