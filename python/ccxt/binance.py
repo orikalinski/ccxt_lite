@@ -25,6 +25,7 @@ from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import RateLimitExceeded
 from ccxt.base.errors import ExchangeNotAvailable
 from ccxt.base.errors import InvalidNonce
+from ccxt.base.errors import NotChanged
 from ccxt.base.decimal_to_precision import ROUND
 from ccxt.base.decimal_to_precision import TRUNCATE
 
@@ -41,6 +42,7 @@ STATUSES_MAPPING = {
 
 PERMISSION_TO_VALUE = {"spot": ["enableSpotAndMarginTrading"], "futures": ["enableFutures"],
                        "withdrawal": ["enableWithdrawals"]}
+NOT_CHANGED_ERROR_CODES = {'-4046', '-4059'}
 
 
 class binance(Exchange):
@@ -681,11 +683,8 @@ class binance(Exchange):
                 return self.dapiPrivatePostMarginType({"symbol": _id, "marginType": margin_type})
             else:
                 raise NotSupported()
-        except ExchangeError as e:
-            args = e.args
-            if args and len(args) > 0 and args[0] == '-4046':
-                return
-            raise e
+        except NotChanged:
+            pass
 
     def get_pnl_history(self):
         _type = self.safe_string(self.options, 'defaultType')
@@ -719,19 +718,27 @@ class binance(Exchange):
 
         for account_position in account_positions:
             symbol = account_position["symbol"]
-            position = risk_positions.get(symbol)
-            if position:
-                margin = self.safe_float(account_position, "initialMargin", 0.) + \
-                         self.safe_float(account_position, "unrealizedProfit", 0.) - \
-                         self.safe_float(account_position, "openOrderInitialMargin", 0.)
-                market = self.find_market(position["symbol"])
-                if type(market) is dict:
-                    liq_price = self.safe_float(position, "liquidationPrice", 0)
-                    result = {"info": position, "symbol": market["symbol"],
-                              "quantity": self.safe_float(position, "positionAmt", 0.),
-                              "leverage": self.safe_float(position, "leverage", None), "maintenance_margin": margin,
-                              "margin_type": position["marginType"], "liquidation_price": max(liq_price, 0)}
-                    positions_to_return.append(result)
+            positions = risk_positions.get(symbol)
+            account_position_side = account_position.get("positionSide")
+            if positions is None:
+                continue
+            for position in positions:
+                if position:
+                    position_side = self.safe_string(position, "positionSide")
+                    if position_side == account_position_side:
+                        margin = self.safe_float(account_position, "initialMargin", 0.) + \
+                                 self.safe_float(account_position, "unrealizedProfit", 0.) - \
+                                 self.safe_float(account_position, "openOrderInitialMargin", 0.)
+                        market = self.find_market(position["symbol"])
+                        if type(market) is dict:
+                            liq_price = self.safe_float(position, "liquidationPrice", 0)
+                            result = {"info": position, "symbol": market["symbol"],
+                                      "quantity": self.safe_float(position, "positionAmt", 0.),
+                                      "leverage": self.safe_float(position, "leverage", None),
+                                      "maintenance_margin": margin, "margin_type": position["marginType"],
+                                      "liquidation_price": max(liq_price, 0),
+                                      "is_long": None if position_side == "BOTH" else position_side == "LONG"}
+                            positions_to_return.append(result)
         return positions_to_return
 
     def parse_isolated_margin_positions(self, positions):
@@ -780,13 +787,17 @@ class binance(Exchange):
 
         if _type == "future":
             account_positions = self.fapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in
-                              self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
+            risk_positions = defaultdict(list)
+            raw_risk_positions = self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})
+            for raw_risk_position in raw_risk_positions:
+                risk_positions[raw_risk_position["symbol"]].append(raw_risk_position)
             positions_to_return = self.parse_positions(account_positions, risk_positions)
         elif _type == "delivery":
             account_positions = self.dapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in
-                              self.dapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
+            risk_positions = defaultdict(list)
+            raw_risk_positions = self.dapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})
+            for raw_risk_position in raw_risk_positions:
+                risk_positions[raw_risk_position["symbol"]].append(raw_risk_position)
             positions_to_return = self.parse_positions(account_positions, risk_positions)
         elif _type == "margin_isolated":
             response = self.sapiGetMarginIsolatedAccount({"symbols": self.market_id(symbol)} if symbol else {})
@@ -2662,6 +2673,18 @@ class binance(Exchange):
             "ip_restrict": self.safe_value(response, "ipRestrict")
         }
 
+    def change_position_mode(self, is_hedge_mode):
+        _type = self.safe_string(self.options, 'defaultType')
+        try:
+            if _type == "future":
+                self.fapiPrivatePostPositionsideDual({'dualSidePosition': is_hedge_mode})
+            elif _type == "delivery":
+                self.dapiPrivatePostPositionsideDual({'dualSidePosition': is_hedge_mode})
+            else:
+                raise NotSupported()
+        except NotChanged:
+            pass
+
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         if not (api in self.urls['api']):
             raise NotSupported(self.id + ' does not have a testnet/sandbox URL for ' + api + ' endpoints')
@@ -2767,11 +2790,11 @@ class binance(Exchange):
             # a workaround for {"code":-2015,"msg":"Invalid API-key, IP, or permissions for action."}
             # despite that their message is very confusing, it is raised by Binance
             # on a temporary ban, the API key is valid, but disabled for a while
-            if error == '-4046':
-                raise ExchangeError(error, body)
             if (error == '-2015') and self.options['hasAlreadyAuthenticatedSuccessfully']:
                 raise DDoSProtection(self.id + ' temporary banned: ' + body)
             feedback = self.id + ' ' + body
+            if error in NOT_CHANGED_ERROR_CODES:
+                raise NotChanged(feedback)
             self.throw_exactly_matched_exception(self.exceptions, error, feedback)
             raise ExchangeError(feedback)
         if not success:
