@@ -2189,18 +2189,21 @@ class binance(Exchange):
         params = self.omit(params, 'order_id')
         if type == 'spot':
             method = 'privateGetMyTrades'
-            request['orderId'] = order_id
+            if order_id:
+                request['orderId'] = order_id
         elif type == 'future':
             method = 'fapiPrivateGetUserTrades'
         elif type == 'delivery':
             method = 'dapiPrivateGetUserTrades'
         elif type == 'margin_isolated':
             method = 'sapiGetMarginMyTrades'
-            request['orderId'] = order_id
+            if order_id:
+                request['orderId'] = order_id
             request["isIsolated"] = "TRUE"
         elif type == 'margin_cross':
             method = 'sapiGetMarginMyTrades'
-            request['orderId'] = order_id
+            if order_id:
+                request['orderId'] = order_id
         params = self.omit(params, 'type')
         if since is not None:
             request['startTime'] = since
