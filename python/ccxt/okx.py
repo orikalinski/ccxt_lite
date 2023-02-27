@@ -3872,11 +3872,11 @@ class okx(Exchange):
             return position
         return self.parse_position(position)
 
-    def get_positions(self, symbols=None, params={}):
+    def get_positions(self, symbol=None, params={}):
         """
         see https://www.okx.com/docs-v5/en/#rest-api-account-get-positions
         fetch all open positions
-        :param [str]|None symbols: list of unified market symbols
+        :param str|None symbol
         :param dict params: extra parameters specific to the okx api endpoint
         :param str|None params['instType']: MARGIN, SWAP, FUTURES, OPTION
         :returns [dict]: a list of `position structure <https://docs.ccxt.com/en/latest/manual.html#position-structure>`
@@ -3887,66 +3887,15 @@ class okx(Exchange):
             # 'instId': market['id'],  # optional string, e.g. 'BTC-USD-190927-5000-C'
             # 'posId': '307173036051017730',  # optional string, Single or multiple position IDs(no more than 20) separated with commas
         }
-        if symbols is not None:
-            marketIds = []
-            for i in range(0, len(symbols)):
-                entry = symbols[i]
-                market = self.market(entry)
-                marketIds.append(market['id'])
-            if len(marketIds) > 0:
-                request['instId'] = str(marketIds)
+        if symbol is not None:
+            market = self.market(symbol)
+            request['instId'] = market['id']
         response = self.privateGetAccountPositions(self.extend(request, params))
-        #
-        #     {
-        #         "code": "0",
-        #         "msg": "",
-        #         "data": [
-        #             {
-        #                 "adl": "1",
-        #                 "availPos": "1",
-        #                 "avgPx": "2566.31",
-        #                 "cTime": "1619507758793",
-        #                 "ccy": "ETH",
-        #                 "deltaBS": "",
-        #                 "deltaPA": "",
-        #                 "gammaBS": "",
-        #                 "gammaPA": "",
-        #                 "imr": "",
-        #                 "instId": "ETH-USD-210430",
-        #                 "instType": "FUTURES",
-        #                 "interest": "0",
-        #                 "last": "2566.22",
-        #                 "lever": "10",
-        #                 "liab": "",
-        #                 "liabCcy": "",
-        #                 "liqPx": "2352.8496681818233",
-        #                 "margin": "0.0003896645377994",
-        #                 "mgnMode": "isolated",
-        #                 "mgnRatio": "11.731726509588816",
-        #                 "mmr": "0.0000311811092368",
-        #                 "optVal": "",
-        #                 "pTime": "1619507761462",
-        #                 "pos": "1",
-        #                 "posCcy": "",
-        #                 "posId": "307173036051017730",
-        #                 "posSide": "long",
-        #                 "thetaBS": "",
-        #                 "thetaPA": "",
-        #                 "tradeId": "109844",
-        #                 "uTime": "1619507761462",
-        #                 "upl": "-0.0000009932766034",
-        #                 "uplRatio": "-0.0025490556801078",
-        #                 "vegaBS": "",
-        #                 "vegaPA": ""
-        #             }
-        #         ]
-        #     }
-        #
         positions = self.safe_value(response, 'data', [])
         result = []
         for i in range(0, len(positions)):
             result.append(self.parse_position(positions[i]))
-        return self.filter_by_array(result, 'symbol', symbols, False)
+        return result
 
     def parse_position(self, position, market=None):
         #
@@ -4054,6 +4003,7 @@ class okx(Exchange):
             'quantity': contract_size,
             'mark_price': self.parse_number(mark_price_string),
             'side': side,
+            'is_long': side == "long" if hedged else None,
             'hedged': hedged,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
@@ -5287,16 +5237,3 @@ class okx(Exchange):
                 self.throw_broadly_matched_exception(self.exceptions['broad'], message, feedback)
             self.throw_exactly_matched_exception(self.exceptions['exact'], code, feedback)
             raise ExchangeError(feedback)  # unknown message
-
-
-if __name__ == '__main__':
-    from pprint import pprint
-
-    o = okx()
-    o.apiKey = "91268462-0109-48ae-85b4-13027de84549"
-    o.secret = "F862E13E60B6F901A2D89D79FDEE3447"
-    o.password = "58#YiqkBwBW2Lnz"
-
-    # pprint(o.create_limit_buy_order("BTC/USDT", 0.001, 19500))
-    pprint(o.fetch_open_orders("BTC/USDT"))
-    # pprint(o.fetch_balance())
