@@ -467,6 +467,12 @@ class bitmax(Exchange):
                         'min': self.safe_float(market, 'minNotional'),
                         'max': self.safe_float(market, 'maxNotional'),
                     },
+                    'orders': {
+                        'max': 200
+                    },
+                    'conditional_orders': {
+                        'max': 10
+                    },
                 },
             })
         return result

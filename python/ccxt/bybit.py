@@ -734,6 +734,12 @@ class bybit(Exchange):
                         'min': self.safe_number(market, 'minTradeAmt'),
                         'max': self.safe_number(market, 'maxTradeAmt'),
                     },
+                    'orders': {
+                        'max': 500
+                    },
+                    'conditional_orders': {
+                        'max': 10
+                    },
                 },
                 'info': market,
             })
@@ -838,6 +844,12 @@ class bybit(Exchange):
                     'cost': {
                         'min': None,
                         'max': None,
+                    },
+                    'orders': {
+                        'max': 500
+                    },
+                    'conditional_orders': {
+                        'max': 10
                     },
                     'risk': risk_limits
                 },
