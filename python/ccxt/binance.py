@@ -1043,6 +1043,15 @@ class binance(Exchange):
                         'min': None,
                         'max': None,
                     },
+                    'orders': {
+                        'max': None
+                    },
+                    'conditional_orders': {
+                        'max': None
+                    },
+                    'exchange_total_orders': {
+                        'max': 1000
+                    }
                 },
             }
             if 'PRICE_FILTER' in filtersByType:
@@ -1079,6 +1088,18 @@ class binance(Exchange):
                 if not min_notional:
                     min_notional = self.safe_float(filter, 'notional')
                 entry['limits']['cost']['min'] = min_notional
+            if 'MAX_NUM_ORDERS' in filtersByType:
+                filter = self.safe_value(filtersByType, 'MAX_NUM_ORDERS', {})
+                max_num_orders = self.safe_float(filter, 'maxNumOrders')
+                if not max_num_orders:
+                    max_num_orders = self.safe_float(filter, 'limit')
+                entry['limits']['orders']['max'] = max_num_orders
+            if 'MAX_NUM_ALGO_ORDERS' in filtersByType:
+                filter = self.safe_value(filtersByType, 'MAX_NUM_ALGO_ORDERS', {})
+                max_num_orders = self.safe_float(filter, 'maxNumAlgoOrders')
+                if not max_num_orders:
+                    max_num_orders = self.safe_float(filter, 'limit')
+                entry['limits']['conditional_orders']['max'] = max_num_orders
 
             exists = self.handle_leverage_limits(entry, leverage_limits, market, symbol)
             if exists is False:

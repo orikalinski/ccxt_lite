@@ -363,6 +363,12 @@ class kucoin(Exchange):
                     'min': max(quoteMinSize, minFunds),
                     'max': quoteMaxSize,
                 },
+                'orders': {
+                    'max': 200
+                },
+                'conditional_orders': {
+                    'max': 20
+                },
             }
             result.append({
                 'id': id,
