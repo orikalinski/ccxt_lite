@@ -3931,8 +3931,11 @@ class okx(Exchange):
         response = self.privateGetAccountPositions(self.extend(request, params))
         positions = self.safe_value(response, 'data', [])
         result = []
-        for i in range(0, len(positions)):
-            result.append(self.parse_position(positions[i]))
+        for position in positions:
+            market_id = self.safe_string(position, 'instId')
+            if market_id not in self.markets:
+                continue
+            result.append(self.parse_position(position))
         return result
 
     def parse_position(self, position, market=None):
@@ -3997,7 +4000,8 @@ class okx(Exchange):
         mark_price_string = self.safe_string(position, 'markPx')
         notional_string = self.safe_string(position, 'notionalUsd')
         if market['inverse']:
-            notional_string = Precise.string_div(Precise.string_mul(contracts_abs, contract_size_string), mark_price_string)
+            notional_string = Precise.string_div(Precise.string_mul(contracts_abs, contract_size_string),
+                                                 mark_price_string)
         notional = self.parse_number(notional_string)
         margin_type = self.safe_string(position, 'mgnMode')
         initial_margin_string = None
