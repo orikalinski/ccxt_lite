@@ -667,8 +667,8 @@ class okx(Exchange):
                 },
                 'createOrder': 'privatePostTradeBatchOrders',  # or 'privatePostTradeOrder' or 'privatePostTradeOrderAlgo'
                 'createMarketBuyOrderRequiresPrice': False,
-                'fetchMarkets': ['spot', 'future', 'swap', 'option'],  # spot, future, swap, option
-                'defaultType': 'spot',  # 'funding', 'spot', 'margin', 'future', 'swap', 'option'
+                'fetchMarkets': ['spot', 'future', 'swap', 'option', 'linear', 'inverse'],
+                'defaultType': 'spot',  # 'funding', 'spot', 'margin', 'future', 'swap', 'option', 'linear', 'inverse'
                 'defaultMarginMode': 'cross',  # cross, isolated
                 # 'fetchBalance': {
                 #     'type': 'spot',  # 'funding', 'trading', 'spot'
@@ -723,6 +723,8 @@ class okx(Exchange):
                     'spot': 'SPOT',
                     'margin': 'MARGIN',
                     'swap': 'SWAP',
+                    'linear': 'SWAP',
+                    'inverse': 'SWAP',
                     'future': 'FUTURES',
                     'futures': 'FUTURES',  # deprecated
                     'option': 'OPTION',
@@ -860,6 +862,18 @@ class okx(Exchange):
             })
         return result
 
+    def is_inverse(self):
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type == "inverse"
+
+    def is_linear(self):
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type == "linear"
+
+    def is_spot(self):
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type == "spot"
+
     def fetch_markets(self, params={}):
         """
         retrieves data on all markets for okx
@@ -872,9 +886,38 @@ class okx(Exchange):
 
     def parse_markets(self, markets):
         result = []
-        for i in range(0, len(markets)):
-            result.append(self.parse_market(markets[i]))
+        is_linear_client = self.is_linear()
+        is_inverse_client = self.is_inverse()
+        for market in markets:
+            _, _, _, _, is_inverse, is_linear, _, _, _, _, is_swap, _ = \
+                self.get_relevant_type_details_from_market(market)
+
+            if is_swap and not ((is_linear_client and is_linear) or (is_inverse_client and is_inverse)):
+                continue
+            result.append(self.parse_market(market))
         return result
+
+    def get_relevant_type_details_from_market(self, market):
+        _id = self.safe_string(market, 'instId')
+        _type = self.safe_string_lower(market, 'instType')
+        if _type == 'futures':
+            _type = 'future'
+        spot = (_type == 'spot')
+        future = (_type == 'future')
+        swap = (_type == 'swap')
+        option = (_type == 'option')
+        contract = swap or future or option
+        base_id = self.safe_string(market, 'baseCcy')
+        quote_id = self.safe_string(market, 'quoteCcy')
+        settle_id = self.safe_string(market, 'settleCcy')
+        underlying = self.safe_string(market, 'uly')
+        if (underlying is not None) and not spot:
+            parts = underlying.split('-')
+            base_id = self.safe_string(parts, 0)
+            quote_id = self.safe_string(parts, 1)
+        is_linear = (quote_id == settle_id) if contract else None
+        is_inverse = (base_id == settle_id) if contract else None
+        return base_id, contract, future, _id, is_inverse, is_linear, option, quote_id, settle_id, spot, swap, _type
 
     def parse_market(self, market):
         #
@@ -926,27 +969,14 @@ class okx(Exchange):
         #         uly: "BTC-USD"
         #     }
         #
-        id = self.safe_string(market, 'instId')
-        type = self.safe_string_lower(market, 'instType')
-        if type == 'futures':
-            type = 'future'
-        spot = (type == 'spot')
-        future = (type == 'future')
-        swap = (type == 'swap')
-        option = (type == 'option')
-        contract = swap or future or option
-        baseId = self.safe_string(market, 'baseCcy')
-        quoteId = self.safe_string(market, 'quoteCcy')
-        settleId = self.safe_string(market, 'settleCcy')
-        settle = self.safe_currency_code(settleId)
-        underlying = self.safe_string(market, 'uly')
-        if (underlying is not None) and not spot:
-            parts = underlying.split('-')
-            baseId = self.safe_string(parts, 0)
-            quoteId = self.safe_string(parts, 1)
-        base = self.safe_currency_code(baseId)
-        quote = self.safe_currency_code(quoteId)
+        base_id, contract, future, _id, is_inverse, is_linear, option, quote_id, settle_id, spot, swap, _type = \
+            self.get_relevant_type_details_from_market(market)
+
+        settle = self.safe_currency_code(settle_id)
+        base = self.safe_currency_code(base_id)
+        quote = self.safe_currency_code(quote_id)
         symbol = base + '/' + quote
+
         expiry = None
         strikePrice = None
         optionType = None
@@ -962,22 +992,25 @@ class okx(Exchange):
                 symbol = symbol + '-' + ymd + '-' + strikePrice + '-' + optionType
                 optionType = 'put' if (optionType == 'P') else 'call'
         tickSize = self.safe_string(market, 'tickSz')
+        contract_size = self.safe_number(market, 'ctVal')
         minAmountString = self.safe_string(market, 'minSz')
+        if is_linear:
+            minAmountString = Precise.string_mul(minAmountString, str(contract_size or 1.))
         minAmount = self.parse_number(minAmountString)
-        fees = self.safe_value_2(self.fees, type, 'trading', {})
+        fees = self.safe_value_2(self.fees, _type, 'trading', {})
         precisionPrice = self.parse_number(tickSize)
         maxLeverage = self.safe_string(market, 'lever', '1')
         maxLeverage = Precise.string_max(maxLeverage, '1')
         return self.extend(fees, {
-            'id': id,
+            'id': _id,
             'symbol': symbol,
             'base': base,
             'quote': quote,
             'settle': settle,
-            'baseId': baseId,
-            'quoteId': quoteId,
-            'settleId': settleId,
-            'type': type,
+            'baseId': base_id,
+            'quoteId': quote_id,
+            'settleId': settle_id,
+            'type': _type,
             'spot': spot,
             'margin': spot and (Precise.string_gt(maxLeverage, '1')),
             'swap': swap,
@@ -985,9 +1018,9 @@ class okx(Exchange):
             'option': option,
             'active': True,
             'contract': contract,
-            'linear': (quoteId == settleId) if contract else None,
-            'inverse': (baseId == settleId) if contract else None,
-            'contractSize': self.safe_number(market, 'ctVal') if contract else None,
+            'linear': is_linear,
+            'inverse': is_inverse,
+            'contractSize': contract_size,
             'expiry': expiry,
             'expiryDatetime': self.iso8601(expiry),
             'strike': strikePrice,
