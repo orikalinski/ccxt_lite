@@ -1698,10 +1698,15 @@ class okx(Exchange):
         first = self.safe_value(data, 0, {})
         timestamp = self.safe_integer(first, 'uTime')
         details = self.safe_value(first, 'details', [])
+        is_linear_client = self.is_linear()
+        is_inverse_client = self.is_inverse()
         for i in range(0, len(details)):
             balance = details[i]
             currencyId = self.safe_string(balance, 'ccy')
             code = self.safe_currency_code(currencyId)
+            is_usdt_asset = code == "USDT"
+            if (is_linear_client and not is_usdt_asset) or (is_inverse_client and is_usdt_asset):
+                continue
             account = self.account()
             # it may be incorrect to use total, free and used for swap accounts
             eq = self.safe_string(balance, 'eq')
