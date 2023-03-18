@@ -3967,7 +3967,9 @@ class okx(Exchange):
         unrealized_pnl_string = self.safe_string(position, 'upl')
         leverage_string = self.safe_string(position, 'lever')
         initial_margin_percentage = None
+        maintenance_margin_percentage = None
         collateral_string = None
+        margin_ratio = None
         if margin_type == 'cross':
             initial_margin_string = self.safe_string(position, 'imr')
             collateral_string = Precise.string_add(initial_margin_string, unrealized_pnl_string)
@@ -3976,18 +3978,21 @@ class okx(Exchange):
             collateral_string = self.safe_string(position, 'margin')
         maintenance_margin_string = self.safe_string(position, 'mmr')
         maintenance_margin = self.parse_number(maintenance_margin_string)
-        maintenance_margin_percentage = Precise.string_div(maintenance_margin_string, notional_string)
-        if initial_margin_percentage is None:
-            initial_margin_percentage = self.parse_number(Precise.string_div(initial_margin_string, notional_string, 4))
-        elif initial_margin_string is None:
-            initial_margin_string = Precise.string_mul(initial_margin_percentage, notional_string)
+        if notional_string:
+            maintenance_margin_percentage = Precise.string_div(maintenance_margin_string, notional_string)
+            if initial_margin_percentage is None:
+                initial_margin_percentage = \
+                    self.parse_number(Precise.string_div(initial_margin_string, notional_string, 4))
+            elif initial_margin_string is None:
+                initial_margin_string = Precise.string_mul(initial_margin_percentage, notional_string)
         rounder = '0.00005'  # round to closest 0.01%
         maintenance_margin_percentage = self.parse_number(Precise.string_div(Precise.string_add(maintenance_margin_percentage, rounder), '1', 4))
         liquidation_price = self.safe_number(position, 'liqPx')
         percentage_string = self.safe_string(position, 'uplRatio')
         percentage = self.parse_number(Precise.string_mul(percentage_string, '100'))
         timestamp = self.safe_integer(position, 'uTime')
-        margin_ratio = self.parse_number(Precise.string_div(maintenance_margin_string, collateral_string, 4))
+        if collateral_string:
+            margin_ratio = self.parse_number(Precise.string_div(maintenance_margin_string, collateral_string, 4))
         return {
             'info': position,
             'id': None,
