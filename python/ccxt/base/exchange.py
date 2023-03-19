@@ -1546,6 +1546,10 @@ class Exchange(object):
             raise NotImplemented
         return precision
 
+    def convert_amount_into_tick_size_precision(self, amount):
+        digit_precision = self.convert_amount_into_digit_precision(amount)
+        return 1 / (10 ** digit_precision)
+
     def set_markets(self, markets, currencies=None):
         values = list(markets.values()) if type(markets) is dict else markets
         for i in range(0, len(values)):

@@ -999,7 +999,7 @@ class okx(Exchange):
             minAmountString = Precise.string_mul(minAmountString, str(contract_size or 1.))
         minAmount = self.parse_number(minAmountString)
         if is_linear:
-            amountPrecision = self.convert_amount_into_digit_precision(minAmount)
+            amountPrecision = self.convert_amount_into_tick_size_precision(minAmount)
         fees = self.safe_value_2(self.fees, _type, 'trading', {})
         precisionPrice = self.parse_number(tickSize)
         maxLeverage = self.safe_string(market, 'lever', '1')
