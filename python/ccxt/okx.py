@@ -4484,9 +4484,9 @@ class okx(Exchange):
         if (leverage < 1) or (leverage > 125):
             raise BadRequest(self.id + ' setLeverage() leverage should be between 1 and 125')
         self.load_markets()
-        market = self.market(symbol)
         if (margin_type != 'cross') and (margin_type != 'isolated'):
             raise BadRequest(self.id + ' setLeverage() requires a marginMode parameter that must be either cross or isolated')
+        market = self.find_market(symbol)
         request = {
             'lever': leverage,
             'mgnMode': margin_type,
