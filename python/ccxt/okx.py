@@ -3936,7 +3936,7 @@ class okx(Exchange):
         result = []
         for position in positions:
             market_id = self.safe_string(position, 'instId')
-            if market_id not in self.markets:
+            if market_id not in self.markets_by_id:
                 continue
             result.append(self.parse_position(position))
         return result
