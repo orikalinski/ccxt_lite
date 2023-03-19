@@ -3989,17 +3989,22 @@ class okx(Exchange):
         contracts_string = self.safe_string(position, 'pos')
         contracts_abs = Precise.string_abs(contracts_string)
         contracts = None
+        quantity = None
         side = self.safe_string(position, 'posSide')
         hedged = side != 'net'
+        contract_size = self.safe_value(market, 'contractSize')
+        contract_size_string = self.number_to_string(contract_size)
         if contracts_string is not None:
             contracts = self.parse_number(contracts_abs)
+            quantity = contracts
+            if market['linear']:
+                quantity *= contract_size
             if side == 'net':
                 if Precise.string_gt(contracts_string, '0'):
                     side = 'long'
                 else:
                     side = 'short'
-        contract_size = self.safe_value(market, 'contractSize')
-        contract_size_string = self.number_to_string(contract_size)
+
         mark_price_string = self.safe_string(position, 'markPx')
         notional_string = self.safe_string(position, 'notionalUsd')
         if market['inverse']:
@@ -4049,7 +4054,7 @@ class okx(Exchange):
             'unrealized_pnl': self.parse_number(unrealized_pnl_string),
             'percentage': percentage,
             'contracts': contracts,
-            'quantity': contracts,
+            'quantity': quantity,
             'contract_size': contract_size,
             'mark_price': self.parse_number(mark_price_string),
             'side': side,
