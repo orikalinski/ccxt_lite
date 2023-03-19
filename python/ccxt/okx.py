@@ -1942,6 +1942,9 @@ class okx(Exchange):
         """
         self.load_markets()
         market = self.market(symbol)
+        size = self.amount_to_precision(symbol, amount)
+        if market['linear']:
+            size = int(float(size) / market['contractSize'])
         request = {
             'instId': market['id'],
             # 'ccy': currency['id'],  # only applicable to cross MARGIN orders in single-currency margin
@@ -1952,7 +1955,7 @@ class okx(Exchange):
             'ordType': type,
             # 'ordType': type,  # privatePostTradeOrder: market, limit, post_only, fok, ioc, optimal_limit_ioc
             # 'ordType': type,  # privatePostTradeOrderAlgo: conditional, oco, trigger, move_order_stop, iceberg, twap
-            'sz': self.amount_to_precision(symbol, amount),
+            'sz': size,
             # 'px': self.price_to_precision(symbol, price),  # limit orders only
             # 'reduceOnly': False,
             #
