@@ -993,10 +993,13 @@ class okx(Exchange):
                 optionType = 'put' if (optionType == 'P') else 'call'
         tickSize = self.safe_string(market, 'tickSz')
         contract_size = self.safe_number(market, 'ctVal')
+        amountPrecision = self.safe_number(market, 'lotSz')
         minAmountString = self.safe_string(market, 'minSz')
         if is_linear:
             minAmountString = Precise.string_mul(minAmountString, str(contract_size or 1.))
         minAmount = self.parse_number(minAmountString)
+        if is_linear:
+            amountPrecision = self.convert_amount_into_digit_precision(minAmount)
         fees = self.safe_value_2(self.fees, _type, 'trading', {})
         precisionPrice = self.parse_number(tickSize)
         maxLeverage = self.safe_string(market, 'lever', '1')
@@ -1026,7 +1029,7 @@ class okx(Exchange):
             'strike': strikePrice,
             'optionType': optionType,
             'precision': {
-                'amount': self.safe_number(market, 'lotSz'),
+                'amount': amountPrecision,
                 'price': precisionPrice,
             },
             'limits': {
