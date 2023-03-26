@@ -1289,6 +1289,16 @@ class okx(Exchange):
         timestamp = self.safe_integer(first, 'ts')
         return self.parse_order_book(first, symbol, timestamp)
 
+    def parse_tickers(self, tickers, symbols=None, params={}):
+        result = []
+        tickers = self.to_array(tickers)
+        for ticker in tickers:
+            market_id = self.safe_string(ticker, 'instId')
+            if market_id not in self.markets_by_id:
+                continue
+            result.append(self.extend(self.parse_ticker(ticker), params))
+        return self.filter_by_array(result, 'symbol', symbols)
+
     def parse_ticker(self, ticker, market=None):
         #
         #     {
