@@ -2387,7 +2387,9 @@ class okx(Exchange):
             cost = self.safe_float(order, 'sz')
         else:
             # "sz" refers to the trade currency amount
-            amount = self.safe_float(order, 'sz') * contractSize
+            amount = self.safe_float(order, 'sz')
+            if amount is not None:
+                amount *= contractSize
         fee = None
         if fee_cost is not None:
             feeCurrencyId = self.safe_string(order, 'feeCcy')
