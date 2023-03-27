@@ -3832,7 +3832,7 @@ class okx(Exchange):
             marginMode = self.safe_string(params, 'mgnMode', 'cross')  # cross as default marginMode
         if (marginMode != 'cross') and (marginMode != 'isolated'):
             raise BadRequest(self.id + ' fetchLeverage() requires a marginMode parameter that must be either cross or isolated')
-        market = self.market(symbol)
+        market = self.find_market(symbol)
         request = {
             'instId': market['id'],
             'mgnMode': marginMode,
@@ -3950,6 +3950,9 @@ class okx(Exchange):
         for position in positions:
             market_id = self.safe_string(position, 'instId')
             if market_id not in self.markets_by_id:
+                continue
+            contracts = self.safe_number(position, 'pos')
+            if not contracts:
                 continue
             result.append(self.parse_position(position))
         return result
@@ -4561,10 +4564,10 @@ class okx(Exchange):
         #
         return response
 
-    def set_margin_mode(self, marginMode, symbol=None, params={}):
+    def set_margin_mode(self, symbol, margin_type, leverage, params={}):
         """
         set margin mode to 'cross' or 'isolated'
-        :param str marginMode: 'cross' or 'isolated'
+        :param str margin_type: 'cross' or 'isolated'
         :param str symbol: unified market symbol
         :param dict params: extra parameters specific to the okx api endpoint
         :returns dict: response from the exchange
@@ -4573,18 +4576,16 @@ class okx(Exchange):
             raise ArgumentsRequired(self.id + ' setMarginMode() requires a symbol argument')
         # WARNING: THIS WILL INCREASE LIQUIDATION PRICE FOR OPEN ISOLATED LONG POSITIONS
         # AND DECREASE LIQUIDATION PRICE FOR OPEN ISOLATED SHORT POSITIONS
-        marginMode = marginMode.lower()
-        if (marginMode != 'cross') and (marginMode != 'isolated'):
+        margin_type = margin_type.lower()
+        if (margin_type != 'cross') and (margin_type != 'isolated'):
             raise BadRequest(self.id + ' setMarginMode() marginMode must be either cross or isolated')
         self.load_markets()
-        market = self.market(symbol)
-        lever = self.safe_integer(params, 'lever')
-        if (lever is None) or (lever < 1) or (lever > 125):
+        market = self.find_market(symbol)
+        if (leverage is None) or (leverage < 1) or (leverage > 125):
             raise BadRequest(self.id + ' setMarginMode() params["lever"] should be between 1 and 125')
-        params = self.omit(params, ['lever'])
         request = {
-            'lever': lever,
-            'mgnMode': marginMode,
+            'lever': leverage,
+            'mgnMode': margin_type,
             'instId': market['id'],
         }
         response = self.privatePostAccountSetLeverage(self.extend(request, params))
