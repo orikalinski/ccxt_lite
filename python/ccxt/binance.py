@@ -713,6 +713,15 @@ class binance(Exchange):
         else:
             raise NotSupported()
 
+    def get_position_side(self, position):
+        notional = self.safe_float_2(position, 'notional', 'notionalValue')
+        side = None
+        if notional > 0:
+            side = 'long'
+        elif notional < 0:
+            side = 'short'
+        return side
+
     def parse_positions(self, account_positions, risk_positions):
         positions_to_return = list()
 
@@ -726,9 +735,10 @@ class binance(Exchange):
                 if position:
                     position_side = self.safe_string(position, "positionSide")
                     if position_side == account_position_side:
+                        side = self.get_position_side(position)
                         margin = self.safe_float(account_position, "initialMargin", 0.) + \
-                                 self.safe_float(account_position, "unrealizedProfit", 0.) - \
-                                 self.safe_float(account_position, "openOrderInitialMargin", 0.)
+                            self.safe_float(account_position, "unrealizedProfit", 0.) - \
+                            self.safe_float(account_position, "openOrderInitialMargin", 0.)
                         market = self.find_market(position["symbol"])
                         if type(market) is dict:
                             liq_price = self.safe_float(position, "liquidationPrice", 0)
@@ -736,7 +746,7 @@ class binance(Exchange):
                                       "quantity": self.safe_float(position, "positionAmt", 0.),
                                       "leverage": self.safe_float(position, "leverage", None),
                                       "maintenance_margin": margin, "margin_type": position["marginType"],
-                                      "liquidation_price": max(liq_price, 0),
+                                      "liquidation_price": max(liq_price, 0), "side": side,
                                       "is_long": None if position_side == "BOTH" else position_side == "LONG"}
                             positions_to_return.append(result)
         return positions_to_return

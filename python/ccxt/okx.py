@@ -2348,6 +2348,7 @@ class okx(Exchange):
         #         "uly": "BTC-USDT"
         #     }
         #
+        contractSize = market["contractSize"]
         id = self.safe_string_2(order, 'algoId', 'ordId')
         timestamp = self.safe_integer(order, 'cTime')
         lastTradeTimestamp = self.safe_integer(order, 'fillTime')
@@ -2366,7 +2367,7 @@ class okx(Exchange):
             type = 'limit'
         marketId = self.safe_string(order, 'instId')
         symbol = self.safe_symbol(marketId, market, '-')
-        filled = self.safe_float(order, 'accFillSz', default_value=0.)
+        filled = self.safe_float(order, 'accFillSz', default_value=0.) * contractSize
         price = self.safe_float_2(order, 'px', 'ordPx')
         average = self.safe_float(order, 'avgPx')
         status = self.parse_order_status(self.safe_string(order, 'state'))
@@ -2385,7 +2386,7 @@ class okx(Exchange):
             cost = self.safe_float(order, 'sz')
         else:
             # "sz" refers to the trade currency amount
-            amount = self.safe_float(order, 'sz')
+            amount = self.safe_float(order, 'sz') * contractSize
         fee = None
         if fee_cost is not None:
             feeCurrencyId = self.safe_string(order, 'feeCcy')
@@ -4020,6 +4021,8 @@ class okx(Exchange):
                     side = 'long'
                 else:
                     side = 'short'
+        side_factor = 1 if side == "long" else -1
+        quantity *= side_factor
 
         mark_price_string = self.safe_string(position, 'markPx')
         notional_string = self.safe_string(position, 'notionalUsd')
