@@ -4021,6 +4021,8 @@ class okx(Exchange):
                     side = 'long'
                 else:
                     side = 'short'
+        side_factor = 1 if side == "long" else -1
+        quantity *= side_factor
 
         mark_price_string = self.safe_string(position, 'markPx')
         notional_string = self.safe_string(position, 'notionalUsd')
