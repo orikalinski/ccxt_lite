@@ -598,6 +598,17 @@ class bybit(Exchange):
                 raise SameLeverage(args[0])
             raise e
 
+    def get_position_side(self, position):
+        side = self.safe_string(position, 'side')
+        if side is not None:
+            if side == 'Buy':
+                side = 'long'
+            elif side == 'Sell':
+                side = 'short'
+            else:
+                side = None
+        return side
+
     def get_positions(self, symbol=None):
         self.load_markets()
         if symbol:
@@ -644,7 +655,7 @@ class bybit(Exchange):
                                   "maintenance_margin": maintenance_margin,
                                   "liquidation_price": max(liq_price, 0),
                                   "is_long": None if side == "none" else side == "buy",
-                                  "risk_id": risk_id}
+                                  "risk_id": risk_id, "side": self.get_position_side(position)}
                         positions_to_return.append(result)
         return positions_to_return
 
