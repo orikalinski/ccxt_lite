@@ -177,12 +177,12 @@ class OrderCancelled(InvalidOrder):
     pass
 
 
-class MaxStopAllowed(BaseError):
+class MaxStopAllowed(ExchangeError):
     """"Raised when an exchange server replies with an error in JSON"""
     pass
 
 
-class PositionNotFound(BaseError):
+class PositionNotFound(ExchangeError):
     pass
 
 

@@ -667,8 +667,8 @@ class okx(Exchange):
                 },
                 'createOrder': 'privatePostTradeBatchOrders',  # or 'privatePostTradeOrder' or 'privatePostTradeOrderAlgo'
                 'createMarketBuyOrderRequiresPrice': False,
-                'fetchMarkets': ['spot', 'future', 'swap', 'option'],  # spot, future, swap, option
-                'defaultType': 'spot',  # 'funding', 'spot', 'margin', 'future', 'swap', 'option'
+                'fetchMarkets': ['spot', 'future', 'swap', 'option', 'linear', 'inverse'],
+                'defaultType': 'spot',  # 'funding', 'spot', 'margin', 'future', 'swap', 'option', 'linear', 'inverse'
                 'defaultMarginMode': 'cross',  # cross, isolated
                 # 'fetchBalance': {
                 #     'type': 'spot',  # 'funding', 'trading', 'spot'
@@ -723,6 +723,8 @@ class okx(Exchange):
                     'spot': 'SPOT',
                     'margin': 'MARGIN',
                     'swap': 'SWAP',
+                    'linear': 'SWAP',
+                    'inverse': 'SWAP',
                     'future': 'FUTURES',
                     'futures': 'FUTURES',  # deprecated
                     'option': 'OPTION',
@@ -860,27 +862,62 @@ class okx(Exchange):
             })
         return result
 
+    def is_inverse(self):
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type == "inverse"
+
+    def is_linear(self):
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type == "linear"
+
+    def is_spot(self):
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type == "spot"
+
     def fetch_markets(self, params={}):
         """
         retrieves data on all markets for okx
         :param dict params: extra parameters specific to the exchange api endpoint
         :returns [dict]: an array of objects representing market data
         """
-        types = self.safe_value(self.options, 'fetchMarkets')
-        promises = []
-        result = []
-        for i in range(0, len(types)):
-            promises.append(self.fetch_markets_by_type(types[i], params))
-        # why not both ¯\_(ツ)_/¯
-        for i in range(0, len(promises)):
-            result = self.array_concat(result, promises[i])
+        default_type = self.safe_value(self.options, "defaultType")
+        result = self.fetch_markets_by_type(default_type, params)
         return result
 
     def parse_markets(self, markets):
         result = []
-        for i in range(0, len(markets)):
-            result.append(self.parse_market(markets[i]))
+        is_linear_client = self.is_linear()
+        is_inverse_client = self.is_inverse()
+        for market in markets:
+            _, _, _, _, is_inverse, is_linear, _, _, _, _, is_swap, _ = \
+                self.get_relevant_type_details_from_market(market)
+
+            if is_swap and not ((is_linear_client and is_linear) or (is_inverse_client and is_inverse)):
+                continue
+            result.append(self.parse_market(market))
         return result
+
+    def get_relevant_type_details_from_market(self, market):
+        _id = self.safe_string(market, 'instId')
+        _type = self.safe_string_lower(market, 'instType')
+        if _type == 'futures':
+            _type = 'future'
+        spot = (_type == 'spot')
+        future = (_type == 'future')
+        swap = (_type == 'swap')
+        option = (_type == 'option')
+        contract = swap or future or option
+        base_id = self.safe_string(market, 'baseCcy')
+        quote_id = self.safe_string(market, 'quoteCcy')
+        settle_id = self.safe_string(market, 'settleCcy')
+        underlying = self.safe_string(market, 'uly')
+        if (underlying is not None) and not spot:
+            parts = underlying.split('-')
+            base_id = self.safe_string(parts, 0)
+            quote_id = self.safe_string(parts, 1)
+        is_linear = (quote_id == settle_id) if contract else None
+        is_inverse = (base_id == settle_id) if contract else None
+        return base_id, contract, future, _id, is_inverse, is_linear, option, quote_id, settle_id, spot, swap, _type
 
     def parse_market(self, market):
         #
@@ -932,32 +969,18 @@ class okx(Exchange):
         #         uly: "BTC-USD"
         #     }
         #
-        id = self.safe_string(market, 'instId')
-        type = self.safe_string_lower(market, 'instType')
-        if type == 'futures':
-            type = 'future'
-        spot = (type == 'spot')
-        future = (type == 'future')
-        swap = (type == 'swap')
-        option = (type == 'option')
-        contract = swap or future or option
-        baseId = self.safe_string(market, 'baseCcy')
-        quoteId = self.safe_string(market, 'quoteCcy')
-        settleId = self.safe_string(market, 'settleCcy')
-        settle = self.safe_currency_code(settleId)
-        underlying = self.safe_string(market, 'uly')
-        if (underlying is not None) and not spot:
-            parts = underlying.split('-')
-            baseId = self.safe_string(parts, 0)
-            quoteId = self.safe_string(parts, 1)
-        base = self.safe_currency_code(baseId)
-        quote = self.safe_currency_code(quoteId)
+        base_id, contract, future, _id, is_inverse, is_linear, option, quote_id, settle_id, spot, swap, _type = \
+            self.get_relevant_type_details_from_market(market)
+
+        settle = self.safe_currency_code(settle_id)
+        base = self.safe_currency_code(base_id)
+        quote = self.safe_currency_code(quote_id)
         symbol = base + '/' + quote
+
         expiry = None
         strikePrice = None
         optionType = None
         if contract:
-            symbol = symbol + ':' + settle
             expiry = self.safe_integer(market, 'expTime')
             if future:
                 ymd = self.yymmdd(expiry)
@@ -969,22 +992,28 @@ class okx(Exchange):
                 symbol = symbol + '-' + ymd + '-' + strikePrice + '-' + optionType
                 optionType = 'put' if (optionType == 'P') else 'call'
         tickSize = self.safe_string(market, 'tickSz')
+        contract_size = self.safe_number(market, 'ctVal')
+        amountPrecision = self.safe_number(market, 'lotSz')
         minAmountString = self.safe_string(market, 'minSz')
+        if is_linear:
+            minAmountString = Precise.string_mul(minAmountString, str(contract_size or 1.))
         minAmount = self.parse_number(minAmountString)
-        fees = self.safe_value_2(self.fees, type, 'trading', {})
+        if is_linear:
+            amountPrecision = self.convert_amount_into_tick_size_precision(minAmount)
+        fees = self.safe_value_2(self.fees, _type, 'trading', {})
         precisionPrice = self.parse_number(tickSize)
         maxLeverage = self.safe_string(market, 'lever', '1')
         maxLeverage = Precise.string_max(maxLeverage, '1')
         return self.extend(fees, {
-            'id': id,
+            'id': _id,
             'symbol': symbol,
             'base': base,
             'quote': quote,
             'settle': settle,
-            'baseId': baseId,
-            'quoteId': quoteId,
-            'settleId': settleId,
-            'type': type,
+            'baseId': base_id,
+            'quoteId': quote_id,
+            'settleId': settle_id,
+            'type': _type,
             'spot': spot,
             'margin': spot and (Precise.string_gt(maxLeverage, '1')),
             'swap': swap,
@@ -992,15 +1021,15 @@ class okx(Exchange):
             'option': option,
             'active': True,
             'contract': contract,
-            'linear': (quoteId == settleId) if contract else None,
-            'inverse': (baseId == settleId) if contract else None,
-            'contractSize': self.safe_number(market, 'ctVal') if contract else None,
+            'linear': is_linear,
+            'inverse': is_inverse,
+            'contractSize': contract_size,
             'expiry': expiry,
             'expiryDatetime': self.iso8601(expiry),
             'strike': strikePrice,
             'optionType': optionType,
             'precision': {
-                'amount': self.safe_number(market, 'lotSz'),
+                'amount': amountPrecision,
                 'price': precisionPrice,
             },
             'limits': {
@@ -1259,6 +1288,16 @@ class okx(Exchange):
         first = self.safe_value(data, 0, {})
         timestamp = self.safe_integer(first, 'ts')
         return self.parse_order_book(first, symbol, timestamp)
+
+    def parse_tickers(self, tickers, symbols=None, params={}):
+        result = []
+        tickers = self.to_array(tickers)
+        for ticker in tickers:
+            market_id = self.safe_string(ticker, 'instId')
+            if market_id not in self.markets_by_id:
+                continue
+            result.append(self.extend(self.parse_ticker(ticker), params))
+        return self.filter_by_array(result, 'symbol', symbols)
 
     def parse_ticker(self, ticker, market=None):
         #
@@ -1672,10 +1711,15 @@ class okx(Exchange):
         first = self.safe_value(data, 0, {})
         timestamp = self.safe_integer(first, 'uTime')
         details = self.safe_value(first, 'details', [])
+        is_linear_client = self.is_linear()
+        is_inverse_client = self.is_inverse()
         for i in range(0, len(details)):
             balance = details[i]
             currencyId = self.safe_string(balance, 'ccy')
             code = self.safe_currency_code(currencyId)
+            is_usdt_asset = code == "USDT"
+            if (is_linear_client and not is_usdt_asset) or (is_inverse_client and is_usdt_asset):
+                continue
             account = self.account()
             # it may be incorrect to use total, free and used for swap accounts
             eq = self.safe_string(balance, 'eq')
@@ -1908,6 +1952,9 @@ class okx(Exchange):
         """
         self.load_markets()
         market = self.market(symbol)
+        size = self.amount_to_precision(symbol, amount)
+        if market['linear']:
+            size = int(float(size) / market['contractSize'])
         request = {
             'instId': market['id'],
             # 'ccy': currency['id'],  # only applicable to cross MARGIN orders in single-currency margin
@@ -1918,7 +1965,7 @@ class okx(Exchange):
             'ordType': type,
             # 'ordType': type,  # privatePostTradeOrder: market, limit, post_only, fok, ioc, optimal_limit_ioc
             # 'ordType': type,  # privatePostTradeOrderAlgo: conditional, oco, trigger, move_order_stop, iceberg, twap
-            'sz': self.amount_to_precision(symbol, amount),
+            'sz': size,
             # 'px': self.price_to_precision(symbol, price),  # limit orders only
             # 'reduceOnly': False,
             #
@@ -3879,11 +3926,11 @@ class okx(Exchange):
             return position
         return self.parse_position(position)
 
-    def fetch_positions(self, symbols=None, params={}):
+    def get_positions(self, symbol=None, params={}):
         """
         see https://www.okx.com/docs-v5/en/#rest-api-account-get-positions
         fetch all open positions
-        :param [str]|None symbols: list of unified market symbols
+        :param str|None symbol
         :param dict params: extra parameters specific to the okx api endpoint
         :param str|None params['instType']: MARGIN, SWAP, FUTURES, OPTION
         :returns [dict]: a list of `position structure <https://docs.ccxt.com/en/latest/manual.html#position-structure>`
@@ -3894,66 +3941,18 @@ class okx(Exchange):
             # 'instId': market['id'],  # optional string, e.g. 'BTC-USD-190927-5000-C'
             # 'posId': '307173036051017730',  # optional string, Single or multiple position IDs(no more than 20) separated with commas
         }
-        if symbols is not None:
-            marketIds = []
-            for i in range(0, len(symbols)):
-                entry = symbols[i]
-                market = self.market(entry)
-                marketIds.append(market['id'])
-            if len(marketIds) > 0:
-                request['instId'] = str(marketIds)
+        if symbol is not None:
+            market = self.market(symbol)
+            request['instId'] = market['id']
         response = self.privateGetAccountPositions(self.extend(request, params))
-        #
-        #     {
-        #         "code": "0",
-        #         "msg": "",
-        #         "data": [
-        #             {
-        #                 "adl": "1",
-        #                 "availPos": "1",
-        #                 "avgPx": "2566.31",
-        #                 "cTime": "1619507758793",
-        #                 "ccy": "ETH",
-        #                 "deltaBS": "",
-        #                 "deltaPA": "",
-        #                 "gammaBS": "",
-        #                 "gammaPA": "",
-        #                 "imr": "",
-        #                 "instId": "ETH-USD-210430",
-        #                 "instType": "FUTURES",
-        #                 "interest": "0",
-        #                 "last": "2566.22",
-        #                 "lever": "10",
-        #                 "liab": "",
-        #                 "liabCcy": "",
-        #                 "liqPx": "2352.8496681818233",
-        #                 "margin": "0.0003896645377994",
-        #                 "mgnMode": "isolated",
-        #                 "mgnRatio": "11.731726509588816",
-        #                 "mmr": "0.0000311811092368",
-        #                 "optVal": "",
-        #                 "pTime": "1619507761462",
-        #                 "pos": "1",
-        #                 "posCcy": "",
-        #                 "posId": "307173036051017730",
-        #                 "posSide": "long",
-        #                 "thetaBS": "",
-        #                 "thetaPA": "",
-        #                 "tradeId": "109844",
-        #                 "uTime": "1619507761462",
-        #                 "upl": "-0.0000009932766034",
-        #                 "uplRatio": "-0.0025490556801078",
-        #                 "vegaBS": "",
-        #                 "vegaPA": ""
-        #             }
-        #         ]
-        #     }
-        #
         positions = self.safe_value(response, 'data', [])
         result = []
-        for i in range(0, len(positions)):
-            result.append(self.parse_position(positions[i]))
-        return self.filter_by_array(result, 'symbol', symbols, False)
+        for position in positions:
+            market_id = self.safe_string(position, 'instId')
+            if market_id not in self.markets_by_id:
+                continue
+            result.append(self.parse_position(position))
+        return result
 
     def parse_position(self, position, market=None):
         #
@@ -3997,79 +3996,92 @@ class okx(Exchange):
         #        "vegaPA": ""
         #    }
         #
-        marketId = self.safe_string(position, 'instId')
-        market = self.safe_market(marketId, market)
+        market_id = self.safe_string(position, 'instId')
+        market = self.safe_market(market_id, market)
         symbol = market['symbol']
-        contractsString = self.safe_string(position, 'pos')
-        contractsAbs = Precise.string_abs(contractsString)
+        contracts_string = self.safe_string(position, 'pos')
+        contracts_abs = Precise.string_abs(contracts_string)
         contracts = None
+        quantity = None
         side = self.safe_string(position, 'posSide')
         hedged = side != 'net'
-        if contractsString is not None:
-            contracts = self.parse_number(contractsAbs)
+        contract_size = self.safe_value(market, 'contractSize')
+        contract_size_string = self.number_to_string(contract_size)
+        if contracts_string is not None:
+            contracts = self.parse_number(contracts_abs)
+            quantity = contracts
+            if market['linear']:
+                quantity *= contract_size
             if side == 'net':
-                if Precise.string_gt(contractsString, '0'):
+                if Precise.string_gt(contracts_string, '0'):
                     side = 'long'
                 else:
                     side = 'short'
-        contractSize = self.safe_value(market, 'contractSize')
-        contractSizeString = self.number_to_string(contractSize)
-        markPriceString = self.safe_string(position, 'markPx')
-        notionalString = self.safe_string(position, 'notionalUsd')
+
+        mark_price_string = self.safe_string(position, 'markPx')
+        notional_string = self.safe_string(position, 'notionalUsd')
         if market['inverse']:
-            notionalString = Precise.string_div(Precise.string_mul(contractsAbs, contractSizeString), markPriceString)
-        notional = self.parse_number(notionalString)
-        marginMode = self.safe_string(position, 'mgnMode')
-        initialMarginString = None
-        entryPriceString = self.safe_string(position, 'avgPx')
-        unrealizedPnlString = self.safe_string(position, 'upl')
-        leverageString = self.safe_string(position, 'lever')
-        initialMarginPercentage = None
-        collateralString = None
-        if marginMode == 'cross':
-            initialMarginString = self.safe_string(position, 'imr')
-            collateralString = Precise.string_add(initialMarginString, unrealizedPnlString)
-        elif marginMode == 'isolated':
-            initialMarginPercentage = Precise.string_div('1', leverageString)
-            collateralString = self.safe_string(position, 'margin')
-        maintenanceMarginString = self.safe_string(position, 'mmr')
-        maintenanceMargin = self.parse_number(maintenanceMarginString)
-        maintenanceMarginPercentage = Precise.string_div(maintenanceMarginString, notionalString)
-        if initialMarginPercentage is None:
-            initialMarginPercentage = self.parse_number(Precise.string_div(initialMarginString, notionalString, 4))
-        elif initialMarginString is None:
-            initialMarginString = Precise.string_mul(initialMarginPercentage, notionalString)
+            notional_string = Precise.string_div(Precise.string_mul(contracts_abs, contract_size_string),
+                                                 mark_price_string)
+        notional = self.parse_number(notional_string)
+        margin_type = self.safe_string(position, 'mgnMode')
+        initial_margin_string = None
+        entry_price_string = self.safe_string(position, 'avgPx')
+        unrealized_pnl_string = self.safe_string(position, 'upl')
+        leverage_string = self.safe_string(position, 'lever')
+        initial_margin_percentage = None
+        maintenance_margin_percentage = None
+        collateral_string = None
+        margin_ratio = None
+        if margin_type == 'cross':
+            initial_margin_string = self.safe_string(position, 'imr')
+            collateral_string = Precise.string_add(initial_margin_string, unrealized_pnl_string)
+        elif margin_type == 'isolated':
+            initial_margin_percentage = Precise.string_div('1', leverage_string)
+            collateral_string = self.safe_string(position, 'margin')
+        maintenance_margin_string = self.safe_string(position, 'mmr')
+        maintenance_margin = self.parse_number(maintenance_margin_string)
+        if notional_string:
+            maintenance_margin_percentage = Precise.string_div(maintenance_margin_string, notional_string)
+            if initial_margin_percentage is None:
+                initial_margin_percentage = \
+                    self.parse_number(Precise.string_div(initial_margin_string, notional_string, 4))
+            elif initial_margin_string is None:
+                initial_margin_string = Precise.string_mul(initial_margin_percentage, notional_string)
         rounder = '0.00005'  # round to closest 0.01%
-        maintenanceMarginPercentage = self.parse_number(Precise.string_div(Precise.string_add(maintenanceMarginPercentage, rounder), '1', 4))
-        liquidationPrice = self.safe_number(position, 'liqPx')
-        percentageString = self.safe_string(position, 'uplRatio')
-        percentage = self.parse_number(Precise.string_mul(percentageString, '100'))
+        maintenance_margin_percentage = self.parse_number(Precise.string_div(Precise.string_add(maintenance_margin_percentage, rounder), '1', 4))
+        liquidation_price = self.safe_number(position, 'liqPx')
+        percentage_string = self.safe_string(position, 'uplRatio')
+        percentage = self.parse_number(Precise.string_mul(percentage_string, '100'))
         timestamp = self.safe_integer(position, 'uTime')
-        marginRatio = self.parse_number(Precise.string_div(maintenanceMarginString, collateralString, 4))
+        if collateral_string:
+            margin_ratio = self.parse_number(Precise.string_div(maintenance_margin_string, collateral_string, 4))
         return {
             'info': position,
             'id': None,
             'symbol': symbol,
             'notional': notional,
-            'marginMode': marginMode,
-            'liquidationPrice': liquidationPrice,
-            'entryPrice': self.parse_number(entryPriceString),
-            'unrealizedPnl': self.parse_number(unrealizedPnlString),
+            'margin_type': margin_type,
+            'liquidation_price': liquidation_price,
+            'entry_price': self.parse_number(entry_price_string),
+            'unrealized_pnl': self.parse_number(unrealized_pnl_string),
             'percentage': percentage,
             'contracts': contracts,
-            'contractSize': contractSize,
-            'markPrice': self.parse_number(markPriceString),
+            'quantity': quantity,
+            'contract_size': contract_size,
+            'mark_price': self.parse_number(mark_price_string),
             'side': side,
+            'is_long': side == "long" if hedged else None,
             'hedged': hedged,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
-            'maintenanceMargin': maintenanceMargin,
-            'maintenanceMarginPercentage': maintenanceMarginPercentage,
-            'collateral': self.parse_number(collateralString),
-            'initialMargin': self.parse_number(initialMarginString),
-            'initialMarginPercentage': self.parse_number(initialMarginPercentage),
-            'leverage': self.parse_number(leverageString),
-            'marginRatio': marginRatio,
+            'maintenance_margin': maintenance_margin,
+            'maintenance_margin_percentage': maintenance_margin_percentage,
+            'collateral': self.parse_number(collateral_string),
+            'initial_margin': self.parse_number(initial_margin_string),
+            'initial_margin_percentage': self.parse_number(initial_margin_percentage),
+            'leverage': self.parse_number(leverage_string),
+            'margin_ratio': margin_ratio,
         }
 
     def transfer(self, code, amount, fromAccount, toAccount, params={}):
@@ -4467,14 +4479,14 @@ class okx(Exchange):
         sorted = self.sort_by(result, 'timestamp')
         return self.filter_by_symbol_since_limit(sorted, symbol, since, limit)
 
-    def set_leverage(self, leverage, symbol=None, params={}):
+    def set_leverage(self, symbol, margin_type, leverage, params={}):
         """
         set the level of leverage for a market
         see https://www.okx.com/docs-v5/en/#rest-api-account-set-leverage
         :param float leverage: the rate of leverage
         :param str symbol: unified market symbol
         :param dict params: extra parameters specific to the okx api endpoint
-        :param str params['marginMode']: 'cross' or 'isolated'
+        :param str margin_type: 'cross' or 'isolated'
         :param str|None params['posSide']: 'long' or 'short' for isolated margin long/short mode on futures and swap markets
         :returns dict: response from the exchange
         """
@@ -4485,23 +4497,22 @@ class okx(Exchange):
         if (leverage < 1) or (leverage > 125):
             raise BadRequest(self.id + ' setLeverage() leverage should be between 1 and 125')
         self.load_markets()
-        market = self.market(symbol)
-        marginMode = None
-        marginMode, params = self.handle_margin_mode_and_params('setLeverage', params)
-        if marginMode is None:
-            marginMode = self.safe_string(params, 'mgnMode', 'cross')  # cross as default marginMode
-        if (marginMode != 'cross') and (marginMode != 'isolated'):
+        if (margin_type != 'cross') and (margin_type != 'isolated'):
             raise BadRequest(self.id + ' setLeverage() requires a marginMode parameter that must be either cross or isolated')
+        market = self.find_market(symbol)
         request = {
             'lever': leverage,
-            'mgnMode': marginMode,
-            'instId': market['id'],
+            'mgnMode': margin_type,
+            'instId': market['id']
         }
-        posSide = self.safe_string(params, 'posSide')
-        if marginMode == 'isolated':
-            if posSide is None:
+        if margin_type == "cross":
+            request['ccy'] = market['settleId']
+        default_type = self.safe_value(self.options, "defaultType")
+        if default_type == "future" and margin_type == 'isolated':
+            pos_side = self.safe_string(params, 'posSide')
+            if pos_side is None:
                 raise ArgumentsRequired(self.id + ' setLeverage() requires a posSide argument for isolated margin')
-            if posSide != 'long' and posSide != 'short':
+            if pos_side != 'long' and pos_side != 'short':
                 raise BadRequest(self.id + ' setLeverage() requires the posSide argument to be either "long" or "short"')
         response = self.privatePostAccountSetLeverage(self.extend(request, params))
         #
@@ -5294,16 +5305,3 @@ class okx(Exchange):
                 self.throw_broadly_matched_exception(self.exceptions['broad'], message, feedback)
             self.throw_exactly_matched_exception(self.exceptions['exact'], code, feedback)
             raise ExchangeError(feedback)  # unknown message
-
-
-if __name__ == '__main__':
-    from pprint import pprint
-
-    o = okx()
-    o.apiKey = "91268462-0109-48ae-85b4-13027de84549"
-    o.secret = "F862E13E60B6F901A2D89D79FDEE3447"
-    o.password = "58#YiqkBwBW2Lnz"
-
-    # pprint(o.create_limit_buy_order("BTC/USDT", 0.001, 19500))
-    pprint(o.fetch_open_orders("BTC/USDT"))
-    # pprint(o.fetch_balance())

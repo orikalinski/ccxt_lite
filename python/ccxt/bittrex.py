@@ -380,6 +380,9 @@ class bittrex(Exchange):
                         'min': math.pow(10, -precision['price']),
                         'max': None,
                     },
+                    'exchange_total_orders': {
+                        'max': 1000
+                    }
                 },
             })
         return result

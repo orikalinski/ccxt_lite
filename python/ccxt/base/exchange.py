@@ -540,7 +540,7 @@ class Exchange(object):
         keys = list(broad.keys())
         for i in range(0, len(keys)):
             key = keys[i]
-            if string.find(key) >= 0:
+            if string and string.find(key) >= 0:
                 return key
         return None
 
@@ -1522,6 +1522,33 @@ class Exchange(object):
 
     def currency_to_precision(self, currency, fee):
         return self.decimal_to_precision(fee, ROUND, self.currencies[currency]['precision'], self.precisionMode)
+
+    def float_to_str(self, number, num_digits=8, should_strip_zeros=False):
+        if isinstance(number, (int, float)):
+            num_digits = int(num_digits)
+            number = float(number)
+            if number >= 1:
+                return ('{0:#.%sf}' % num_digits).format(number).rstrip('0').rstrip('.')
+            else:
+                number_str = ('{0:#.%sf}' % num_digits).format(number)
+                if should_strip_zeros:
+                    return number_str.rstrip('0').rstrip('.')
+                else:
+                    return number_str.rstrip('.')
+        return number
+
+    def convert_amount_into_digit_precision(self, amount):
+        if 0 < amount < 1:
+            precision = len(self.float_to_str(amount, num_digits=16).rstrip("0").split(".")[1])
+        elif amount >= 1:
+            precision = 0
+        else:
+            raise NotImplemented
+        return precision
+
+    def convert_amount_into_tick_size_precision(self, amount):
+        digit_precision = self.convert_amount_into_digit_precision(amount)
+        return 1 / (10 ** digit_precision)
 
     def set_markets(self, markets, currencies=None):
         values = list(markets.values()) if type(markets) is dict else markets

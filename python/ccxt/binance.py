@@ -25,6 +25,7 @@ from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import RateLimitExceeded
 from ccxt.base.errors import ExchangeNotAvailable
 from ccxt.base.errors import InvalidNonce
+from ccxt.base.errors import NotChanged
 from ccxt.base.decimal_to_precision import ROUND
 from ccxt.base.decimal_to_precision import TRUNCATE
 
@@ -41,6 +42,7 @@ STATUSES_MAPPING = {
 
 PERMISSION_TO_VALUE = {"spot": ["enableSpotAndMarginTrading"], "futures": ["enableFutures"],
                        "withdrawal": ["enableWithdrawals"]}
+NOT_CHANGED_ERROR_CODES = {'-4046', '-4059'}
 
 
 class binance(Exchange):
@@ -681,11 +683,8 @@ class binance(Exchange):
                 return self.dapiPrivatePostMarginType({"symbol": _id, "marginType": margin_type})
             else:
                 raise NotSupported()
-        except ExchangeError as e:
-            args = e.args
-            if args and len(args) > 0 and args[0] == '-4046':
-                return
-            raise e
+        except NotChanged:
+            pass
 
     def get_pnl_history(self):
         _type = self.safe_string(self.options, 'defaultType')
@@ -719,19 +718,27 @@ class binance(Exchange):
 
         for account_position in account_positions:
             symbol = account_position["symbol"]
-            position = risk_positions.get(symbol)
-            if position:
-                margin = self.safe_float(account_position, "initialMargin", 0.) + \
-                         self.safe_float(account_position, "unrealizedProfit", 0.) - \
-                         self.safe_float(account_position, "openOrderInitialMargin", 0.)
-                market = self.find_market(position["symbol"])
-                if type(market) is dict:
-                    liq_price = self.safe_float(position, "liquidationPrice", 0)
-                    result = {"info": position, "symbol": market["symbol"],
-                              "quantity": self.safe_float(position, "positionAmt", 0.),
-                              "leverage": self.safe_float(position, "leverage", None), "maintenance_margin": margin,
-                              "margin_type": position["marginType"], "liquidation_price": max(liq_price, 0)}
-                    positions_to_return.append(result)
+            positions = risk_positions.get(symbol)
+            account_position_side = account_position.get("positionSide")
+            if positions is None:
+                continue
+            for position in positions:
+                if position:
+                    position_side = self.safe_string(position, "positionSide")
+                    if position_side == account_position_side:
+                        margin = self.safe_float(account_position, "initialMargin", 0.) + \
+                                 self.safe_float(account_position, "unrealizedProfit", 0.) - \
+                                 self.safe_float(account_position, "openOrderInitialMargin", 0.)
+                        market = self.find_market(position["symbol"])
+                        if type(market) is dict:
+                            liq_price = self.safe_float(position, "liquidationPrice", 0)
+                            result = {"info": position, "symbol": market["symbol"],
+                                      "quantity": self.safe_float(position, "positionAmt", 0.),
+                                      "leverage": self.safe_float(position, "leverage", None),
+                                      "maintenance_margin": margin, "margin_type": position["marginType"],
+                                      "liquidation_price": max(liq_price, 0),
+                                      "is_long": None if position_side == "BOTH" else position_side == "LONG"}
+                            positions_to_return.append(result)
         return positions_to_return
 
     def parse_isolated_margin_positions(self, positions):
@@ -780,13 +787,17 @@ class binance(Exchange):
 
         if _type == "future":
             account_positions = self.fapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in
-                              self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
+            risk_positions = defaultdict(list)
+            raw_risk_positions = self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})
+            for raw_risk_position in raw_risk_positions:
+                risk_positions[raw_risk_position["symbol"]].append(raw_risk_position)
             positions_to_return = self.parse_positions(account_positions, risk_positions)
         elif _type == "delivery":
             account_positions = self.dapiPrivateGetAccount().get("positions", list())
-            risk_positions = {position["symbol"]: position for position in
-                              self.dapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})}
+            risk_positions = defaultdict(list)
+            raw_risk_positions = self.dapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})
+            for raw_risk_position in raw_risk_positions:
+                risk_positions[raw_risk_position["symbol"]].append(raw_risk_position)
             positions_to_return = self.parse_positions(account_positions, risk_positions)
         elif _type == "margin_isolated":
             response = self.sapiGetMarginIsolatedAccount({"symbols": self.market_id(symbol)} if symbol else {})
@@ -1032,6 +1043,15 @@ class binance(Exchange):
                         'min': None,
                         'max': None,
                     },
+                    'orders': {
+                        'max': None
+                    },
+                    'conditional_orders': {
+                        'max': None
+                    },
+                    'exchange_total_orders': {
+                        'max': 1000
+                    }
                 },
             }
             if 'PRICE_FILTER' in filtersByType:
@@ -1068,6 +1088,18 @@ class binance(Exchange):
                 if not min_notional:
                     min_notional = self.safe_float(filter, 'notional')
                 entry['limits']['cost']['min'] = min_notional
+            if 'MAX_NUM_ORDERS' in filtersByType:
+                filter = self.safe_value(filtersByType, 'MAX_NUM_ORDERS', {})
+                max_num_orders = self.safe_float(filter, 'maxNumOrders')
+                if not max_num_orders:
+                    max_num_orders = self.safe_float(filter, 'limit')
+                entry['limits']['orders']['max'] = max_num_orders
+            if 'MAX_NUM_ALGO_ORDERS' in filtersByType:
+                filter = self.safe_value(filtersByType, 'MAX_NUM_ALGO_ORDERS', {})
+                max_num_orders = self.safe_float(filter, 'maxNumAlgoOrders')
+                if not max_num_orders:
+                    max_num_orders = self.safe_float(filter, 'limit')
+                entry['limits']['conditional_orders']['max'] = max_num_orders
 
             exists = self.handle_leverage_limits(entry, leverage_limits, market, symbol)
             if exists is False:
@@ -1971,15 +2003,8 @@ class binance(Exchange):
         response = getattr(self, method)(self.extend(request, params))
         return self.parse_order(response, market)
 
-    @staticmethod
-    def filter_order_trades(trades, _id):
-        _id_str = str(_id)
-        order_trades = [trade for trade in trades if trade["order"] == _id_str]
-        return order_trades
-
     def fetch_order_fee(self, _id, symbol, validate_filled=True):
-        trades = self.fetch_my_trades(symbol, params={"order_id": _id})
-        order_trades = self.filter_order_trades(trades, _id)
+        order_trades = self.fetch_my_trades(symbol, params={"order_id": _id})
         if validate_filled and not order_trades:
             raise TradesNotFound("Couldn't get order's trades for external_order_id: %s" % _id)
         _, fee = self.parse_trades_cost_fee(symbol, order_trades)
@@ -2196,18 +2221,21 @@ class binance(Exchange):
         params = self.omit(params, 'order_id')
         if type == 'spot':
             method = 'privateGetMyTrades'
-            # request['orderId'] = order_id
+            if order_id:
+                request['orderId'] = order_id
         elif type == 'future':
             method = 'fapiPrivateGetUserTrades'
         elif type == 'delivery':
             method = 'dapiPrivateGetUserTrades'
         elif type == 'margin_isolated':
             method = 'sapiGetMarginMyTrades'
-            # request['orderId'] = order_id
+            if order_id:
+                request['orderId'] = order_id
             request["isIsolated"] = "TRUE"
         elif type == 'margin_cross':
             method = 'sapiGetMarginMyTrades'
-            # request['orderId'] = order_id
+            if order_id:
+                request['orderId'] = order_id
         params = self.omit(params, 'type')
         if since is not None:
             request['startTime'] = since
@@ -2255,8 +2283,8 @@ class binance(Exchange):
         #         }
         #     ]
         #
-        # if order_id:
-        #     response = [trade for trade in response if self.safe_string(trade, 'orderId') == order_id]
+        if order_id:
+            response = [trade for trade in response if self.safe_integer(trade, 'orderId') == order_id]
         return self.parse_trades(response, market, since, limit)
 
     def fetch_my_dust_trades(self, symbol=None, since=None, limit=None, params={}):
@@ -2666,6 +2694,18 @@ class binance(Exchange):
             "ip_restrict": self.safe_value(response, "ipRestrict")
         }
 
+    def change_position_mode(self, is_hedge_mode):
+        _type = self.safe_string(self.options, 'defaultType')
+        try:
+            if _type == "future":
+                self.fapiPrivatePostPositionsideDual({'dualSidePosition': is_hedge_mode})
+            elif _type == "delivery":
+                self.dapiPrivatePostPositionsideDual({'dualSidePosition': is_hedge_mode})
+            else:
+                raise NotSupported()
+        except NotChanged:
+            pass
+
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         if not (api in self.urls['api']):
             raise NotSupported(self.id + ' does not have a testnet/sandbox URL for ' + api + ' endpoints')
@@ -2771,11 +2811,11 @@ class binance(Exchange):
             # a workaround for {"code":-2015,"msg":"Invalid API-key, IP, or permissions for action."}
             # despite that their message is very confusing, it is raised by Binance
             # on a temporary ban, the API key is valid, but disabled for a while
-            if error == '-4046':
-                raise ExchangeError(error, body)
             if (error == '-2015') and self.options['hasAlreadyAuthenticatedSuccessfully']:
                 raise DDoSProtection(self.id + ' temporary banned: ' + body)
             feedback = self.id + ' ' + body
+            if error in NOT_CHANGED_ERROR_CODES:
+                raise NotChanged(feedback)
             self.throw_exactly_matched_exception(self.exceptions, error, feedback)
             raise ExchangeError(feedback)
         if not success:
