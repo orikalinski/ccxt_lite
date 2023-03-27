@@ -2348,7 +2348,9 @@ class okx(Exchange):
         #         "uly": "BTC-USDT"
         #     }
         #
-        contractSize = market["contractSize"]
+        marketId = self.safe_string(order, 'instId')
+        market = market or self.find_market(marketId)
+        contractSize = self.safe_float(market, "contractSize", default_value=1.)
         id = self.safe_string_2(order, 'algoId', 'ordId')
         timestamp = self.safe_integer(order, 'cTime')
         lastTradeTimestamp = self.safe_integer(order, 'fillTime')
@@ -2365,7 +2367,6 @@ class okx(Exchange):
         elif type == 'ioc':
             timeInForce = 'IOC'
             type = 'limit'
-        marketId = self.safe_string(order, 'instId')
         symbol = self.safe_symbol(marketId, market, '-')
         filled = self.safe_float(order, 'accFillSz', default_value=0.) * contractSize
         price = self.safe_float_2(order, 'px', 'ordPx')
