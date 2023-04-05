@@ -2294,6 +2294,12 @@ class Exchange(object):
 
         return self.index_by(result, key) if indexed else result
 
+    def resolve_path(self, path, params):
+        return [
+            self.implode_params(path, params),
+            self.omit(params, self.extract_params(path)),
+        ]
+
     def currency(self, code):
         if not self.currencies:
             raise ExchangeError('Currencies not loaded')
