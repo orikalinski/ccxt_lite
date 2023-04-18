@@ -1098,6 +1098,12 @@ class binance(Exchange):
                 if not min_notional:
                     min_notional = self.safe_float(filter, 'notional')
                 entry['limits']['cost']['min'] = min_notional
+            if 'NOTIONAL' in filtersByType:
+                filter = self.safe_value(filtersByType, 'NOTIONAL', {})
+                min_notional = self.safe_float(filter, 'minNotional')
+                max_notional = self.safe_float(filter, 'maxNotional')
+                entry['limits']['cost']['min'] = min_notional
+                entry['limits']['cost']['max'] = max_notional
             if 'MAX_NUM_ORDERS' in filtersByType:
                 filter = self.safe_value(filtersByType, 'MAX_NUM_ORDERS', {})
                 max_num_orders = self.safe_float(filter, 'maxNumOrders')
