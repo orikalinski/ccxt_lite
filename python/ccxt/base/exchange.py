@@ -1513,14 +1513,14 @@ class Exchange(object):
 
     def price_to_precision(self, symbol: str, price):
         market = self.market(symbol)
-        result = self.decimal_to_precision(price, ROUND, market['precision']['price'], self.precisionMode, self.paddingMode)
+        result = self.decimal_to_precision(price, ROUND, market['precision']['price'], self.precisionMode)
         if result == '0':
             raise ArgumentsRequired(self.id + ' price of ' + market['symbol'] + ' must be greater than minimum price precision of ' + self.number_to_string(market['precision']['price']))
         return result
 
     def amount_to_precision(self, symbol: str, amount):
         market = self.market(symbol)
-        result = self.decimal_to_precision(amount, TRUNCATE, market['precision']['amount'], self.precisionMode, self.paddingMode)
+        result = self.decimal_to_precision(amount, TRUNCATE, market['precision']['amount'], self.precisionMode)
         if result == '0':
             raise ArgumentsRequired(self.id + ' amount of ' + market['symbol'] + ' must be greater than minimum amount precision of ' + self.number_to_string(market['precision']['amount']))
         return result
