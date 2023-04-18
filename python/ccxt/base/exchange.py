@@ -1508,9 +1508,8 @@ class Exchange(object):
         parts = re.sub(r'0+$', '', string).split('.')
         return len(parts[1]) if len(parts) > 1 else 0
 
-    def cost_to_precision(self, symbol: str, cost):
-        market = self.market(symbol)
-        return self.decimal_to_precision(cost, TRUNCATE, market['precision']['price'], self.precisionMode, self.paddingMode)
+    def cost_to_precision(self, symbol, cost):
+        return self.decimal_to_precision(cost, ROUND, self.markets[symbol]['precision']['price'], self.precisionMode)
 
     def price_to_precision(self, symbol: str, price):
         market = self.market(symbol)
@@ -1519,8 +1518,12 @@ class Exchange(object):
             raise ArgumentsRequired(self.id + ' price of ' + market['symbol'] + ' must be greater than minimum price precision of ' + self.number_to_string(market['precision']['price']))
         return result
 
-    def amount_to_precision(self, symbol, amount):
-        return self.decimal_to_precision(amount, TRUNCATE, self.markets[symbol]['precision']['amount'], self.precisionMode)
+    def amount_to_precision(self, symbol: str, amount):
+        market = self.market(symbol)
+        result = self.decimal_to_precision(amount, TRUNCATE, market['precision']['amount'], self.precisionMode, self.paddingMode)
+        if result == '0':
+            raise ArgumentsRequired(self.id + ' amount of ' + market['symbol'] + ' must be greater than minimum amount precision of ' + self.number_to_string(market['precision']['amount']))
+        return result
 
     def fee_to_precision(self, symbol, fee):
         return self.decimal_to_precision(fee, ROUND, self.markets[symbol]['precision']['price'], self.precisionMode)
