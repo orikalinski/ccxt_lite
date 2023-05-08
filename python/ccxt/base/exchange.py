@@ -703,6 +703,20 @@ class Exchange(object):
             return dictionary[key] is not None
         return False
 
+    def safe_position(self, position):
+        # simplified version of: /pull/12765/
+        unrealizedPnlString = self.safe_string(position, 'unrealisedPnl')
+        initialMarginString = self.safe_string(position, 'initialMargin')
+        #
+        # PERCENTAGE
+        #
+        percentage = self.safe_value(position, 'percentage')
+        if (percentage is None) and (unrealizedPnlString is not None) and (initialMarginString is not None):
+            # was done in all implementations( aax, btcex, bybit, deribit, ftx, gate, kucoinfutures, phemex )
+            percentageString = Precise.string_mul(Precise.string_div(unrealizedPnlString, initialMarginString, 4), '100')
+            position['percentage'] = self.parse_number(percentageString)
+        return position
+
     @staticmethod
     def safe_float_n(dictionary, key_list, default_value=None):
         value = Exchange.get_object_value_from_key_list(dictionary, key_list)
