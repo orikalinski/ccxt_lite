@@ -903,6 +903,9 @@ class kucoinfutures(kucoin):
     def parse_positions(self, positions, symbols=None):
         results = list()
         for position in positions:
+            market_id = self.safe_string(position, 'symbol')
+            if market_id not in self.markets_by_id:
+                continue
             results.append(self.parse_position(position))
         return results
 
@@ -962,7 +965,11 @@ class kucoinfutures(kucoin):
             side = 'long'
         elif Precise.string_lt(size, '0'):
             side = 'short'
+        is_linear = self.safe_value(market, 'linear')
         quantity = self.safe_float(position, 'currentQty')
+        if is_linear:
+            contract_size = self.safe_value(market, 'contractSize')
+            quantity = quantity * contract_size
         notional = Precise.string_abs(self.safe_string(position, 'posCost'))
         initialMargin = self.safe_string(position, 'posInit')
         initialMarginPercentage = Precise.string_div(initialMargin, notional)
@@ -978,13 +985,8 @@ class kucoinfutures(kucoin):
             'symbol': self.safe_string(market, 'symbol'),
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
-            'last_update_timestamp': None,
-            'initial_margin': self.parse_number(initialMargin),
-            'initial_margin_percentage': self.parse_number(initialMarginPercentage),
-            'maintenance_margin': self.safe_number(position, 'posMaint'),
-            'maintenance_margin_percentage': self.safe_number(position, 'maintMarginReq'),
+            'maintenance_margin': self.safe_number(position, 'posMargin'),
             'entryPrice': self.safe_number(position, 'avgEntryPrice'),
-            'notional': self.parse_number(notional),
             'leverage': self.safe_number(position, 'realLeverage'),
             'unrealized_pnl': self.parse_number(unrealisedPnl),
             'contracts': self.parse_number(Precise.string_abs(size)),
