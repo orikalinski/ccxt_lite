@@ -240,6 +240,7 @@ class bybit(Exchange):
                     '10017': BadRequest,  # request path not found or request method is invalid
                     '10018': RateLimitExceeded,  # Exceeded IP rate limit.
                     '10020': NotSupported,  # Request not supported.
+                    '10024': AuthenticationError,  # Compliance rules triggered
                     '20001': OrderNotFound,  # Order not exists
                     '20003': InvalidOrder,  # missing parameter side
                     '20004': InvalidOrder,  # invalid parameter side
