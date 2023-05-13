@@ -955,7 +955,7 @@ class bybit(Exchange):
         #         countdown_hour: 7
         #     }
         #
-        timestamp = None
+        timestamp = self.safe_integer(ticker, 't')
         marketId = self.safe_string_2(ticker, 'symbol', 's')
         symbol = None
         if marketId in self.markets_by_id:

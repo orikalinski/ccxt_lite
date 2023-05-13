@@ -884,19 +884,6 @@ class okx(Exchange):
         result = self.fetch_markets_by_type(default_type, params)
         return result
 
-    def parse_markets(self, markets):
-        result = []
-        is_linear_client = self.is_linear()
-        is_inverse_client = self.is_inverse()
-        for market in markets:
-            _, _, _, _, is_inverse, is_linear, _, _, _, _, is_swap, _ = \
-                self.get_relevant_type_details_from_market(market)
-
-            if is_swap and not ((is_linear_client and is_linear) or (is_inverse_client and is_inverse)):
-                continue
-            result.append(self.parse_market(market))
-        return result
-
     def get_relevant_type_details_from_market(self, market):
         _id = self.safe_string(market, 'instId')
         _type = self.safe_string_lower(market, 'instType')
@@ -918,6 +905,19 @@ class okx(Exchange):
         is_linear = (quote_id == settle_id) if contract else None
         is_inverse = (base_id == settle_id) if contract else None
         return base_id, contract, future, _id, is_inverse, is_linear, option, quote_id, settle_id, spot, swap, _type
+
+    def parse_markets(self, markets):
+        result = []
+        is_linear_client = self.is_linear()
+        is_inverse_client = self.is_inverse()
+        for market in markets:
+            _, _, _, _, is_inverse, is_linear, _, _, _, _, is_swap, _ = \
+                self.get_relevant_type_details_from_market(market)
+
+            if is_swap and not ((is_linear_client and is_linear) or (is_inverse_client and is_inverse)):
+                continue
+            result.append(self.parse_market(market))
+        return result
 
     def parse_market(self, market):
         #

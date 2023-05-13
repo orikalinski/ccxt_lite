@@ -299,7 +299,7 @@ class kucoinfutures(kucoin):
             'options': {
                 'version': 'v1',
                 'symbolSeparator': '-',
-                'defaultType': 'swap',
+                'defaultType': 'linear',  # linear, inverse
                 'code': 'USDT',
                 'marginModes': {},
                 'marginTypes': {},
@@ -353,6 +353,98 @@ class kucoinfutures(kucoin):
             'url': None,
             'info': response,
         }
+
+    def is_inverse(self):
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type == "inverse"
+
+    def is_linear(self):
+        default_type = self.safe_string(self.options, 'defaultType')
+        return default_type == "linear"
+
+    def parse_market(self, market):
+        id = self.safe_string(market, 'symbol')
+        expiry = self.safe_integer(market, 'expireDate')
+        future = True if expiry else False
+        swap = not future
+        baseId = self.safe_string(market, 'baseCurrency')
+        quoteId = self.safe_string(market, 'quoteCurrency')
+        settleId = self.safe_string(market, 'settleCurrency')
+        base = self.safe_currency_code(baseId)
+        quote = self.safe_currency_code(quoteId)
+        settle = self.safe_currency_code(settleId)
+        symbol = base + '/' + quote
+        type = 'swap'
+        if future:
+            symbol = symbol + '-' + self.yymmdd(expiry, '')
+            type = 'future'
+        inverse = self.safe_value(market, 'isInverse')
+        status = self.safe_string(market, 'status')
+        multiplier = self.safe_string(market, 'multiplier')
+        tickSize = self.safe_number(market, 'tickSize')
+        lotSize = self.safe_number(market, 'lotSize')
+        limitAmountMin = lotSize
+        if limitAmountMin is None:
+            limitAmountMin = self.safe_number(market, 'baseMinSize')
+        limitAmountMax = self.safe_number(market, 'maxOrderQty')
+        if limitAmountMax is None:
+            limitAmountMax = self.safe_number(market, 'baseMaxSize')
+        limitPriceMax = self.safe_number(market, 'maxPrice')
+        if limitPriceMax is None:
+            baseMinSizeString = self.safe_string(market, 'baseMinSize')
+            quoteMaxSizeString = self.safe_string(market, 'quoteMaxSize')
+            limitPriceMax = self.parse_number(Precise.string_div(quoteMaxSizeString, baseMinSizeString))
+        parsed_market = {
+            'id': id,
+            'symbol': symbol,
+            'base': base,
+            'quote': quote,
+            'settle': settle,
+            'baseId': baseId,
+            'quoteId': quoteId,
+            'settleId': settleId,
+            'type': type,
+            'spot': False,
+            'margin': False,
+            'swap': swap,
+            'future': future,
+            'option': False,
+            'active': (status == 'Open'),
+            'contract': True,
+            'linear': not inverse,
+            'inverse': inverse,
+            'taker': self.safe_number(market, 'takerFeeRate'),
+            'maker': self.safe_number(market, 'makerFeeRate'),
+            'contractSize': self.parse_number(Precise.string_abs(multiplier)),
+            'expiry': expiry,
+            'expiryDatetime': self.iso8601(expiry),
+            'strike': None,
+            'optionType': None,
+            'precision': {
+                'amount': lotSize,
+                'price': tickSize,
+            },
+            'limits': {
+                'leverage': {
+                    'min': self.parse_number('1'),
+                    'max': self.safe_number(market, 'maxLeverage'),
+                },
+                'amount': {
+                    'min': limitAmountMin,
+                    'max': limitAmountMax,
+                },
+                'price': {
+                    'min': tickSize,
+                    'max': limitPriceMax,
+                },
+                'cost': {
+                    'min': self.safe_number(market, 'quoteMinSize'),
+                    'max': self.safe_number(market, 'quoteMaxSize'),
+                },
+            },
+            'info': market,
+        }
+        return parsed_market
 
     def fetch_markets(self, params={}):
         """
@@ -424,90 +516,16 @@ class kucoinfutures(kucoin):
         #    }
         #
         result = []
-        data = self.safe_value(response, 'data', [])
-        for i in range(0, len(data)):
-            market = data[i]
-            id = self.safe_string(market, 'symbol')
-            expiry = self.safe_integer(market, 'expireDate')
-            future = True if expiry else False
-            swap = not future
-            baseId = self.safe_string(market, 'baseCurrency')
-            quoteId = self.safe_string(market, 'quoteCurrency')
-            settleId = self.safe_string(market, 'settleCurrency')
-            base = self.safe_currency_code(baseId)
-            quote = self.safe_currency_code(quoteId)
-            settle = self.safe_currency_code(settleId)
-            symbol = base + '/' + quote
-            type = 'swap'
-            if future:
-                symbol = symbol + '-' + self.yymmdd(expiry, '')
-                type = 'future'
-            inverse = self.safe_value(market, 'isInverse')
-            status = self.safe_string(market, 'status')
-            multiplier = self.safe_string(market, 'multiplier')
-            tickSize = self.safe_number(market, 'tickSize')
-            lotSize = self.safe_number(market, 'lotSize')
-            limitAmountMin = lotSize
-            if limitAmountMin is None:
-                limitAmountMin = self.safe_number(market, 'baseMinSize')
-            limitAmountMax = self.safe_number(market, 'maxOrderQty')
-            if limitAmountMax is None:
-                limitAmountMax = self.safe_number(market, 'baseMaxSize')
-            limitPriceMax = self.safe_number(market, 'maxPrice')
-            if limitPriceMax is None:
-                baseMinSizeString = self.safe_string(market, 'baseMinSize')
-                quoteMaxSizeString = self.safe_string(market, 'quoteMaxSize')
-                limitPriceMax = self.parse_number(Precise.string_div(quoteMaxSizeString, baseMinSizeString))
-            result.append({
-                'id': id,
-                'symbol': symbol,
-                'base': base,
-                'quote': quote,
-                'settle': settle,
-                'baseId': baseId,
-                'quoteId': quoteId,
-                'settleId': settleId,
-                'type': type,
-                'spot': False,
-                'margin': False,
-                'swap': swap,
-                'future': future,
-                'option': False,
-                'active': (status == 'Open'),
-                'contract': True,
-                'linear': not inverse,
-                'inverse': inverse,
-                'taker': self.safe_number(market, 'takerFeeRate'),
-                'maker': self.safe_number(market, 'makerFeeRate'),
-                'contractSize': self.parse_number(Precise.string_abs(multiplier)),
-                'expiry': expiry,
-                'expiryDatetime': self.iso8601(expiry),
-                'strike': None,
-                'optionType': None,
-                'precision': {
-                    'amount': lotSize,
-                    'price': tickSize,
-                },
-                'limits': {
-                    'leverage': {
-                        'min': self.parse_number('1'),
-                        'max': self.safe_number(market, 'maxLeverage'),
-                    },
-                    'amount': {
-                        'min': limitAmountMin,
-                        'max': limitAmountMax,
-                    },
-                    'price': {
-                        'min': tickSize,
-                        'max': limitPriceMax,
-                    },
-                    'cost': {
-                        'min': self.safe_number(market, 'quoteMinSize'),
-                        'max': self.safe_number(market, 'quoteMaxSize'),
-                    },
-                },
-                'info': market,
-            })
+        markets = self.safe_value(response, 'data', [])
+        is_linear_client = self.is_linear()
+        is_inverse_client = self.is_inverse()
+        for market in markets:
+            is_inverse = self.safe_value(market, 'isInverse')
+            is_linear = not is_inverse
+            if not ((is_linear_client and is_linear) or (is_inverse_client and is_inverse)):
+                continue
+            parsed_market = self.parse_market(market)
+            result.append(parsed_market)
         return result
 
     def fetch_time(self, params={}):
@@ -880,7 +898,13 @@ class kucoinfutures(kucoin):
         #    }
         #
         data = self.safe_value(response, 'data')
-        return self.parse_positions(data, symbols)
+        return self.parse_positions(data, symbols=symbols)
+
+    def parse_positions(self, positions, symbols=None):
+        results = list()
+        for position in positions:
+            results.append(self.parse_position(position))
+        return results
 
     def parse_position(self, position, market=None):
         #
@@ -938,6 +962,7 @@ class kucoinfutures(kucoin):
             side = 'long'
         elif Precise.string_lt(size, '0'):
             side = 'short'
+        quantity = self.safe_float(position, 'currentQty')
         notional = Precise.string_abs(self.safe_string(position, 'posCost'))
         initialMargin = self.safe_string(position, 'posInit')
         initialMarginPercentage = Precise.string_div(initialMargin, notional)
@@ -963,7 +988,7 @@ class kucoinfutures(kucoin):
             'leverage': self.safe_number(position, 'realLeverage'),
             'unrealized_pnl': self.parse_number(unrealisedPnl),
             'contracts': self.parse_number(Precise.string_abs(size)),
-            'quantity': size,
+            'quantity': quantity,
             'contract_size': contract_size,
             #     realisedPnl: position['realised_pnl'],
             'margin_ratio': None,
