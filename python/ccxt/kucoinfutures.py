@@ -378,7 +378,7 @@ class kucoinfutures(kucoin):
         if future:
             symbol = symbol + '-' + self.yymmdd(expiry, '')
             type = 'future'
-        inverse = self.safe_value(market, 'isInverse')
+        is_inverse = self.safe_value(market, 'isInverse')
         status = self.safe_string(market, 'status')
         multiplier = self.safe_string(market, 'multiplier')
         tickSize = self.safe_number(market, 'tickSize')
@@ -394,6 +394,14 @@ class kucoinfutures(kucoin):
             baseMinSizeString = self.safe_string(market, 'baseMinSize')
             quoteMaxSizeString = self.safe_string(market, 'quoteMaxSize')
             limitPriceMax = self.parse_number(Precise.string_div(quoteMaxSizeString, baseMinSizeString))
+        is_linear = not is_inverse
+        contractSize = self.parse_number(Precise.string_abs(multiplier))
+        quantity_precision = lotSize
+        if is_linear:
+            quantity_precision = lotSize * contractSize
+            limitAmountMin *= contractSize
+            limitAmountMax *= contractSize
+
         parsed_market = {
             'id': id,
             'symbol': symbol,
@@ -411,17 +419,17 @@ class kucoinfutures(kucoin):
             'option': False,
             'active': (status == 'Open'),
             'contract': True,
-            'linear': not inverse,
-            'inverse': inverse,
+            'linear': is_linear,
+            'inverse': is_inverse,
             'taker': self.safe_number(market, 'takerFeeRate'),
             'maker': self.safe_number(market, 'makerFeeRate'),
-            'contractSize': self.parse_number(Precise.string_abs(multiplier)),
+            'contractSize': contractSize,
             'expiry': expiry,
             'expiryDatetime': self.iso8601(expiry),
             'strike': None,
             'optionType': None,
             'precision': {
-                'amount': lotSize,
+                'amount': quantity_precision,
                 'price': tickSize,
             },
             'limits': {
@@ -1037,8 +1045,9 @@ class kucoinfutures(kucoin):
         # required param, cannot be used twice
         clientOrderId = self.safe_string_2(params, 'clientOid', 'clientOrderId', self.uuid())
         params = self.omit(params, ['clientOid', 'clientOrderId'])
-        if amount < 1:
-            raise InvalidOrder(self.id + ' createOrder() minimum contract order amount is 1')
+        is_linear = self.safe_value(market, 'linear')
+        if is_linear:
+            amount /= self.safe_value(market, 'contractSize')
         preciseAmount = int(self.amount_to_precision(symbol, amount))
         request = {
             'clientOid': clientOrderId,
@@ -1075,7 +1084,6 @@ class kucoinfutures(kucoin):
                 request['price'] = self.price_to_precision(symbol, price)
             if timeInForce is not None:
                 request['timeInForce'] = timeInForce
-        postOnly = None
         postOnly, params = self.handle_post_only(type == 'market', False, params)
         if postOnly:
             request['postOnly'] = True
