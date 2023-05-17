@@ -4,9 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.base.exchange import Exchange
-from ccxt.abstract.bittrex import ImplicitAPI
 import hashlib
-from ccxt.base.types import OrderSide
 from typing import Optional
 from typing import List
 from ccxt.base.errors import ExchangeError
@@ -27,7 +25,7 @@ from ccxt.base.decimal_to_precision import TRUNCATE
 from ccxt.base.decimal_to_precision import TICK_SIZE
 
 
-class bittrex(Exchange, ImplicitAPI):
+class bittrex(Exchange):
 
     def describe(self):
         return self.deep_extend(super(bittrex, self).describe(), {
@@ -1007,7 +1005,7 @@ class bittrex(Exchange, ImplicitAPI):
             market = self.market(symbol)
         return self.parse_trades(response, market, since, limit)
 
-    def create_order(self, symbol: str, type, side: OrderSide, amount, price=None, params={}):
+    def create_order(self, symbol: str, type, side, amount, price=None, params={}):
         """
         create a trade order
         :param str symbol: unified symbol of the market to create an order in
@@ -1332,7 +1330,7 @@ class bittrex(Exchange, ImplicitAPI):
             currency = self.currency(code)
             request['currencySymbol'] = currency['id']
         if since is not None:
-            startDate = self.parse_to_int(since / 1000) * 1000
+            startDate = int((since / str(1000))) * 1000
             request['startDate'] = self.iso8601(startDate)
         if limit is not None:
             request['pageSize'] = limit
@@ -1405,7 +1403,7 @@ class bittrex(Exchange, ImplicitAPI):
             currency = self.currency(code)
             request['currencySymbol'] = currency['id']
         if since is not None:
-            startDate = self.parse_to_int(since / 1000) * 1000
+            startDate = int((since / str(1000))) * 1000
             request['startDate'] = self.iso8601(startDate)
         if limit is not None:
             request['pageSize'] = limit
@@ -1974,7 +1972,7 @@ class bittrex(Exchange, ImplicitAPI):
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
-            return None  # fallback to default error handler
+            return  # fallback to default error handler
         #
         #     {success: False, message: "message"}
         #
@@ -1982,14 +1980,14 @@ class bittrex(Exchange, ImplicitAPI):
             feedback = self.id + ' ' + body
             success = self.safe_value(response, 'success')
             if success is None:
-                codeInner = self.safe_string(response, 'code')
-                if (codeInner == 'NOT_FOUND') and (url.find('addresses') >= 0):
+                code = self.safe_string(response, 'code')
+                if (code == 'NOT_FOUND') and (url.find('addresses') >= 0):
                     raise InvalidAddress(feedback)
-                if codeInner is not None:
-                    self.throw_exactly_matched_exception(self.exceptions['exact'], codeInner, feedback)
-                    self.throw_broadly_matched_exception(self.exceptions['broad'], codeInner, feedback)
+                if code is not None:
+                    self.throw_exactly_matched_exception(self.exceptions['exact'], code, feedback)
+                    self.throw_broadly_matched_exception(self.exceptions['broad'], code, feedback)
                 # raise ExchangeError(self.id + ' malformed response ' + self.json(response))
-                return None
+                return
             if isinstance(success, str):
                 # bleutrade uses string instead of boolean
                 success = (success == 'true')
@@ -2035,4 +2033,3 @@ class bittrex(Exchange, ImplicitAPI):
                 if message is not None:
                     self.throw_broadly_matched_exception(self.exceptions['broad'], message, feedback)
                 raise ExchangeError(feedback)
-        return None
