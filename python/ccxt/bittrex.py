@@ -22,7 +22,7 @@ from ccxt.base.errors import OnMaintenance
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import AddressPending
 from ccxt.base.decimal_to_precision import TRUNCATE
-from ccxt.base.decimal_to_precision import TICK_SIZE
+from ccxt.base.decimal_to_precision import DECIMAL_PLACES
 
 
 class bittrex(Exchange):
@@ -223,7 +223,7 @@ class bittrex(Exchange):
                     'percentage': False,
                 },
             },
-            'precisionMode': TICK_SIZE,
+            'precisionMode': DECIMAL_PLACES,
             'exceptions': {
                 'exact': {
                     'BAD_REQUEST': BadRequest,  # {"code":"BAD_REQUEST","detail":"Refer to the data field for specific field validation failures.","data":{"invalidRequestParameter":"day"}}
