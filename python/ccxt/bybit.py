@@ -1357,7 +1357,7 @@ class bybit(Exchange):
         price = self.safe_float_2(order, 'price', 'orderPrice')
         average = self.safe_float_2(order, 'average_price', 'avgPrice')
         cost = self.safe_float_n(order, ['cum_exec_value', 'cumExecValue', 'cummulativeQuoteQty'])
-        filled = self.safe_float_n(order, ['cum_exec_qty', 'executedQty', 'cumExecQty', 'execQty'], default_value=0.)
+        filled = self.safe_float_n(order, ['cum_exec_qty', 'executedQty', 'cumExecQty', 'execQty'])
         if (market['spot'] and _type == 'market') and (side == 'buy'):
             amount = filled
         else:
