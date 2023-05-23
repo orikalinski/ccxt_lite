@@ -1510,7 +1510,7 @@ class bybit(Exchange):
         if parsed_order:
             return parsed_order
         parsed_order = self.parse_order(result, market)
-        if self.is_spot() and parsed_order['fee'] is None and parsed_order['filled'] > 0:
+        if self.is_spot() and parsed_order['fee'] is None and parsed_order['filled'] and parsed_order['filled'] > 0:
             parsed_order['fee'] = self.fetch_order_fee(parsed_order["id"], symbol, validate_filled=True)
         return parsed_order
 
