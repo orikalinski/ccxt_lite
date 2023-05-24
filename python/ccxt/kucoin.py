@@ -1582,6 +1582,9 @@ class kucoin(Exchange, ImplicitAPI):
         until = self.safe_integer_2(params, 'until', 'till')
         stop = self.safe_value(params, 'stop')
         params = self.omit(params, ['stop', 'till', 'until'])
+        order_type = self.safe_string_lower(params, 'type')
+        stop = stop or order_type == 'stop'
+        params = self.omit(params, ['type'])
         marginMode, query = self.handle_margin_mode_and_params('fetchOrdersByStatus', params)
         if lowercaseStatus == 'open':
             lowercaseStatus = 'active'

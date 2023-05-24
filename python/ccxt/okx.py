@@ -1954,7 +1954,7 @@ class okx(Exchange):
         market = self.market(symbol)
         size = self.amount_to_precision(symbol, amount)
         if market['linear']:
-            size = int(float(size) / market['contractSize'])
+            size = int(float(size) / self.safe_value(market, 'contractSize'))
         request = {
             'instId': market['id'],
             # 'ccy': currency['id'],  # only applicable to cross MARGIN orders in single-currency margin

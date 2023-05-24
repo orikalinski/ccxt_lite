@@ -1335,6 +1335,9 @@ class kucoinfutures(kucoin):
         stop = self.safe_value(params, 'stop')
         until = self.safe_integer_2(params, 'until', 'till')
         params = self.omit(params, ['stop', 'until', 'till'])
+        order_type = self.safe_string_lower(params, 'type')
+        stop = stop or order_type == 'stop'
+        params = self.omit(params, ['type'])
         if status == 'closed':
             status = 'done'
         elif status == 'open':
@@ -1343,7 +1346,7 @@ class kucoinfutures(kucoin):
         if not stop:
             request['status'] = status
         elif status != 'active':
-            raise BadRequest(self.id + ' fetchOrdersByStatus() can only fetch untriggered stop orders')
+            raise NotSupported(self.id + ' fetchOrdersByStatus() can only fetch untriggered stop orders')
         market = None
         if symbol is not None:
             market = self.market(symbol)
@@ -1418,11 +1421,14 @@ class kucoinfutures(kucoin):
         cost = Precise.string_div(rawCost, leverage)
         average = None
         if Precise.string_gt(filled, '0'):
-            contractSize = self.safe_string(market, 'contractSize')
-            if market['linear']:
-                average = Precise.string_div(rawCost, Precise.string_mul(contractSize, filled))
+            is_linear = self.safe_value(market, 'linear')
+            contract_size = self.safe_value(market, 'contractSize')
+            if is_linear:
+                filled = Precise.string_mul(contract_size, filled)
+                amount = Precise.string_mul(contract_size, amount)
+                average = Precise.string_div(rawCost, filled)
             else:
-                average = Precise.string_div(Precise.string_mul(contractSize, filled), rawCost)
+                average = Precise.string_div(Precise.string_mul(contract_size, filled), rawCost)
         # precision reported by their api is 8 d.p.
         # average = Precise.string_div(rawCost, Precise.string_mul(filled, market['contractSize']))
         # bool
