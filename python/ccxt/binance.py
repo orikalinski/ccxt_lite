@@ -2723,8 +2723,7 @@ class binance(Exchange):
                 response = self.dapiPrivateGetPositionsideDual()
             else:
                 raise NotSupported()
-            return response
-            # return self.safe_value(response, 'dualSidePosition')
+            return self.safe_value(response, 'dualSidePosition')
         except NotChanged:
             pass
 
