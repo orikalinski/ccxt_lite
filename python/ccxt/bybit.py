@@ -541,6 +541,16 @@ class bybit(Exchange):
         except NotChanged:
             pass
 
+    def get_position_mode(self):
+        _type = self.safe_string(self.options, 'defaultType')
+        if _type == "linear":
+            self.load_markets()
+            response = self.privateGetPrivateLinearPositionList()
+            return_message = self.safe_string(response, "ret_msg")
+            return return_message
+        else:
+            raise NotSupported()
+
     @staticmethod
     def get_same_direction_position(positions, is_long):
         for position in positions:
