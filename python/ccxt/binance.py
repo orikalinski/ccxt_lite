@@ -2716,16 +2716,13 @@ class binance(Exchange):
 
     def get_position_mode(self):
         _type = self.safe_string(self.options, 'defaultType')
-        try:
-            if _type == "future":
-                response = self.fapiPrivateGetPositionsideDual()
-            elif _type == "delivery":
-                response = self.dapiPrivateGetPositionsideDual()
-            else:
-                raise NotSupported()
-            return self.safe_value(response, 'dualSidePosition')
-        except NotChanged:
-            pass
+        if _type == "future":
+            response = self.fapiPrivateGetPositionsideDual()
+        elif _type == "delivery":
+            response = self.dapiPrivateGetPositionsideDual()
+        else:
+            raise NotSupported()
+        return self.safe_value(response, 'dualSidePosition')
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         if not (api in self.urls['api']):
