@@ -546,8 +546,19 @@ class bybit(Exchange):
         if _type == "linear":
             self.load_markets()
             response = self.privateGetPrivateLinearPositionList()
-            return_message = self.safe_string(response, "ret_msg")
-            return return_message
+            open_positions_mode_count = {"BothSide": 0, "MergedSingle": 0}
+            all_symbols_mode_count = {"BothSide": 0, "MergedSingle": 0}
+            positions = self.safe_value(response, 'result')
+            for _position in positions:
+                position = self.safe_value(_position, "data", _position)
+                if position:
+                    mode = self.safe_value(position, "mode")
+                    if self.safe_value(position, "size", 0):
+                        open_positions_mode_count[mode] += 1
+                    all_symbols_mode_count[mode] += 1
+            if open_positions_mode_count["BothSide"] == open_positions_mode_count["MergedSingle"]:
+                return all_symbols_mode_count["BothSide"] > all_symbols_mode_count["MergedSingle"]
+            return open_positions_mode_count["BothSide"] > open_positions_mode_count["MergedSingle"]
         else:
             raise NotSupported()
 
