@@ -25,6 +25,7 @@ from ccxt.base.exchange import Exchange
 PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
                        "withdrawal": ["Withdrawal"]}
 NOT_CHANGED_ERROR_CODES = {'30083', '34026', '134026'}
+MIN_HEDGE_MODE_COUNT_THRESHOLD = 3
 
 
 class bybit(Exchange):
@@ -541,23 +542,27 @@ class bybit(Exchange):
         except NotChanged:
             pass
 
+    def count_position_modes_usages(self, positions):
+        open_positions_mode_count = {"BothSide": 0, "MergedSingle": 0}
+        all_symbols_mode_count = {"BothSide": 0, "MergedSingle": 0}
+        for _position in positions:
+            position = self.safe_value(_position, "data", _position)
+            if position:
+                mode = self.safe_string(position, "mode")
+                if self.safe_integer(position, "size", 0):
+                    open_positions_mode_count[mode] += 1
+                all_symbols_mode_count[mode] += 1
+        return open_positions_mode_count, all_symbols_mode_count
+
     def get_position_mode(self):
         _type = self.safe_string(self.options, 'defaultType')
         if _type == "linear":
             self.load_markets()
             response = self.privateGetPrivateLinearPositionList()
-            open_positions_mode_count = {"BothSide": 0, "MergedSingle": 0}
-            all_symbols_mode_count = {"BothSide": 0, "MergedSingle": 0}
             positions = self.safe_value(response, 'result')
-            for _position in positions:
-                position = self.safe_value(_position, "data", _position)
-                if position:
-                    mode = self.safe_value(position, "mode")
-                    if self.safe_value(position, "size", 0):
-                        open_positions_mode_count[mode] += 1
-                    all_symbols_mode_count[mode] += 1
+            open_positions_mode_count, all_symbols_mode_count = self.count_position_modes_usages(positions)
             if open_positions_mode_count["BothSide"] == open_positions_mode_count["MergedSingle"]:
-                return all_symbols_mode_count["BothSide"] > all_symbols_mode_count["MergedSingle"]
+                return all_symbols_mode_count["BothSide"] > MIN_HEDGE_MODE_COUNT_THRESHOLD
             return open_positions_mode_count["BothSide"] > open_positions_mode_count["MergedSingle"]
         else:
             raise NotSupported()
