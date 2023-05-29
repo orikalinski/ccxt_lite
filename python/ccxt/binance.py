@@ -2714,6 +2714,16 @@ class binance(Exchange):
         except NotChanged:
             pass
 
+    def get_position_mode(self):
+        _type = self.safe_string(self.options, 'defaultType')
+        if _type == "future":
+            response = self.fapiPrivateGetPositionsideDual()
+        elif _type == "delivery":
+            response = self.dapiPrivateGetPositionsideDual()
+        else:
+            raise NotSupported()
+        return self.safe_value(response, 'dualSidePosition')
+
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         if not (api in self.urls['api']):
             raise NotSupported(self.id + ' does not have a testnet/sandbox URL for ' + api + ' endpoints')
