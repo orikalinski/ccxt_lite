@@ -1836,7 +1836,7 @@ class kucoin(Exchange, ImplicitAPI):
             if responseStatus == 'NEW':
                 status = 'open'
             elif not isActive and not stopTriggered:
-                status = 'cancelled'
+                status = 'canceled'
         if cancelExist:
             status = 'canceled'
         if status is None:
