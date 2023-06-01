@@ -22,6 +22,8 @@ from ccxt.base.errors import PermissionDenied
 from ccxt.base.errors import RateLimitExceeded
 from ccxt.base.exchange import Exchange
 
+from python.ccxt.base.errors import AccountModeNotSupported
+
 PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
                        "withdrawal": ["Withdrawal"]}
 NOT_CHANGED_ERROR_CODES = {'30083', '34026', '134026'}
@@ -235,6 +237,7 @@ class bybit(Exchange):
                     '10005': PermissionDenied,  # permission denied for current apikey
                     '10006': RateLimitExceeded,  # too many requests
                     '10007': AuthenticationError,  # api_key not found in your request parameters
+                    '10008': AccountModeNotSupported,  # uta banned ("Common banned, please check your account mode")
                     '10010': PermissionDenied,  # request ip mismatch
                     '10016': ExchangeNotAvailable,  # Service not available.
                     '10017': BadRequest,  # request path not found or request method is invalid
@@ -321,6 +324,7 @@ class bybit(Exchange):
                     '34015': SameLeverage,
                     '34026': ExchangeError,  # the limit is no change
                     '34036': SameLeverage,
+                    '100028': AccountModeNotSupported,  # unified account is forbidden ("The API cannot be accessed by unified account users.")
                     '130001': ExchangeError,  # Not get position
                     '130002': ExchangeError,  # wallet is nil
                     '130003': ExchangeError,  # the pz status is not normal

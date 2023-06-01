@@ -56,6 +56,10 @@ class AuthenticationError(ExchangeError):
     pass
 
 
+class AccountModeNotSupported(AuthenticationError):
+    pass
+
+
 class PermissionDenied(AuthenticationError):
     pass
 
@@ -196,6 +200,7 @@ __all__ = [
     'SameLeverage',
     'AuthenticationError',
     'PermissionDenied',
+    'AccountModeNotSupported',
     'AccountNotEnabled',
     'AccountSuspended',
     'AccountNotVerified',
