@@ -20,9 +20,8 @@ from ccxt.base.errors import NotChanged
 from ccxt.base.errors import OrderNotFound
 from ccxt.base.errors import PermissionDenied
 from ccxt.base.errors import RateLimitExceeded
+from ccxt.base.errors import AccountModeNotSupported
 from ccxt.base.exchange import Exchange
-
-from python.ccxt.base.errors import AccountModeNotSupported
 
 PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
                        "withdrawal": ["Withdrawal"]}
