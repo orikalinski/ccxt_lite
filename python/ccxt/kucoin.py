@@ -1821,10 +1821,9 @@ class kucoin(Exchange, ImplicitAPI):
         timestamp = self.safe_integer(order, 'createdAt')
         feeCurrencyId = self.safe_string(order, 'feeCurrency')
         cancelExist = self.safe_value(order, 'cancelExist', False)
-        responseStop = self.safe_string(order, 'stop')
-        stop = responseStop is not None
+        stop = self.safe_string(order, 'stop')
         stopTriggered = self.safe_value(order, 'stopTriggered', False)
-        isActive = self.safe_value(order, 'isActive')
+        isActive = self.safe_value_2(order, 'isActive', 'active')
         status = None
         if isActive is not None:
             if isActive is True:
