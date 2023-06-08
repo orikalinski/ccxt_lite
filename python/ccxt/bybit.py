@@ -25,6 +25,7 @@ from ccxt.base.exchange import Exchange
 PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
                        "withdrawal": ["Withdrawal"]}
 NOT_CHANGED_ERROR_CODES = {'30083', '34026', '134026'}
+MIN_HEDGE_MODE_COUNT_THRESHOLD = 3
 
 
 class bybit(Exchange):
@@ -540,6 +541,31 @@ class bybit(Exchange):
                 raise NotSupported()
         except NotChanged:
             pass
+
+    def count_position_modes_usages(self, positions):
+        open_positions_mode_count = {"BothSide": 0, "MergedSingle": 0}
+        all_symbols_mode_count = {"BothSide": 0, "MergedSingle": 0}
+        for _position in positions:
+            position = self.safe_value(_position, "data", _position)
+            if position:
+                mode = self.safe_string(position, "mode")
+                if self.safe_integer(position, "size", 0):
+                    open_positions_mode_count[mode] += 1
+                all_symbols_mode_count[mode] += 1
+        return open_positions_mode_count, all_symbols_mode_count
+
+    def get_position_mode(self):
+        _type = self.safe_string(self.options, 'defaultType')
+        if _type == "linear":
+            self.load_markets()
+            response = self.privateGetPrivateLinearPositionList()
+            positions = self.safe_value(response, 'result')
+            open_positions_mode_count, all_symbols_mode_count = self.count_position_modes_usages(positions)
+            if open_positions_mode_count["BothSide"] == open_positions_mode_count["MergedSingle"]:
+                return all_symbols_mode_count["BothSide"] > MIN_HEDGE_MODE_COUNT_THRESHOLD
+            return open_positions_mode_count["BothSide"] > open_positions_mode_count["MergedSingle"]
+        else:
+            raise NotSupported()
 
     @staticmethod
     def get_same_direction_position(positions, is_long):
@@ -1357,7 +1383,7 @@ class bybit(Exchange):
         price = self.safe_float_2(order, 'price', 'orderPrice')
         average = self.safe_float_2(order, 'average_price', 'avgPrice')
         cost = self.safe_float_n(order, ['cum_exec_value', 'cumExecValue', 'cummulativeQuoteQty'])
-        filled = self.safe_float_n(order, ['cum_exec_qty', 'executedQty', 'cumExecQty', 'execQty'], default_value=0.)
+        filled = self.safe_float_n(order, ['cum_exec_qty', 'executedQty', 'cumExecQty', 'execQty'])
         if (market['spot'] and _type == 'market') and (side == 'buy'):
             amount = filled
         else:
@@ -1510,7 +1536,7 @@ class bybit(Exchange):
         if parsed_order:
             return parsed_order
         parsed_order = self.parse_order(result, market)
-        if self.is_spot() and parsed_order['fee'] is None and parsed_order['filled'] > 0:
+        if self.is_spot() and parsed_order['fee'] is None and parsed_order['filled'] and parsed_order['filled'] > 0:
             parsed_order['fee'] = self.fetch_order_fee(parsed_order["id"], symbol, validate_filled=True)
         return parsed_order
 
