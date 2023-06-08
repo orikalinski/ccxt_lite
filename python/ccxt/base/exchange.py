@@ -2936,6 +2936,13 @@ class Exchange(object):
         string.reverse()
         return ''.join(string)
 
+    def parse_to_int(self, number):
+        # Solve Common intmisuse ex: int((since / str(1000)))
+        # using a number which is not valid in ts
+        stringifiedNumber = str(number)
+        convertedNumber = float(stringifiedNumber)
+        return int(convertedNumber)
+
     def parse_number(self, value, default=None):
         if value is None:
             return default
