@@ -1375,6 +1375,23 @@ class kucoinfutures(kucoin):
         """
         return self.fetch_orders_by_status('done', symbol, since, limit, params)
 
+    def set_stop_order_fills(self, responseData, id, symbol):
+        my_trades = self.fetch_my_trades(symbol, params={'orderId': id})
+        if not my_trades:
+            return
+        cost = 0
+        amount = 0
+        for trade in my_trades:
+            cost += trade['cost']
+            amount += trade['amount']
+
+        responseData['size'] = amount
+        responseData['dealSize'] = amount
+        responseData['filledSize'] = amount
+        responseData['value'] = cost
+        responseData['dealValue'] = cost
+        responseData['filledValue'] = cost
+
     def fetch_order(self, id=None, symbol: Optional[str] = None, params={}):
         """
         fetches information on an order made by the user
@@ -1385,6 +1402,10 @@ class kucoinfutures(kucoin):
         self.load_markets()
         request = {}
         method = 'futuresPrivateGetOrdersOrderId'
+        stop = self.safe_value(params, 'stop')
+        order_type = self.safe_string_lower(params, 'type')
+        stop = stop or order_type == 'stop'
+        params = self.omit(params, ['type'])
         if id is None:
             clientOrderId = self.safe_string_2(params, 'clientOid', 'clientOrderId')
             if clientOrderId is None:
@@ -1397,6 +1418,9 @@ class kucoinfutures(kucoin):
         response = getattr(self, method)(self.extend(request, params))
         market = self.market(symbol) if (symbol is not None) else None
         responseData = self.safe_value(response, 'data')
+        # TODO: remove custom fix once kucoin fixes their API
+        if stop:
+            self.set_stop_order_fills(responseData, id, symbol)
         return self.parse_order(responseData, market)
 
     def parse_order(self, order, market=None):
