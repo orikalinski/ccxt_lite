@@ -22,6 +22,8 @@ from ccxt.base.errors import AuthenticationError
 from ccxt.base.decimal_to_precision import TICK_SIZE
 from ccxt.base.precise import Precise
 
+FIVE_MINUTES_IN_MILLI = 1000 * 60 * 5
+
 
 class kucoinfutures(kucoin):
 
@@ -1375,22 +1377,25 @@ class kucoinfutures(kucoin):
         """
         return self.fetch_orders_by_status('done', symbol, since, limit, params)
 
-    def set_stop_order_fills(self, responseData, id, symbol):
-        my_trades = self.fetch_my_trades(symbol, params={'orderId': id})
-        if not my_trades:
+    def fetch_stop_order_from_orders(self, responseData, id, symbol):
+        is_active = responseData["isActive"]
+        stop_price_type = responseData["stopPriceType"]
+        if is_active or not stop_price_type:
             return
-        cost = 0
-        amount = 0
-        for trade in my_trades:
-            cost += trade['cost']
-            amount += trade['amount']
+        update_at = responseData["updatedAt"]
+        since = update_at - FIVE_MINUTES_IN_MILLI
+        orders = self.fetch_closed_orders(symbol, since=since)
+        order = next((order for order in orders if order["id"] == id), None)
+        if order:
+            return order
+        else:
+            orders = self.fetch_open_orders(symbol, since=since)
 
-        responseData['size'] = amount
-        responseData['dealSize'] = amount
-        responseData['filledSize'] = amount
-        responseData['value'] = cost
-        responseData['dealValue'] = cost
-        responseData['filledValue'] = cost
+        order = next((order for order in orders if order["id"] == id), None)
+        if order:
+            return order
+        else:
+            raise OrderNotFound(self.id + ' order ' + id + ' not found in open/closed orders')
 
     def fetch_order(self, id=None, symbol: Optional[str] = None, params={}):
         """
@@ -1402,10 +1407,6 @@ class kucoinfutures(kucoin):
         self.load_markets()
         request = {}
         method = 'futuresPrivateGetOrdersOrderId'
-        stop = self.safe_value(params, 'stop')
-        order_type = self.safe_string_lower(params, 'type')
-        stop = stop or order_type == 'stop'
-        params = self.omit(params, ['type'])
         if id is None:
             clientOrderId = self.safe_string_2(params, 'clientOid', 'clientOrderId')
             if clientOrderId is None:
@@ -1418,9 +1419,11 @@ class kucoinfutures(kucoin):
         response = getattr(self, method)(self.extend(request, params))
         market = self.market(symbol) if (symbol is not None) else None
         responseData = self.safe_value(response, 'data')
+
         # TODO: remove custom fix once kucoin fixes their API
-        if stop:
-            self.set_stop_order_fills(responseData, id, symbol)
+        stop_parsed_order = self.fetch_stop_order_from_orders(responseData, id, symbol)
+        if stop_parsed_order:
+            return stop_parsed_order
         return self.parse_order(responseData, market)
 
     def parse_order(self, order, market=None):

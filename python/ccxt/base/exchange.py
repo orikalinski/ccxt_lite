@@ -2057,6 +2057,13 @@ class Exchange(object):
         symbol = market['symbol'] if market else None
         return self.filter_by_symbol_since_limit(array, symbol, since, limit)
 
+    def parse_to_int(self, number):
+        # Solve Common intmisuse ex: int((since / str(1000)))
+        # using a number which is not valid in ts
+        stringifiedNumber = str(number)
+        convertedNumber = float(stringifiedNumber)
+        return int(convertedNumber)
+
     def parse_ledger(self, data, currency=None, since=None, limit=None, params={}):
         array = self.to_array(data)
         result = []
