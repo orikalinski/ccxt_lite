@@ -22,7 +22,7 @@ from ccxt.base.errors import AuthenticationError
 from ccxt.base.decimal_to_precision import TICK_SIZE
 from ccxt.base.precise import Precise
 
-FIVE_MINUTES_IN_MILLI = 1000 * 60 * 5
+THIRTY_SECS_IN_MILLI = 1000 * 30
 
 
 class kucoinfutures(kucoin):
@@ -1383,7 +1383,7 @@ class kucoinfutures(kucoin):
         if is_active or not stop_price_type:
             return
         update_at = responseData["updatedAt"]
-        since = update_at - FIVE_MINUTES_IN_MILLI
+        since = update_at - THIRTY_SECS_IN_MILLI
         orders = self.fetch_closed_orders(symbol, since=since)
         order = next((order for order in orders if order["id"] == id), None)
         if order:
