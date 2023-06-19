@@ -1392,10 +1392,7 @@ class kucoinfutures(kucoin):
             orders = self.fetch_open_orders(symbol, since=since)
 
         order = next((order for order in orders if order["id"] == id), None)
-        if order:
-            return order
-        else:
-            raise OrderNotFound(self.id + ' order ' + id + ' not found in open/closed orders')
+        return order  # if order is None, it means that it really was closed on the updatedAt time.
 
     def fetch_order(self, id=None, symbol: Optional[str] = None, params={}):
         """
