@@ -2372,7 +2372,8 @@ class okx(Exchange):
         price = self.safe_float_2(order, 'px', 'ordPx')
         average = self.safe_float(order, 'avgPx')
         status = self.parse_order_status(self.safe_string(order, 'state'))
-        fee_cost = self.safe_float(order, 'fee')
+        fee_cost_str = self.safe_string(order, 'fee')
+        fee_cost = Precise.string_neg(fee_cost_str)
         amount = None
         cost = None
         remaining = None
