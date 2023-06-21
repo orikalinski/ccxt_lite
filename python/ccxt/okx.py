@@ -2368,8 +2368,8 @@ class okx(Exchange):
             timeInForce = 'IOC'
             type = 'limit'
         symbol = self.safe_symbol(marketId, market, '-')
-        filled = self.safe_float(order, 'accFillSz', default_value=0.) * contractSize
-        price = self.safe_float_2(order, 'px', 'ordPx')
+        filled = self.safe_float_2(order, 'actualSz', 'accFillSz', default_value=0.) * contractSize
+        price = self.safe_float_2(order, 'actualPx', 'px', 'ordPx')
         average = self.safe_float(order, 'avgPx')
         status = self.parse_order_status(self.safe_string(order, 'state'))
         fee_cost_str = self.safe_string(order, 'fee')
