@@ -2351,7 +2351,7 @@ class okx(Exchange):
         marketId = self.safe_string(order, 'instId')
         market = market or self.find_market(marketId)
         contractSize = self.safe_float(market, "contractSize", default_value=1.)
-        id = self.safe_string_2(order, 'algoId', 'ordId')
+        id = self.safe_string(order, 'algoId') or self.safe_string(order, 'ordId')  # algoId return as empty string
         timestamp = self.safe_integer(order, 'cTime')
         lastTradeTimestamp = self.safe_integer(order, 'fillTime')
         side = self.safe_string(order, 'side')
