@@ -2246,9 +2246,12 @@ class okx(Exchange):
         statuses = {
             'canceled': 'canceled',
             'live': 'open',
+            'pause': 'open',
             'partially_filled': 'open',
             'filled': 'closed',
             'effective': 'closed',
+            'order_failed': 'canceled',
+            'partially_failed': 'canceled',
         }
         return self.safe_string(statuses, status, status)
 
