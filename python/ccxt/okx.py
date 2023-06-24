@@ -2416,10 +2416,10 @@ class okx(Exchange):
             if (remaining is None) and (amount is not None):
                 remaining = amount - filled
             if cost is None:
-                if price is not None:
-                    cost = price * filled
+                if average is not None:
+                    cost = average * filled
         stop_price = self.safe_float(order, 'slTriggerPx')
-        return self.safe_order({
+        return {
             'info': order,
             'id': id,
             'clientOrderId': clientOrderId,
@@ -2442,7 +2442,7 @@ class okx(Exchange):
             'fee': fee,
             'trades': None,
             'reduceOnly': reduceOnly,
-        }, market)
+        }
 
     def handle_conditional_order_fetch_order(self, id, symbol):
         try:
