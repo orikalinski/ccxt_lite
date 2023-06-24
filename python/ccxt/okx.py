@@ -2448,7 +2448,12 @@ class okx(Exchange):
             orders = self.fetch_open_orders(symbol, params={"type": "stop", "algoId": id})
         except OrderNotFound:
             orders = self.fetch_closed_orders(symbol, params={"type": "stop", "algoId": id})
-        return orders[0]
+        order = orders[0]
+        info = self.safe_value(order, 'info', {})
+        triggered_order_id = self.safe_value(info, 'ordId')
+        if triggered_order_id:
+            return self.fetch_order(triggered_order_id, symbol)
+        return order
 
     def fetch_order(self, id, symbol=None, params={}):
         """
