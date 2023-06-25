@@ -120,6 +120,7 @@ class bybit(Exchange):
                         'v2/public/time',
                         'v2/public/announcement',
                         'v2/public/risk-limit/list',
+                        'v5/market/kline',
                         'spot/v3/public/time',
                         'spot/v3/public/symbols',
                         'spot/v3/public/quote/depth',
@@ -1073,41 +1074,23 @@ class bybit(Exchange):
 
     def parse_ohlcv(self, ohlcv, market=None):
         #
-        # inverse perpetual BTC/USD
-        #
-        #     {
-        #         symbol: 'BTCUSD',
-        #         interval: '1',
-        #         open_time: 1583952540,
-        #         open: '7760.5',
-        #         high: '7764',
-        #         low: '7757',
-        #         close: '7763.5',
-        #         volume: '1259766',
-        #         turnover: '162.32773718999994'
-        #     }
-        #
-        # linear perpetual BTC/USDT
-        #
-        #     {
-        #         "id":143536,
-        #         "symbol":"BTCUSDT",
-        #         "period":"15",
-        #         "start_at":1587883500,
-        #         "volume":1.035,
-        #         "open":7540.5,
-        #         "high":7541,
-        #         "low":7540.5,
-        #         "close":7541
-        #     }
+        #     [
+        #         "1621162800",
+        #         "49592.43",
+        #         "49644.91",
+        #         "49342.37",
+        #         "49349.42",
+        #         "1451.59",
+        #         "2.4343353100000003"
+        #     ]
         #
         return [
-            self.safe_timestamp_2(ohlcv, 'open_time', 'start_at'),
-            self.safe_float(ohlcv, 'open'),
-            self.safe_float(ohlcv, 'high'),
-            self.safe_float(ohlcv, 'low'),
-            self.safe_float(ohlcv, 'close'),
-            self.safe_float_2(ohlcv, 'turnover', 'volume'),
+            self.safe_integer(ohlcv, 0),
+            self.safe_number(ohlcv, 1),
+            self.safe_number(ohlcv, 2),
+            self.safe_number(ohlcv, 3),
+            self.safe_number(ohlcv, 4),
+            self.safe_number(ohlcv, 5),
         ]
 
     def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):
@@ -1120,15 +1103,22 @@ class bybit(Exchange):
         duration = self.parse_timeframe(timeframe)
         now = self.seconds()
         if since is None:
-            if limit is None:
-                raise ArgumentsRequired(self.id + ' fetchOHLCV requires a since argument or a limit argument')
-            else:
-                request['from'] = now - limit * duration
+            if limit:
+                request['start'] = now - limit * duration
         else:
-            request['from'] = int(since / 1000)
+            request['start'] = int(since / 1000)
         if limit is not None:
             request['limit'] = limit  # max 200, default 200
-        method = 'publicGetV2PublicPublicLinearKline' if self.is_linear() else 'publicGetV2PublicKlineList'
+
+        method = 'publicGetV5MarketKline'
+        if self.is_spot():
+            request['category'] = 'spot'
+        elif self.is_linear():
+            request['category'] = 'linear'
+        elif self.is_inverse():
+            request['category'] = 'inverse'
+        else:
+            raise NotSupported(self.id + ' fetchOHLCV() is not supported for option markets')
         response = getattr(self, method)(self.extend(request, params))
         #
         # inverse perpetual BTC/USD
@@ -1178,7 +1168,8 @@ class bybit(Exchange):
         #     }
         #
         result = self.safe_value(response, 'result', {})
-        return self.parse_ohlcvs(result, market, timeframe, since, limit)
+        ohlcvs = self.safe_value(result, 'list', [])
+        return self.parse_ohlcvs(ohlcvs, market, timeframe, since, limit)
 
     def parse_trade(self, trade, market=None):
         _id = self.safe_string_2(trade, 'id', 'exec_id')

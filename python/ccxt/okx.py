@@ -884,19 +884,6 @@ class okx(Exchange):
         result = self.fetch_markets_by_type(default_type, params)
         return result
 
-    def parse_markets(self, markets):
-        result = []
-        is_linear_client = self.is_linear()
-        is_inverse_client = self.is_inverse()
-        for market in markets:
-            _, _, _, _, is_inverse, is_linear, _, _, _, _, is_swap, _ = \
-                self.get_relevant_type_details_from_market(market)
-
-            if is_swap and not ((is_linear_client and is_linear) or (is_inverse_client and is_inverse)):
-                continue
-            result.append(self.parse_market(market))
-        return result
-
     def get_relevant_type_details_from_market(self, market):
         _id = self.safe_string(market, 'instId')
         _type = self.safe_string_lower(market, 'instType')
@@ -918,6 +905,19 @@ class okx(Exchange):
         is_linear = (quote_id == settle_id) if contract else None
         is_inverse = (base_id == settle_id) if contract else None
         return base_id, contract, future, _id, is_inverse, is_linear, option, quote_id, settle_id, spot, swap, _type
+
+    def parse_markets(self, markets):
+        result = []
+        is_linear_client = self.is_linear()
+        is_inverse_client = self.is_inverse()
+        for market in markets:
+            _, _, _, _, is_inverse, is_linear, _, _, _, _, is_swap, _ = \
+                self.get_relevant_type_details_from_market(market)
+
+            if is_swap and not ((is_linear_client and is_linear) or (is_inverse_client and is_inverse)):
+                continue
+            result.append(self.parse_market(market))
+        return result
 
     def parse_market(self, market):
         #
@@ -1954,7 +1954,7 @@ class okx(Exchange):
         market = self.market(symbol)
         size = self.amount_to_precision(symbol, amount)
         if market['linear']:
-            size = int(float(size) / market['contractSize'])
+            size = int(float(size) / self.safe_value(market, 'contractSize'))
         request = {
             'instId': market['id'],
             # 'ccy': currency['id'],  # only applicable to cross MARGIN orders in single-currency margin
@@ -2246,9 +2246,12 @@ class okx(Exchange):
         statuses = {
             'canceled': 'canceled',
             'live': 'open',
+            'pause': 'open',
             'partially_filled': 'open',
             'filled': 'closed',
             'effective': 'closed',
+            'order_failed': 'canceled',
+            'partially_failed': 'canceled',
         }
         return self.safe_string(statuses, status, status)
 
@@ -2351,7 +2354,7 @@ class okx(Exchange):
         marketId = self.safe_string(order, 'instId')
         market = market or self.find_market(marketId)
         contractSize = self.safe_float(market, "contractSize", default_value=1.)
-        id = self.safe_string_2(order, 'algoId', 'ordId')
+        id = self.safe_string(order, 'algoId') or self.safe_string(order, 'ordId')  # algoId return as empty string
         timestamp = self.safe_integer(order, 'cTime')
         lastTradeTimestamp = self.safe_integer(order, 'fillTime')
         side = self.safe_string(order, 'side')
@@ -2368,11 +2371,14 @@ class okx(Exchange):
             timeInForce = 'IOC'
             type = 'limit'
         symbol = self.safe_symbol(marketId, market, '-')
-        filled = self.safe_float(order, 'accFillSz', default_value=0.) * contractSize
-        price = self.safe_float_2(order, 'px', 'ordPx')
+        filled = self.safe_float_2(order, 'actualSz', 'accFillSz')
+        if filled:
+            filled *= contractSize
+        price = self.safe_float_n(order, ['actualPx', 'px', 'ordPx'])
         average = self.safe_float(order, 'avgPx')
         status = self.parse_order_status(self.safe_string(order, 'state'))
-        fee_cost = self.safe_float(order, 'fee')
+        fee_cost_str = self.safe_string(order, 'fee')
+        fee_cost = Precise.string_neg(fee_cost_str)
         amount = None
         cost = None
         remaining = None
@@ -2410,10 +2416,10 @@ class okx(Exchange):
             if (remaining is None) and (amount is not None):
                 remaining = amount - filled
             if cost is None:
-                if price is not None:
-                    cost = price * filled
+                if average is not None:
+                    cost = average * filled
         stop_price = self.safe_float(order, 'slTriggerPx')
-        return self.safe_order({
+        return {
             'info': order,
             'id': id,
             'clientOrderId': clientOrderId,
@@ -2436,14 +2442,19 @@ class okx(Exchange):
             'fee': fee,
             'trades': None,
             'reduceOnly': reduceOnly,
-        }, market)
+        }
 
     def handle_conditional_order_fetch_order(self, id, symbol):
         try:
             orders = self.fetch_open_orders(symbol, params={"type": "stop", "algoId": id})
         except OrderNotFound:
             orders = self.fetch_closed_orders(symbol, params={"type": "stop", "algoId": id})
-        return orders[0]
+        order = orders[0]
+        info = self.safe_value(order, 'info', {})
+        triggered_order_id = self.safe_value(info, 'ordId')
+        if triggered_order_id:
+            return self.fetch_order(triggered_order_id, symbol)
+        return order
 
     def fetch_order(self, id, symbol=None, params={}):
         """
