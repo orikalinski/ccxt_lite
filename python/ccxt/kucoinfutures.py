@@ -1047,7 +1047,7 @@ class kucoinfutures(kucoin):
         # required param, cannot be used twice
         clientOrderId = self.safe_string_2(params, 'clientOid', 'clientOrderId', self.uuid())
         params = self.omit(params, ['clientOid', 'clientOrderId'])
-        preciseAmount = int(self.amount_to_precision(symbol, amount))
+        preciseAmount = float(self.amount_to_precision(symbol, amount))
         is_linear = self.safe_value(market, 'linear')
         if is_linear:
             preciseAmount /= self.safe_value(market, 'contractSize')
@@ -1444,7 +1444,7 @@ class kucoinfutures(kucoin):
         leverage = self.safe_string(order, 'leverage')
         cost = Precise.string_div(rawCost, leverage)
         is_linear = self.safe_value(market, 'linear')
-        contract_size = self.safe_value(market, 'contractSize')
+        contract_size = self.safe_string(market, 'contractSize')
         if is_linear:
             filled = Precise.string_mul(contract_size, filled)
             amount = Precise.string_mul(contract_size, amount)
