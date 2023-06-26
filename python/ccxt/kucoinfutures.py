@@ -1047,10 +1047,11 @@ class kucoinfutures(kucoin):
         # required param, cannot be used twice
         clientOrderId = self.safe_string_2(params, 'clientOid', 'clientOrderId', self.uuid())
         params = self.omit(params, ['clientOid', 'clientOrderId'])
-        preciseAmount = float(self.amount_to_precision(symbol, amount))
+        preciseAmount = self.amount_to_precision(symbol, amount)
         is_linear = self.safe_value(market, 'linear')
         if is_linear:
-            preciseAmount /= self.safe_value(market, 'contractSize')
+            contract_size = self.safe_string(market, 'contractSize')
+            preciseAmount = Precise.string_div(preciseAmount, contract_size)
         request = {
             'clientOid': clientOrderId,
             'side': side,
