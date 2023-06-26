@@ -1106,7 +1106,7 @@ class bybit(Exchange):
             if limit:
                 request['start'] = now - limit * duration
         else:
-            request['start'] = int(since / 1000)
+            request['start'] = int(since)
         if limit is not None:
             request['limit'] = limit  # max 200, default 200
 
