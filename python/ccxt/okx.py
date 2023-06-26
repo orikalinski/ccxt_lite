@@ -666,7 +666,7 @@ class okx(Exchange):
                     'timezone': 'UTC',  # UTC, HK
                 },
                 'createOrder': 'privatePostTradeBatchOrders',  # or 'privatePostTradeOrder' or 'privatePostTradeOrderAlgo'
-                'createMarketBuyOrderRequiresPrice': False,
+                'createMarketBuyOrderRequiresPrice': True,
                 'fetchMarkets': ['spot', 'future', 'swap', 'option', 'linear', 'inverse'],
                 'defaultType': 'spot',  # 'funding', 'spot', 'margin', 'future', 'swap', 'option', 'linear', 'inverse'
                 'defaultMarginMode': 'cross',  # cross, isolated
@@ -2047,7 +2047,7 @@ class okx(Exchange):
                             raise InvalidOrder(self.id + " createOrder() requires the price argument with market buy orders to calculate total order cost(amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = False and supply the total cost value in the 'amount' argument or in the 'cost' unified extra parameter or in exchange-specific 'sz' extra parameter(the exchange-specific behaviour)")
                     else:
                         notional = amount if (notional is None) else notional
-                    request['sz'] = self.cost_to_precision(symbol, notional)
+                    request['sz'] = notional  #  self.cost_to_precision(symbol, notional)
                     params = self.omit(params, ['cost', 'sz'])
             if marketIOC and contract:
                 request['ordType'] = 'optimal_limit_ioc'
@@ -2379,6 +2379,7 @@ class okx(Exchange):
         status = self.parse_order_status(self.safe_string(order, 'state'))
         fee_cost_str = self.safe_string(order, 'fee')
         fee_cost = Precise.string_neg(fee_cost_str)
+        fee_cost = self.validate_float(fee_cost)
         amount = None
         cost = None
         remaining = None
@@ -2391,6 +2392,8 @@ class okx(Exchange):
         if (side == 'buy') and (type == 'market') and (instType == 'SPOT') and (tgtCcy == 'quote_ccy'):
             # "sz" refers to the cost
             cost = self.safe_float(order, 'sz')
+            if status == 'closed':
+                amount = filled
         else:
             # "sz" refers to the trade currency amount
             amount = self.safe_float(order, 'sz')
