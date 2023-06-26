@@ -666,7 +666,7 @@ class okx(Exchange):
                     'timezone': 'UTC',  # UTC, HK
                 },
                 'createOrder': 'privatePostTradeBatchOrders',  # or 'privatePostTradeOrder' or 'privatePostTradeOrderAlgo'
-                'createMarketBuyOrderRequiresPrice': False,
+                'createMarketBuyOrderRequiresPrice': True,
                 'fetchMarkets': ['spot', 'future', 'swap', 'option', 'linear', 'inverse'],
                 'defaultType': 'spot',  # 'funding', 'spot', 'margin', 'future', 'swap', 'option', 'linear', 'inverse'
                 'defaultMarginMode': 'cross',  # cross, isolated
@@ -1983,13 +1983,14 @@ class okx(Exchange):
         }
         spot = market['spot']
         contract = market['contract']
+        isMarketOrder = type == 'market'
         triggerPrice = self.safe_value_n(params, ['triggerPrice', 'stopPrice', 'triggerPx'])
         timeInForce = self.safe_string(params, 'timeInForce', 'GTC')
         takeProfitPrice = self.safe_value_2(params, 'takeProfitPrice', 'tpTriggerPx')
         tpOrdPx = self.safe_value(params, 'tpOrdPx', price)
         tpTriggerPxType = self.safe_string(params, 'tpTriggerPxType', 'last')
         stopLossPrice = self.safe_value_2(params, 'stopLossPrice', 'slTriggerPx')
-        slOrdPx = self.safe_value(params, 'slOrdPx', price)
+        slOrdPx = None if isMarketOrder else self.safe_value(params, 'slOrdPx', price)
         slTriggerPxType = self.safe_string(params, 'slTriggerPxType', 'last')
         clientOrderId = self.safe_string_2(params, 'clOrdId', 'clientOrderId')
         defaultMarginMode = self.safe_string_2(self.options, 'defaultMarginMode', 'marginMode', 'cross')
@@ -2009,7 +2010,6 @@ class okx(Exchange):
             request['tdMode'] = tradeMode
         elif contract:
             request['tdMode'] = marginMode
-        isMarketOrder = type == 'market'
         postOnly = self.is_post_only(isMarketOrder, type == 'post_only', params)
         params = self.omit(params, ['currency', 'ccy', 'marginMode', 'timeInForce', 'stopPrice', 'triggerPrice', 'clientOrderId', 'stopLossPrice', 'takeProfitPrice', 'slOrdPx', 'tpOrdPx', 'margin'])
         ioc = (timeInForce == 'IOC') or (type == 'ioc')
@@ -2047,7 +2047,7 @@ class okx(Exchange):
                             raise InvalidOrder(self.id + " createOrder() requires the price argument with market buy orders to calculate total order cost(amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = False and supply the total cost value in the 'amount' argument or in the 'cost' unified extra parameter or in exchange-specific 'sz' extra parameter(the exchange-specific behaviour)")
                     else:
                         notional = amount if (notional is None) else notional
-                    request['sz'] = self.cost_to_precision(symbol, notional)
+                    request['sz'] = notional  #  self.cost_to_precision(symbol, notional)
                     params = self.omit(params, ['cost', 'sz'])
             if marketIOC and contract:
                 request['ordType'] = 'optimal_limit_ioc'
@@ -2374,12 +2374,14 @@ class okx(Exchange):
         filled = self.safe_float_2(order, 'actualSz', 'accFillSz')
         if filled:
             filled *= contractSize
+        stop_limit_price = self.safe_float(order, "slOrdPx")
         price = self.safe_float_n(order, ['actualPx', 'px', 'ordPx'])
+        stop_price = self.safe_float(order, 'slTriggerPx')
         average = self.safe_float(order, 'avgPx')
         status = self.parse_order_status(self.safe_string(order, 'state'))
         fee_cost_str = self.safe_string(order, 'fee')
         fee_cost = Precise.string_neg(fee_cost_str)
-        amount = None
+        fee_cost = self.validate_float(fee_cost)
         cost = None
         remaining = None
 
@@ -2388,9 +2390,14 @@ class okx(Exchange):
         defaultTgtCcy = self.safe_string(self.options, 'tgtCcy', 'base_ccy')
         tgtCcy = self.safe_string(order, 'tgtCcy', defaultTgtCcy)
         instType = self.safe_string(order, 'instType')
-        if (side == 'buy') and (type == 'market') and (instType == 'SPOT') and (tgtCcy == 'quote_ccy'):
+        if (side == 'buy') and (type == 'market' or (type == "conditional" and stop_limit_price == -1)) and \
+                (instType == 'SPOT') and (tgtCcy == 'quote_ccy'):
             # "sz" refers to the cost
-            cost = self.safe_float(order, 'sz')
+            _cost = self.safe_float(order, 'sz')
+            if status == 'closed':
+                amount = filled
+            else:
+                amount = _cost / stop_price
         else:
             # "sz" refers to the trade currency amount
             amount = self.safe_float(order, 'sz')
@@ -2418,7 +2425,6 @@ class okx(Exchange):
             if cost is None:
                 if average is not None:
                     cost = average * filled
-        stop_price = self.safe_float(order, 'slTriggerPx')
         return {
             'info': order,
             'id': id,
