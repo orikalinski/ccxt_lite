@@ -997,9 +997,8 @@ class okx(Exchange):
         minAmountString = self.safe_string(market, 'minSz')
         if is_linear:
             minAmountString = Precise.string_mul(minAmountString, contract_size)
-        minAmount = self.parse_number(minAmountString)
-        if is_linear:
             amountPrecision = Precise.string_mul(amountPrecision, contract_size)
+        minAmount = self.parse_number(minAmountString)
 
         fees = self.safe_value_2(self.fees, _type, 'trading', {})
         precisionPrice = self.parse_number(tickSize)
@@ -1024,13 +1023,13 @@ class okx(Exchange):
             'contract': contract,
             'linear': is_linear,
             'inverse': is_inverse,
-            'contractSize': self.validate_float(contract_size),
+            'contractSize': self.parse_number(contract_size),
             'expiry': expiry,
             'expiryDatetime': self.iso8601(expiry),
             'strike': strikePrice,
             'optionType': optionType,
             'precision': {
-                'amount': self.validate_float(amountPrecision),
+                'amount': self.parse_number(amountPrecision),
                 'price': precisionPrice,
             },
             'limits': {
