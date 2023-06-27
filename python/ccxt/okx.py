@@ -1024,13 +1024,13 @@ class okx(Exchange):
             'contract': contract,
             'linear': is_linear,
             'inverse': is_inverse,
-            'contractSize': float(contract_size),
+            'contractSize': self.validate_float(contract_size),
             'expiry': expiry,
             'expiryDatetime': self.iso8601(expiry),
             'strike': strikePrice,
             'optionType': optionType,
             'precision': {
-                'amount': float(amountPrecision),
+                'amount': self.validate_float(amountPrecision),
                 'price': precisionPrice,
             },
             'limits': {
