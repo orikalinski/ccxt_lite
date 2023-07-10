@@ -66,6 +66,7 @@
     "jubi":          { "skip": true },
     "kkex":          { "skip": true },
     "kucoin":        { "skip": true },
+    "kucoinfutures": { "skip": true },
     "kuna":          { "skip": true },
     "lakebtc":       { "skip": true },
     "latoken":       { "skip": true },

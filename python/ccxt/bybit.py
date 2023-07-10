@@ -25,6 +25,7 @@ from ccxt.base.exchange import Exchange
 PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
                        "withdrawal": ["Withdrawal"]}
 NOT_CHANGED_ERROR_CODES = {'30083', '34026', '134026'}
+MIN_HEDGE_MODE_COUNT_THRESHOLD = 3
 
 
 class bybit(Exchange):
@@ -119,6 +120,7 @@ class bybit(Exchange):
                         'v2/public/time',
                         'v2/public/announcement',
                         'v2/public/risk-limit/list',
+                        'v5/market/kline',
                         'spot/v3/public/time',
                         'spot/v3/public/symbols',
                         'spot/v3/public/quote/depth',
@@ -241,6 +243,7 @@ class bybit(Exchange):
                     '10018': RateLimitExceeded,  # Exceeded IP rate limit.
                     '10020': NotSupported,  # Request not supported.
                     '10024': AuthenticationError,  # Compliance rules triggered
+                    '12168': AuthenticationError,  # To proceed with trading, users must read through and confirm...
                     '20001': OrderNotFound,  # Order not exists
                     '20003': InvalidOrder,  # missing parameter side
                     '20004': InvalidOrder,  # invalid parameter side
@@ -540,6 +543,31 @@ class bybit(Exchange):
                 raise NotSupported()
         except NotChanged:
             pass
+
+    def count_position_modes_usages(self, positions):
+        open_positions_mode_count = {"BothSide": 0, "MergedSingle": 0}
+        all_symbols_mode_count = {"BothSide": 0, "MergedSingle": 0}
+        for _position in positions:
+            position = self.safe_value(_position, "data", _position)
+            if position:
+                mode = self.safe_string(position, "mode")
+                if self.safe_integer(position, "size", 0):
+                    open_positions_mode_count[mode] += 1
+                all_symbols_mode_count[mode] += 1
+        return open_positions_mode_count, all_symbols_mode_count
+
+    def get_position_mode(self):
+        _type = self.safe_string(self.options, 'defaultType')
+        if _type == "linear":
+            self.load_markets()
+            response = self.privateGetPrivateLinearPositionList()
+            positions = self.safe_value(response, 'result')
+            open_positions_mode_count, all_symbols_mode_count = self.count_position_modes_usages(positions)
+            if open_positions_mode_count["BothSide"] == open_positions_mode_count["MergedSingle"]:
+                return all_symbols_mode_count["BothSide"] > MIN_HEDGE_MODE_COUNT_THRESHOLD
+            return open_positions_mode_count["BothSide"] > open_positions_mode_count["MergedSingle"]
+        else:
+            raise NotSupported()
 
     @staticmethod
     def get_same_direction_position(positions, is_long):
@@ -955,7 +983,7 @@ class bybit(Exchange):
         #         countdown_hour: 7
         #     }
         #
-        timestamp = None
+        timestamp = self.safe_integer(ticker, 't')
         marketId = self.safe_string_2(ticker, 'symbol', 's')
         symbol = None
         if marketId in self.markets_by_id:
@@ -1046,41 +1074,23 @@ class bybit(Exchange):
 
     def parse_ohlcv(self, ohlcv, market=None):
         #
-        # inverse perpetual BTC/USD
-        #
-        #     {
-        #         symbol: 'BTCUSD',
-        #         interval: '1',
-        #         open_time: 1583952540,
-        #         open: '7760.5',
-        #         high: '7764',
-        #         low: '7757',
-        #         close: '7763.5',
-        #         volume: '1259766',
-        #         turnover: '162.32773718999994'
-        #     }
-        #
-        # linear perpetual BTC/USDT
-        #
-        #     {
-        #         "id":143536,
-        #         "symbol":"BTCUSDT",
-        #         "period":"15",
-        #         "start_at":1587883500,
-        #         "volume":1.035,
-        #         "open":7540.5,
-        #         "high":7541,
-        #         "low":7540.5,
-        #         "close":7541
-        #     }
+        #     [
+        #         "1621162800",
+        #         "49592.43",
+        #         "49644.91",
+        #         "49342.37",
+        #         "49349.42",
+        #         "1451.59",
+        #         "2.4343353100000003"
+        #     ]
         #
         return [
-            self.safe_timestamp_2(ohlcv, 'open_time', 'start_at'),
-            self.safe_float(ohlcv, 'open'),
-            self.safe_float(ohlcv, 'high'),
-            self.safe_float(ohlcv, 'low'),
-            self.safe_float(ohlcv, 'close'),
-            self.safe_float_2(ohlcv, 'turnover', 'volume'),
+            self.safe_integer(ohlcv, 0),
+            self.safe_number(ohlcv, 1),
+            self.safe_number(ohlcv, 2),
+            self.safe_number(ohlcv, 3),
+            self.safe_number(ohlcv, 4),
+            self.safe_number(ohlcv, 5),
         ]
 
     def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):
@@ -1093,15 +1103,22 @@ class bybit(Exchange):
         duration = self.parse_timeframe(timeframe)
         now = self.seconds()
         if since is None:
-            if limit is None:
-                raise ArgumentsRequired(self.id + ' fetchOHLCV requires a since argument or a limit argument')
-            else:
-                request['from'] = now - limit * duration
+            if limit:
+                request['start'] = now - limit * duration
         else:
-            request['from'] = int(since / 1000)
+            request['start'] = int(since)
         if limit is not None:
             request['limit'] = limit  # max 200, default 200
-        method = 'publicGetV2PublicPublicLinearKline' if self.is_linear() else 'publicGetV2PublicKlineList'
+
+        method = 'publicGetV5MarketKline'
+        if self.is_spot():
+            request['category'] = 'spot'
+        elif self.is_linear():
+            request['category'] = 'linear'
+        elif self.is_inverse():
+            request['category'] = 'inverse'
+        else:
+            raise NotSupported(self.id + ' fetchOHLCV() is not supported for option markets')
         response = getattr(self, method)(self.extend(request, params))
         #
         # inverse perpetual BTC/USD
@@ -1151,7 +1168,8 @@ class bybit(Exchange):
         #     }
         #
         result = self.safe_value(response, 'result', {})
-        return self.parse_ohlcvs(result, market, timeframe, since, limit)
+        ohlcvs = self.safe_value(result, 'list', [])
+        return self.parse_ohlcvs(ohlcvs, market, timeframe, since, limit)
 
     def parse_trade(self, trade, market=None):
         _id = self.safe_string_2(trade, 'id', 'exec_id')
@@ -1357,7 +1375,7 @@ class bybit(Exchange):
         price = self.safe_float_2(order, 'price', 'orderPrice')
         average = self.safe_float_2(order, 'average_price', 'avgPrice')
         cost = self.safe_float_n(order, ['cum_exec_value', 'cumExecValue', 'cummulativeQuoteQty'])
-        filled = self.safe_float_n(order, ['cum_exec_qty', 'executedQty', 'cumExecQty', 'execQty'], default_value=0.)
+        filled = self.safe_float_n(order, ['cum_exec_qty', 'executedQty', 'cumExecQty', 'execQty'])
         if (market['spot'] and _type == 'market') and (side == 'buy'):
             amount = filled
         else:
@@ -1510,7 +1528,7 @@ class bybit(Exchange):
         if parsed_order:
             return parsed_order
         parsed_order = self.parse_order(result, market)
-        if self.is_spot() and parsed_order['fee'] is None and parsed_order['filled'] > 0:
+        if self.is_spot() and parsed_order['fee'] is None and parsed_order['filled'] and parsed_order['filled'] > 0:
             parsed_order['fee'] = self.fetch_order_fee(parsed_order["id"], symbol, validate_filled=True)
         return parsed_order
 
