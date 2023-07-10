@@ -852,6 +852,16 @@ class kucoinfutures(kucoin):
             })
         return fees
 
+    def change_margin_type(self, symbol, is_cross):
+        assert is_cross is not None
+        self.load_markets()
+        symbol = self.find_symbol(symbol)
+        _id = self.find_market(symbol)["id"]
+        params = {"symbol": _id, "status": is_cross}
+        response = self.futuresPrivatePostPositionMarginAutoDepositStatus(params)
+        new_cross = response["data"]
+        return new_cross
+
     def fetch_positions(self, symbols: Optional[List[str]] = None, params={}):
         """
         fetch all open positions
@@ -986,8 +996,9 @@ class kucoinfutures(kucoin):
         # marginRatio = Precise.string_div(maintenanceRate, collateral)
         unrealisedPnl = self.safe_string(position, 'unrealisedPnl')
         crossMode = self.safe_value(position, 'crossMode')
+        auto_deposit = self.safe_value(position, 'autoDeposit')
         # currently crossMode is always set to False and only isolated positions are supported
-        margin_type = 'cross' if crossMode else 'isolated'
+        margin_type = 'cross' if crossMode or auto_deposit else 'isolated'
         contract_size = self.safe_value(market, 'contractSize')
         return self.safe_position({
             'info': position,
