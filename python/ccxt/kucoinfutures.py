@@ -862,7 +862,7 @@ class kucoinfutures(kucoin):
         new_cross = response["data"]
         return new_cross
 
-    def fetch_positions(self, symbols: Optional[List[str]] = None, params={}):
+    def fetch_positions(self, symbol=None, params={}):
         """
         fetch all open positions
         :param [str]|None symbols: list of unified market symbols
@@ -870,7 +870,13 @@ class kucoinfutures(kucoin):
         :returns [dict]: a list of `position structure <https://docs.ccxt.com/#/?id=position-structure>`
         """
         self.load_markets()
-        response = self.futuresPrivateGetPositions(params)
+        if symbol:
+            response = self.futuresPrivateGetPosition({"symbol": self.market_id(symbol)})
+            position = self.safe_value(response, 'data')
+            positions = [position]
+        else:
+            response = self.futuresPrivateGetPositions(params)
+            positions = self.safe_value(response, 'data')
         #
         #    {
         #        "code": "200000",
@@ -917,10 +923,10 @@ class kucoinfutures(kucoin):
         #        ]
         #    }
         #
-        data = self.safe_value(response, 'data')
-        return self.parse_positions(data, symbols=symbols)
 
-    def parse_positions(self, positions, symbols=None):
+        return self.parse_positions(positions)
+
+    def parse_positions(self, positions):
         results = list()
         for position in positions:
             market_id = self.safe_string(position, 'symbol')
@@ -1025,7 +1031,7 @@ class kucoinfutures(kucoin):
         })
 
     def get_positions(self, symbol=None, params=None):
-        return self.fetch_positions([symbol], params)
+        return self.fetch_positions(symbol, params)
 
     def create_order(self, symbol: str, type, side: OrderSide, amount, price=None, params={}):
         """
