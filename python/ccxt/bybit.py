@@ -1895,7 +1895,10 @@ class bybit(Exchange):
         else:
             default_method = 'privateGetV2PrivateOrderList'
         query = params
-        if ('stop_order_id' in params) or ('stop_order_status' in params):
+        order_type = self.safe_string_lower(params, 'type')
+        stop = order_type == 'stop'
+        params = self.omit(params, ['type'])
+        if stop or ('stop_order_id' in params) or ('stop_order_status' in params):
             stopOrderStatus = self.safe_value(params, 'stopOrderStatus')
             if stopOrderStatus is not None:
                 if isinstance(stopOrderStatus, list):
