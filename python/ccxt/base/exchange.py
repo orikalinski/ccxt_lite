@@ -1801,6 +1801,8 @@ class Exchange(object):
 
     def fetch_partial_balance(self, part, params={}):
         balance = self.fetch_balance(params)
+        if balance and balance.get('total'):
+            return balance.get(part, {'total': 0., 'free': 0., 'used': 0.})
         return balance[part]
 
     def fetch_free_balance(self, params={}):
