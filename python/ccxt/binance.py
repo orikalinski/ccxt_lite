@@ -788,9 +788,9 @@ class binance(Exchange):
         _type = self.safe_string(self.options, 'defaultType')
 
         if _type == "future":
-            account_positions = self.fapiPrivateGetAccount().get("positions", list())
+            account_positions = self.fapiPrivateV2GetAccount().get("positions", list())
             risk_positions = defaultdict(list)
-            raw_risk_positions = self.fapiPrivateGetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})
+            raw_risk_positions = self.fapiPrivateV2GetPositionRisk({"symbol": self.market_id(symbol)} if symbol else {})
             for raw_risk_position in raw_risk_positions:
                 risk_positions[raw_risk_position["symbol"]].append(raw_risk_position)
             positions_to_return = self.parse_positions(account_positions, risk_positions)
