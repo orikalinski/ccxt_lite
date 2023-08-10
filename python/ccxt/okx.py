@@ -3973,9 +3973,6 @@ class okx(Exchange):
             market_id = self.safe_string(position, 'instId')
             if market_id not in self.markets_by_id:
                 continue
-            contracts = self.safe_number(position, 'pos')
-            if not contracts:
-                continue
             result.append(self.parse_position(position))
         return result
 
@@ -4056,6 +4053,7 @@ class okx(Exchange):
         entry_price_string = self.safe_string(position, 'avgPx')
         unrealized_pnl_string = self.safe_string(position, 'upl')
         leverage_string = self.safe_string(position, 'lever')
+        leverage_string = leverage_string or '0'
         initial_margin_percentage = None
         maintenance_margin_percentage = None
         collateral_string = None
