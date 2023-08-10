@@ -2245,6 +2245,7 @@ class okx(Exchange):
     def parse_order_status(self, status):
         statuses = {
             'canceled': 'canceled',
+            'mmp_canceled': 'canceled',
             'live': 'open',
             'pause': 'open',
             'partially_filled': 'open',
@@ -2873,18 +2874,18 @@ class okx(Exchange):
             request["ordType"] = "conditional"
             state = 'effective'
         else:
-            state = 'filled'
+            state = None
         send = self.omit(query, ['method', 'stop'])
         if 'algoId' in params:
             response = getattr(self, method)(self.extend(request, send))
             data = self.safe_value(response, 'data', [])
             orders = self.parse_orders(data, market, since, limit)
         else:
-            request['state'] = state
+            if state:
+                request['state'] = state
             response = getattr(self, method)(self.extend(request, send))
             data = self.safe_value(response, 'data', [])
             orders = self.parse_orders(data, market, since, limit)
-            orders += self.fetch_canceled_orders(symbol, params=params)
         return orders
         #
         #     {
