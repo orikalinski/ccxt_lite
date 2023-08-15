@@ -2401,7 +2401,7 @@ class okx(Exchange):
         else:
             # "sz" refers to the trade currency amount
             amount = self.safe_float(order, 'sz')
-            if amount is not None:
+            if market['linear'] and amount is not None:
                 amount *= contractSize
         fee = None
         if fee_cost is not None:
