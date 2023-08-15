@@ -2372,7 +2372,7 @@ class okx(Exchange):
             type = 'limit'
         symbol = self.safe_symbol(marketId, market, '-')
         filled = self.safe_float_2(order, 'actualSz', 'accFillSz')
-        if filled:
+        if market['linear'] and filled:
             filled *= contractSize
         stop_limit_price = self.safe_float(order, "slOrdPx")
         price = self.safe_float_n(order, ['actualPx', 'px', 'ordPx'])
@@ -2401,7 +2401,7 @@ class okx(Exchange):
         else:
             # "sz" refers to the trade currency amount
             amount = self.safe_float(order, 'sz')
-            if amount is not None:
+            if market['linear'] and amount is not None:
                 amount *= contractSize
         fee = None
         if fee_cost is not None:
