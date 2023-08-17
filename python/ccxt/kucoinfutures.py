@@ -196,6 +196,7 @@ class kucoinfutures(kucoin):
             'precisionMode': TICK_SIZE,
             'exceptions': {
                 'exact': {
+                    'error.getOrder.orderNotExist': OrderNotFound,
                     '400': BadRequest,  # Bad Request -- Invalid request format
                     '401': AuthenticationError,  # Unauthorized -- Invalid API Key
                     '403': NotSupported,  # Forbidden -- The request is forbidden
