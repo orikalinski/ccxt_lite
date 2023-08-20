@@ -535,6 +535,7 @@ class binance(Exchange):
                 'Market is closed.': ExchangeNotAvailable,  # {"code":-1013,"msg":"Market is closed."}
                 'Too many requests.': DDoSProtection,  # {"msg":"Too many requests. Please try again later.","success":false}
                 'This account may not place or cancel orders.': AuthenticationError,  # {"code":-2011,"msg":"This account may not place or cancel orders."}
+                'This symbol is not permitted for this account.': ExchangeError,
                 '-1000': ExchangeNotAvailable,  # {"code":-1000,"msg":"An unknown error occured while processing the request."}
                 '-1001': ExchangeNotAvailable,  # 'Internal error; unable to process your request. Please try again.'
                 '-1002': AuthenticationError,  # 'You are not authorized to execute self request.'
