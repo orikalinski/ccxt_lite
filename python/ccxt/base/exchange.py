@@ -1537,8 +1537,9 @@ class Exchange(object):
     def currency_to_precision(self, currency, fee):
         return self.decimal_to_precision(fee, ROUND, self.currencies[currency]['precision'], self.precisionMode)
 
-    def float_to_str(self, number, num_digits=8, should_strip_zeros=False):
-        if isinstance(number, (int, float)):
+    def float_to_str(self, number, num_digits=8, should_strip_zeros=False, float_only=False):
+        to_str_types = float if float_only else (int, float)
+        if isinstance(number, to_str_types):
             num_digits = int(num_digits)
             number = float(number)
             if number >= 1:
@@ -1550,6 +1551,9 @@ class Exchange(object):
                 else:
                     return number_str.rstrip('.')
         return number
+
+    def str_float_params(self, params):
+        return {k: self.float_to_str(v, float_only=True) for k, v in params.items()}
 
     def convert_amount_into_digit_precision(self, amount):
         if 0 < amount < 1:
