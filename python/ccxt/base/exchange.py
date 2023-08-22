@@ -1552,7 +1552,7 @@ class Exchange(object):
         return number
 
     def str_float_params(self, all_params, to_float_params):
-        return {k: self.float_to_str(v) for k, v in all_params.items() if k in to_float_params}
+        return {k: self.float_to_str(v) if k in to_float_params else v for k, v in all_params.items()}
 
     def convert_amount_into_digit_precision(self, amount):
         if 0 < amount < 1:
