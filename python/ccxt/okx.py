@@ -28,6 +28,8 @@ from ccxt.base.errors import RequestTimeout
 from ccxt.base.decimal_to_precision import TICK_SIZE
 from ccxt.base.precise import Precise
 
+TO_FLOAT_PARAMS = {'sz', 'slOrdPx', 'slTriggerPx', 'tpOrdPx', 'tpTriggerPx', 'orderPx', 'triggerPx', 'px'}
+
 
 class okx(Exchange):
 
@@ -2094,14 +2096,14 @@ class okx(Exchange):
         else:
             request['clOrdId'] = clientOrderId
             params = self.omit(params, ['clOrdId', 'clientOrderId'])
-        extendedRequest = None
+
         if (method == 'privatePostTradeOrder') or (method == 'privatePostTradeOrderAlgo'):
-            extendedRequest = self.str_float_params(self.extend(request, params))
+            extendedRequest = self.str_float_params(self.extend(request, params), TO_FLOAT_PARAMS)
         elif method == 'privatePostTradeBatchOrders':
             # keep the request body the same
             # submit a single order in an array to the batch order endpoint
             # because it has a lower ratelimit
-            extendedRequest = [self.str_float_params(self.extend(request, params))]
+            extendedRequest = [self.str_float_params(self.extend(request, params), TO_FLOAT_PARAMS)]
         else:
             raise ExchangeError(self.id + ' createOrder() self.options["createOrder"] must be either privatePostTradeBatchOrders or privatePostTradeOrder')
         response = getattr(self, method)(extendedRequest)
