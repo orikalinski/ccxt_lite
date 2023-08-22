@@ -2088,7 +2088,6 @@ class okx(Exchange):
                                                            num_digits=16)
                 request['slOrdPx'] = '-1' if (slOrdPx is None) else self.price_to_precision(symbol, slOrdPx)
                 request['slTriggerPxType'] = slTriggerPxType
-                params = self.omit(params, ['slTriggerPx'])
         if (type == 'oco') or (type == 'move_order_stop') or (type == 'iceberg') or (type == 'twap'):
             method = 'privatePostTradeOrderAlgo'
         if clientOrderId is None:
