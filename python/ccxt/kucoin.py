@@ -1829,7 +1829,7 @@ class kucoin(Exchange, ImplicitAPI):
         remaining = Precise.string_sub(amount, filled)
         status = None
         if isActive is not None:
-            if isActive is True and remaining > 0:
+            if isActive is True and self.parse_number(remaining) > 0:
                 status = 'open'
             else:
                 status = 'closed'
