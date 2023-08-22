@@ -1965,7 +1965,7 @@ class okx(Exchange):
             'ordType': type,
             # 'ordType': type,  # privatePostTradeOrder: market, limit, post_only, fok, ioc, optimal_limit_ioc
             # 'ordType': type,  # privatePostTradeOrderAlgo: conditional, oco, trigger, move_order_stop, iceberg, twap
-            'sz': size,
+            'sz': self.float_to_str(size, num_digits=16),
             # 'px': self.price_to_precision(symbol, price),  # limit orders only
             # 'reduceOnly': False,
             #
@@ -2011,7 +2011,9 @@ class okx(Exchange):
         elif contract:
             request['tdMode'] = marginMode
         postOnly = self.is_post_only(isMarketOrder, type == 'post_only', params)
-        params = self.omit(params, ['currency', 'ccy', 'marginMode', 'timeInForce', 'stopPrice', 'triggerPrice', 'clientOrderId', 'stopLossPrice', 'takeProfitPrice', 'slOrdPx', 'tpOrdPx', 'margin'])
+        params = self.omit(params, ['currency', 'ccy', 'marginMode', 'timeInForce', 'stopPrice', 'triggerPrice',
+                                    'clientOrderId', 'stopLossPrice', 'takeProfitPrice', 'slOrdPx', 'tpOrdPx', 'margin',
+                                    'slTriggerPx'])
         ioc = (timeInForce == 'IOC') or (type == 'ioc')
         fok = (timeInForce == 'FOK') or (type == 'fok')
         trigger = (triggerPrice is not None) or (type == 'trigger')
@@ -2047,13 +2049,13 @@ class okx(Exchange):
                             raise InvalidOrder(self.id + " createOrder() requires the price argument with market buy orders to calculate total order cost(amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = False and supply the total cost value in the 'amount' argument or in the 'cost' unified extra parameter or in exchange-specific 'sz' extra parameter(the exchange-specific behaviour)")
                     else:
                         notional = amount if (notional is None) else notional
-                    request['sz'] = notional  #  self.cost_to_precision(symbol, notional)
+                    request['sz'] = self.float_to_str(notional, num_digits=16)  #  self.cost_to_precision(symbol, notional)
                     params = self.omit(params, ['cost', 'sz'])
             if marketIOC and contract:
                 request['ordType'] = 'optimal_limit_ioc'
         else:
             if (not trigger) and (not conditional):
-                request['px'] = self.price_to_precision(symbol, price)
+                request['px'] = self.float_to_str(self.price_to_precision(symbol, price), num_digits=16)
         if postOnly:
             method = defaultMethod
             request['ordType'] = 'post_only'
@@ -2066,7 +2068,7 @@ class okx(Exchange):
         elif trigger:
             method = 'privatePostTradeOrderAlgo'
             request['ordType'] = 'trigger'
-            request['triggerPx'] = self.price_to_precision(symbol, triggerPrice)
+            request['triggerPx'] = self.float_to_str(self.price_to_precision(symbol, triggerPrice), num_digits=16)
             request['orderPx'] = '-1' if isMarketOrder else self.price_to_precision(symbol, price)
         elif conditional:
             method = 'privatePostTradeOrderAlgo'
@@ -2077,13 +2079,16 @@ class okx(Exchange):
             if twoWayCondition:
                 request['ordType'] = 'oco'
             if takeProfitPrice is not None:
-                request['tpTriggerPx'] = self.price_to_precision(symbol, takeProfitPrice)
+                request['tpTriggerPx'] = self.float_to_str(self.price_to_precision(symbol, takeProfitPrice),
+                                                           num_digits=16)
                 request['tpOrdPx'] = '-1' if (tpOrdPx is None) else self.price_to_precision(symbol, tpOrdPx)
                 request['tpTriggerPxType'] = tpTriggerPxType
             if stopLossPrice is not None:
-                request['slTriggerPx'] = self.price_to_precision(symbol, stopLossPrice)
+                request['slTriggerPx'] = self.float_to_str(self.price_to_precision(symbol, stopLossPrice),
+                                                           num_digits=16)
                 request['slOrdPx'] = '-1' if (slOrdPx is None) else self.price_to_precision(symbol, slOrdPx)
                 request['slTriggerPxType'] = slTriggerPxType
+                params = self.omit(params, ['slTriggerPx'])
         if (type == 'oco') or (type == 'move_order_stop') or (type == 'iceberg') or (type == 'twap'):
             method = 'privatePostTradeOrderAlgo'
         if clientOrderId is None:
