@@ -1401,10 +1401,14 @@ class kucoinfutures(kucoin):
         stop_price_type = self.safe_string(responseData, 'stopPriceType')
         if is_active or not stop_price_type:
             return
-        relevant_time = self.safe_float_2(responseData, 'updatedAt', 'endAt')
+        relevant_time = self.safe_float(responseData, 'updatedAt')
+        if not relevant_time:
+            relevant_time = self.safe_float(responseData, 'endAt')
+            self.logger.warning('Fetching orders by endAt response: %s',
+                                responseData)
         if not relevant_time:
             relevant_time = self.safe_float(responseData, 'createdAt')
-            self.logger.warning('Fetched an order without an updatedAt field, fetching by createdAt response: %s',
+            self.logger.warning('Fetching orders by createdAt response: %s',
                                 responseData)
         since = relevant_time - THIRTY_SECS_IN_MILLI
 
