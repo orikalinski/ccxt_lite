@@ -1412,12 +1412,12 @@ class kucoinfutures(kucoin):
                                 responseData)
         since = relevant_time - THIRTY_SECS_IN_MILLI
 
-        orders = self.fetch_closed_orders(symbol, since=since)
+        orders = self.fetch_closed_orders(symbol, since=int(since))
         order = next((order for order in orders if order["id"] == id), None)
         if order:
             return order
         else:
-            orders = self.fetch_open_orders(symbol, since=since)
+            orders = self.fetch_open_orders(symbol, since=int(since))
 
         order = next((order for order in orders if order["id"] == id), None)
         return order  # if order is None, it means that it really was closed on the updatedAt time.
