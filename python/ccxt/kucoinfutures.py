@@ -1411,8 +1411,8 @@ class kucoinfutures(kucoin):
             relevant_time = self.safe_float(responseData, 'createdAt')
             self.logger.warning('Fetching orders by createdAt response: %s',
                                 responseData)
-        since = relevant_time - THIRTY_SECS_IN_MILLI
 
+        since = relevant_time - THIRTY_SECS_IN_MILLI
         orders = self.fetch_closed_orders(symbol, since=int(since))
         order = next((order for order in orders if order["id"] == id), None)
         if order:
