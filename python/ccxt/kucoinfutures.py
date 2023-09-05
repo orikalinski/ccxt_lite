@@ -1397,10 +1397,11 @@ class kucoinfutures(kucoin):
         return self.fetch_orders_by_status('done', symbol, since, limit, params)
 
     def fetch_stop_order_from_orders(self, responseData, id, symbol):
-        is_active = self.safe_value(responseData, 'isActive', False)
-        stop_price_type = self.safe_string(responseData, 'stopPriceType')
+        is_active = responseData["isActive"]
+        stop_price_type = responseData["stopPriceType"]
         if is_active or not stop_price_type:
             return
+
         relevant_time = self.safe_float(responseData, 'updatedAt')
         if not relevant_time:
             relevant_time = self.safe_float(responseData, 'endAt')
