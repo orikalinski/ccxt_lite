@@ -2247,6 +2247,7 @@ class okx(Exchange):
     def parse_order_status(self, status):
         statuses = {
             'canceled': 'canceled',
+            'mmp_canceled': 'canceled',
             'live': 'open',
             'pause': 'open',
             'partially_filled': 'open',
@@ -2875,18 +2876,18 @@ class okx(Exchange):
             request["ordType"] = "conditional"
             state = 'effective'
         else:
-            state = 'filled'
+            state = None
         send = self.omit(query, ['method', 'stop'])
         if 'algoId' in params:
             response = getattr(self, method)(self.extend(request, send))
             data = self.safe_value(response, 'data', [])
             orders = self.parse_orders(data, market, since, limit)
         else:
-            request['state'] = state
+            if state:
+                request['state'] = state
             response = getattr(self, method)(self.extend(request, send))
             data = self.safe_value(response, 'data', [])
             orders = self.parse_orders(data, market, since, limit)
-            orders += self.fetch_canceled_orders(symbol, params=params)
         return orders
         #
         #     {
@@ -3974,9 +3975,6 @@ class okx(Exchange):
             market_id = self.safe_string(position, 'instId')
             if market_id not in self.markets_by_id:
                 continue
-            contracts = self.safe_number(position, 'pos')
-            if not contracts:
-                continue
             result.append(self.parse_position(position))
         return result
 
@@ -4057,6 +4055,7 @@ class okx(Exchange):
         entry_price_string = self.safe_string(position, 'avgPx')
         unrealized_pnl_string = self.safe_string(position, 'upl')
         leverage_string = self.safe_string(position, 'lever')
+        leverage_string = leverage_string or '0'
         initial_margin_percentage = None
         maintenance_margin_percentage = None
         collateral_string = None
