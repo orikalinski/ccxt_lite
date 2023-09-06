@@ -1824,9 +1824,12 @@ class kucoin(Exchange, ImplicitAPI):
         stop = self.safe_string(order, 'stop')
         stopTriggered = self.safe_value(order, 'stopTriggered', False)
         isActive = self.safe_value_2(order, 'isActive', 'active')
+        amount = self.safe_string(order, 'size')
+        filled = self.safe_string(order, 'dealSize')
+        remaining = Precise.string_sub(amount, filled)
         status = None
         if isActive is not None:
-            if isActive is True:
+            if isActive is True and self.parse_number(remaining) > 0:
                 status = 'open'
             else:
                 status = 'closed'
@@ -1853,13 +1856,13 @@ class kucoin(Exchange, ImplicitAPI):
             'timeInForce': self.safe_string(order, 'timeInForce'),
             'postOnly': self.safe_value(order, 'postOnly'),
             'side': self.safe_string(order, 'side'),
-            'amount': self.safe_string(order, 'size'),
+            'amount': amount,
             'price': self.safe_string(order, 'price'),  # price is zero for market order, omitZero is called in safeOrder2
             'stopPrice': stopPrice,
             'triggerPrice': stopPrice,
             'cost': self.safe_string(order, 'dealFunds'),
-            'filled': self.safe_string(order, 'dealSize'),
-            'remaining': None,
+            'filled': filled,
+            'remaining': remaining,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'fee': fee,
