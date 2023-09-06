@@ -1954,7 +1954,8 @@ class okx(Exchange):
         market = self.market(symbol)
         size = self.amount_to_precision(symbol, amount)
         if market['linear']:
-            size = int(float(size) / self.safe_value(market, 'contractSize'))
+            size = Precise.string_div(size, str(self.safe_value(market, 'contractSize')))
+            size = int(size)
         request = {
             'instId': market['id'],
             # 'ccy': currency['id'],  # only applicable to cross MARGIN orders in single-currency margin
@@ -2373,7 +2374,7 @@ class okx(Exchange):
         symbol = self.safe_symbol(marketId, market, '-')
         filled = self.safe_float_2(order, 'actualSz', 'accFillSz')
         if market['linear'] and filled:
-            filled *= contractSize
+            filled = float(Precise.string_mul(str(filled), str(contractSize)))
         stop_limit_price = self.safe_float(order, "slOrdPx")
         price = self.safe_float_n(order, ['actualPx', 'px', 'ordPx'])
         stop_price = self.safe_float(order, 'slTriggerPx')
@@ -2402,7 +2403,7 @@ class okx(Exchange):
             # "sz" refers to the trade currency amount
             amount = self.safe_float(order, 'sz')
             if market['linear'] and amount is not None:
-                amount *= contractSize
+                amount = float(Precise.string_mul(str(amount), str(contractSize)))
         fee = None
         if fee_cost is not None:
             feeCurrencyId = self.safe_string(order, 'feeCcy')
