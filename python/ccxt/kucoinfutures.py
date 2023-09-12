@@ -197,6 +197,7 @@ class kucoinfutures(kucoin):
             'exceptions': {
                 'exact': {
                     'error.getOrder.orderNotExist': OrderNotFound,
+                    'Contract status is not open': ExchangeNotAvailable,
                     '400': BadRequest,  # Bad Request -- Invalid request format
                     '401': AuthenticationError,  # Unauthorized -- Invalid API Key
                     '403': NotSupported,  # Forbidden -- The request is forbidden
