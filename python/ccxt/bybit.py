@@ -1515,6 +1515,12 @@ class bybit(Exchange):
         default_type = self.safe_string(self.options, 'defaultType')
         return default_type == "option"
 
+    def get_category(self, support_inverse=True):
+        category = self.safe_string(self.options, 'defaultType')
+        if not support_inverse and category == 'inverse':
+            raise NotSupported("This endpoint does not support inverse")
+        return category
+
     def fetch_currencies(self, params={}):
         """
         fetches all available currencies on an exchange
@@ -2260,11 +2266,6 @@ class bybit(Exchange):
         tickers = self.safe_value(result, 'list', [])
         rawTicker = self.safe_value(tickers, 0)
         return self.parse_ticker(rawTicker, market)
-
-    def get_category(self, support_inverse=True):
-        category = self.safe_string(self.options, 'defaultType')
-        if not support_inverse and category == 'inverse':
-            raise NotSupported("This endpoint does not support inverse")
         
     def fetch_tickers(self, symbols: Optional[List[str]] = None, params={}):
         """
@@ -2721,6 +2722,7 @@ class bybit(Exchange):
         #
         result = self.safe_value(response, 'result', {})
         trades = self.safe_value(result, 'list', [])
+        trades = [trade for trade in trades if trade['isBlockTrade'] is False]
         return self.parse_trades(trades, market, since, limit)
 
     def fetch_order_book(self, symbol: str, limit: Optional[int] = None, params={}):

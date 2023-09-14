@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+
+ccxt.egg.*
+python/dist/*
+python/build/*
+
+*.session
+*.session-journal
+
+venv*
+logs/
+.idea/
+.DS_Store
+
+*.sql
+*.sqlite3
+
+# Unit test / coverage reports
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+
