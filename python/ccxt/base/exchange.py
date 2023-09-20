@@ -1551,6 +1551,9 @@ class Exchange(object):
                     return number_str.rstrip('.')
         return number
 
+    def str_float_params(self, all_params, to_float_params):
+        return {k: self.float_to_str(v, num_digits=16) if k in to_float_params else v for k, v in all_params.items()}
+
     def convert_amount_into_digit_precision(self, amount):
         if 0 < amount < 1:
             precision = len(self.float_to_str(amount, num_digits=16).rstrip("0").split(".")[1])
