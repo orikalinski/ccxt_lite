@@ -1402,14 +1402,24 @@ class kucoinfutures(kucoin):
         stop_price_type = responseData["stopPriceType"]
         if is_active or not stop_price_type:
             return
-        update_at = responseData["updatedAt"]
-        since = update_at - THIRTY_SECS_IN_MILLI
-        orders = self.fetch_closed_orders(symbol, since=since)
+
+        relevant_time = self.safe_float(responseData, 'updatedAt')
+        if not relevant_time:
+            relevant_time = self.safe_float(responseData, 'endAt')
+            self.logger.warning('Fetching orders by endAt response: %s',
+                                responseData)
+        if not relevant_time:
+            relevant_time = self.safe_float(responseData, 'createdAt')
+            self.logger.warning('Fetching orders by createdAt response: %s',
+                                responseData)
+
+        since = relevant_time - THIRTY_SECS_IN_MILLI
+        orders = self.fetch_closed_orders(symbol, since=int(since))
         order = next((order for order in orders if order["id"] == id), None)
         if order:
             return order
         else:
-            orders = self.fetch_open_orders(symbol, since=since)
+            orders = self.fetch_open_orders(symbol, since=int(since))
 
         order = next((order for order in orders if order["id"] == id), None)
         return order  # if order is None, it means that it really was closed on the updatedAt time.
