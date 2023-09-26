@@ -1,7 +1,7 @@
 __pycache__/
 *.py[cod]
 
-ccxt.egg*
+python/ccxt.egg-info/*
 python/dist/*
 python/build/*
 
