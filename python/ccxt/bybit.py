@@ -6346,6 +6346,9 @@ class bybit(Exchange):
         else:
             return self.fetch_derivatives_positions(symbols, params)
 
+    def get_positions(self, symbols: Optional[List[str]] = None, params={}):
+        return self.fetch_positions(symbols=symbols, params=params)
+
     def parse_position(self, position, market=None):
         #
         # linear swap
@@ -6462,7 +6465,8 @@ class bybit(Exchange):
         #
         contract = self.safe_string(position, 'symbol')
         market = self.safe_market(contract, market, None, 'contract')
-        size = Precise.string_abs(self.safe_string(position, 'size'))
+        size = self.safe_string(position, 'size')
+        size_abs = Precise.string_abs(self.safe_string(position, 'size'))
         side = self.safe_string(position, 'side')
         if side is not None:
             if side == 'Buy':
@@ -6498,10 +6502,10 @@ class bybit(Exchange):
                     #  (Entry price - Liq price) * Contracts = Collateral - Maintenance Margin
                     # Maintenance Margin = (Bust price - Liq price) x Contracts
                     maintenanceMarginPriceDifference = Precise.string_abs(Precise.string_sub(liquidationPrice, bustPrice))
-                    maintenanceMarginString = Precise.string_mul(maintenanceMarginPriceDifference, size)
+                    maintenanceMarginString = Precise.string_mul(maintenanceMarginPriceDifference, size_abs)
                     # Initial Margin = Contracts x Entry Price / Leverage
                     if entryPrice is not None:
-                        initialMarginString = Precise.string_div(Precise.string_mul(size, entryPrice), leverage)
+                        initialMarginString = Precise.string_div(Precise.string_mul(size_abs, entryPrice), leverage)
                 else:
                     # Contracts * (1 / Entry price - 1 / Bust price) = Collateral
                     # Contracts * (1 / Entry price - 1 / Liq price) = Collateral - Maintenance Margin
@@ -6509,36 +6513,41 @@ class bybit(Exchange):
                     # Maintenance Margin = Contracts * (Bust price - Liq price) / (Liq price x Bust price)
                     difference = Precise.string_abs(Precise.string_sub(bustPrice, liquidationPrice))
                     multiply = Precise.string_mul(bustPrice, liquidationPrice)
-                    maintenanceMarginString = Precise.string_div(Precise.string_mul(size, difference), multiply)
+                    maintenanceMarginString = Precise.string_div(Precise.string_mul(size_abs, difference), multiply)
                     # Initial Margin = Leverage x Contracts / EntryPrice
                     if entryPrice is not None:
-                        initialMarginString = Precise.string_div(size, Precise.string_mul(entryPrice, leverage))
+                        initialMarginString = Precise.string_div(size_abs, Precise.string_mul(entryPrice, leverage))
         maintenanceMarginPercentage = Precise.string_div(maintenanceMarginString, notional)
         marginRatio = Precise.string_div(maintenanceMarginString, collateralString, 4)
+        risk_id = self.safe_integer(position, "riskId")
         return self.safe_position({
             'info': position,
             'id': None,
             'symbol': market['symbol'],
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
+            'risk_id': risk_id,
             'lastUpdateTimestamp': None,
             'initialMargin': self.parse_number(initialMarginString),
             'initialMarginPercentage': self.parse_number(Precise.string_div(initialMarginString, notional)),
-            'maintenanceMargin': self.parse_number(maintenanceMarginString),
+            'maintenance_margin': self.parse_number(maintenanceMarginString),
             'maintenanceMarginPercentage': self.parse_number(maintenanceMarginPercentage),
             'entryPrice': self.parse_number(entryPrice),
             'notional': self.parse_number(notional),
             'leverage': self.parse_number(leverage),
             'unrealizedPnl': self.parse_number(unrealisedPnl),
             'contracts': self.parse_number(size),  # in USD for inverse swaps
+            'quantity': self.parse_number(size),
             'contractSize': self.safe_number(market, 'contractSize'),
             'marginRatio': self.parse_number(marginRatio),
-            'liquidationPrice': self.parse_number(liquidationPrice),
+            'liquidation_price': self.parse_number(liquidationPrice),
             'markPrice': self.safe_number(position, 'markPrice'),
             'lastPrice': None,
             'collateral': self.parse_number(collateralString),
             'marginMode': marginMode,
+            'margin_type': marginMode,
             'side': side,
+            'is_long': None if side == "none" else side.lower() == 'long',
             'percentage': None,
             'stopLossPrice': self.safe_number_2(position, 'stop_loss', 'stopLoss'),
             'takeProfitPrice': self.safe_number_2(position, 'take_profit', 'takeProfit'),
