@@ -8,6 +8,7 @@ __version__ = '1.33.52'
 
 # -----------------------------------------------------------------------------
 import random
+from typing import Optional, List
 
 from ccxt.base.errors import ExchangeError, InvalidOrder, NullResponse
 from ccxt.base.errors import NetworkError
@@ -738,6 +739,15 @@ class Exchange(object):
             percentageString = Precise.string_mul(Precise.string_div(unrealizedPnlString, initialMarginString, 4), '100')
             position['percentage'] = self.parse_number(percentageString)
         return position
+
+    def parse_positions(self, positions, symbols: Optional[List[str]] = None, params={}):
+        symbols = self.market_symbols(symbols)
+        positions = self.to_array(positions)
+        result = []
+        for i in range(0, len(positions)):
+            position = self.extend(self.parse_position(positions[i], None), params)
+            result.append(position)
+        return self.filter_by_array_positions(result, 'symbol', symbols, False)
 
     @staticmethod
     def safe_float_n(dictionary, key_list, default_value=None):
@@ -1758,6 +1768,12 @@ class Exchange(object):
 
     def fetch_deposit_address(self, code=None, since=None, limit=None, params={}):
         raise NotSupported('fetch_deposit_address() is not supported yet')
+
+    def fetch_accounts(self, params={}):
+        raise NotSupported(self.id + ' fetchAccounts() is not supported yet')
+
+    def parse_position(self, position, market=None):
+        raise NotSupported(self.id + ' parsePosition() is not supported yet')
 
     def parse_ohlcv(self, ohlcv, market=None):
         return ohlcv[0:6] if isinstance(ohlcv, list) else ohlcv

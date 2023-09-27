@@ -11,7 +11,7 @@ from ccxt.base.types import OrderSide
 from ccxt.base.types import OrderType
 from typing import Optional
 from typing import List
-from ccxt.base.errors import ExchangeError, NotChanged, OrderCancelled
+from ccxt.base.errors import ExchangeError, NotChanged, OrderCancelled, PositionNotFound
 from ccxt.base.errors import PermissionDenied
 from ccxt.base.errors import ArgumentsRequired
 from ccxt.base.errors import BadRequest
@@ -63,8 +63,8 @@ STATUS_MAPPING = {
     'Active': 'open',
 }
 
-PERMISSION_TO_VALUE = {"spot": ["SpotTrade"], "futures": ["Position", "Order"],
-                       "withdrawal": ["Withdrawal"]}
+PERMISSION_TO_VALUE = {'spot': ['Spot'], 'futures': ['ContractTrade'],
+                       'withdrawal': ['Wallet']}
 NOT_CHANGED_ERROR_CODES = {'30083', '34026', '134026'}
 MIN_HEDGE_MODE_COUNT_THRESHOLD = 3
 
@@ -5878,6 +5878,24 @@ class bybit(Exchange):
         }
         return self.safe_string(types, type, type)
 
+    def get_api_account_details(self):
+        response = self.privateGetV5UserQueryApi()
+        result = self.safe_value(response, 'result')
+        result = result[0] if result and type(result) == list else result
+        ips = self.safe_value(result, "ips")
+        exchange_permissions = self.safe_value(result, "permissions")
+        read_only = self.safe_integer(result, "readOnly", default_value=False) == 1
+        permissions = list()
+        allow_all = type(ips) == list and "*" in ips
+        if not read_only:
+            permissions = self.extract_trading_permissions(PERMISSION_TO_VALUE, response=exchange_permissions)
+        return {
+            "creation": self.parse8601(self.safe_string(result, "createdAt")),
+            "expiration": self.parse8601(self.safe_string(result, "expiredAt")),
+            "permissions": permissions,
+            "ip_restrict": not allow_all
+        }
+
     def withdraw(self, code: str, amount, address, tag=None, params={}):
         """
         make a withdrawal
@@ -6561,6 +6579,41 @@ class bybit(Exchange):
             return self.set_unified_margin_mode(marginMode, symbol, params)
         return self.set_derivatives_margin_mode(marginMode, symbol, params)
 
+    def change_margin_type(self, symbol, is_cross, leverage, is_long):
+        values = self.is_unified_enabled()
+        isUnifiedAccount = self.safe_value(values, 1)
+        if isUnifiedAccount:
+            margin_mode = 'REGULAR_MARGIN' if is_cross else 'ISOLATED_MARGIN'
+            return self.set_margin_mode(margin_mode)
+        else:
+            margin_mode = 'CROSS' if is_cross else 'ISOLATED'
+            return self.classify_change_margin(symbol, _id, is_long, is_cross, leverage)
+
+    @staticmethod
+    def get_same_direction_position(positions, is_long):
+        for position in positions:
+            _is_long = position["is_long"]
+            if is_long == _is_long or _is_long is None:
+                return position
+
+    def classify_change_margin(self, symbol, _id, is_long, is_cross, leverage):
+        positions = self.get_positions(symbol)
+        same_direction_position = self.get_same_direction_position(positions, is_long)
+        if same_direction_position is None:
+            raise PositionNotFound(f"Couldn't find position for symbol: {symbol} is_long: {is_long}")
+
+        _is_long = same_direction_position["is_long"]
+        _leverage = same_direction_position["leverage"]
+        _is_cross = same_direction_position["margin_type"] == "cross"
+        long_leverage, short_leverage = self.get_change_margin_input(positions, is_cross, leverage, _is_long)
+
+        if is_cross == _is_cross and (leverage == _leverage):
+            return
+        elif is_cross != _is_cross:
+            return self._change_margin_type(symbol, _id, not is_cross, long_leverage, short_leverage)
+        else:
+            return self.set_leverage(symbol, long_leverage=long_leverage, short_leverage=short_leverage)
+
     def set_unified_margin_mode(self, marginMode, symbol: Optional[str] = None, params={}):
         self.load_markets()
         if (marginMode != 'REGULAR_MARGIN') and (marginMode != 'PORTFOLIO_MARGIN'):
@@ -6644,7 +6697,7 @@ class bybit(Exchange):
         else:
             raise NotSupported()
 
-    def set_leverage(self, leverage, symbol: Optional[str] = None, params={}):
+    def set_leverage(self, long_leverage, short_leverage, symbol: Optional[str] = None, params={}):
         """
         set the level of leverage for a market
         :param float leverage: the rate of leverage
@@ -6661,14 +6714,15 @@ class bybit(Exchange):
         enableUnifiedMargin, enableUnifiedAccount = self.is_unified_enabled()
         # engage in leverage setting
         # we reuse the code here instead of having two methods
-        leverage = self.number_to_string(leverage)
+        long_leverage = self.number_to_string(long_leverage)
+        short_leverage = self.number_to_string(short_leverage)
         method = None
         request = None
         if enableUnifiedMargin or enableUnifiedAccount or not isUsdcSettled:
             request = {
                 'symbol': market['id'],
-                'buyLeverage': leverage,
-                'sellLeverage': leverage,
+                'buyLeverage': long_leverage,
+                'sellLeverage': short_leverage,
             }
             if enableUnifiedAccount:
                 if self.is_linear():
@@ -6689,7 +6743,7 @@ class bybit(Exchange):
         else:
             request = {
                 'symbol': market['id'],
-                'leverage': leverage,
+                'leverage': long_leverage,
             }
             method = 'privatePostPerpetualUsdcOpenapiPrivateV1PositionLeverageSave'
         return getattr(self, method)(self.extend(request, params))
@@ -6721,7 +6775,7 @@ class bybit(Exchange):
         else:
             request['symbol'] = market['id']
 
-        request['category'] = 'linear' if self.is_linear() else 'inverse' # INVERSE FUTURES ONLY
+        request['category'] = 'linear' if self.is_linear() else 'inverse'  # INVERSE FUTURES ONLY
         try:
             response = self.privatePostV5PositionSwitchMode(self.extend(request, params))
             return_message = self.safe_string(response, "ret_msg")
@@ -6738,6 +6792,9 @@ class bybit(Exchange):
         #         "retExtInfo": {},
         #         "time": 1675249072814
         #     }
+
+    def change_position_mode(self, is_hedge_mode, symbol=None, pair=None):
+        return self.set_position_mode(is_hedge_mode, symbol=symbol)
 
     def fetch_derivatives_open_interest_history(self, symbol: str, timeframe='1h', since: Optional[int] = None, limit: Optional[int] = None, params={}):
         self.load_markets()
